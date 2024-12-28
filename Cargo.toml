@@ -1,0 +1,55 @@
+[package]
+name = "addresser"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-cors = "0.7"
+actix-files = "0.6"
+actix-multipart = "0.7"
+actix-rt = "2.10"
+actix-session = { version = "0.10", features = ["cookie-session"] }
+actix-web = "4.9"
+actix-web-httpauth = "0.8"
+awc = { version = "3", features = ["rustls"] }
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4", features = ["cargo", "derive"] }
+dotenv = "0.15"
+dotenvy = "0.15.7"
+env_logger = "0.11"
+eth-blockies = "1.1"
+futures-util = "0.3"
+lazy_static = "1.5"
+lettre = "0.11.9"
+log = "0.4"
+mime_guess = "2"
+oauth2 = "4.4"
+pbkdf2 = { version = "0.12", features = ["simple"] }
+percent-encoding = "2.3"
+rand = "0.8"
+reqwest = "0.12.8"
+rust-embed = "8"
+rust_decimal = "1.36"
+rustc-hex = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+sqlx = { version = "0.8", features = ["sqlite", "chrono", "runtime-tokio"] }
+tokio = "1"
+url = "2"
+uuid = { version = "1.10", features = ["v4"] }
+web3 = { git = "https://github.com/scx1332/rust-web3", branch = "master" }
+zstd = "0.13.2"
+
+[features]
+default = ["proxy"]
+dashboard = []
+proxy = []
+
+[profile.dev]
+debug = false
+incremental = false
+
+# Set the default for dependencies.
+[profile.dev.package."*"]
+opt-level = 2
