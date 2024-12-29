@@ -47,7 +47,7 @@ async fn main() -> std::io::Result<()> {
             caller,
             salt,
         } => {
-            let result = compute_create3_command(factory, caller, salt);
+            let result = compute_create3_command(factory, salt);
             match result {
                 Ok(hash) => {
                     log::info!("Computed create3 hash: {}", hash);
