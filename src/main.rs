@@ -8,7 +8,7 @@ mod cookie;
 
 use crate::hash::compute_create3_command;
 use crate::db::connection::create_sqlite_connection;
-use crate::db::ops::insert_fancy_obj;
+use crate::db::ops::{insert_fancy_obj, list_all};
 use actix_multipart::form::MultipartFormConfig;
 use actix_session::config::CookieContentSecurity;
 use actix_session::storage::CookieSessionStore;
@@ -27,6 +27,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 use lazy_static::lazy_static;
+use serde::Deserialize;
 use serde_json::json;
 use tokio::sync::Mutex;
 use crate::cookie::load_key_or_create;
@@ -61,6 +62,59 @@ lazy_static! {
 
 pub struct ServerData {
     pub db_connection: Arc<Mutex<SqlitePool>>,
+}
+
+pub async fn handle_list(server_data: web::Data<Box<ServerData>>) -> impl Responder {
+    let conn = server_data.db_connection.lock().await;
+    let list = list_all(&conn).await.unwrap();
+
+    HttpResponse::Ok().json(list)
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AddNewData {
+    pub salt: String,
+    pub miner: String,
+    pub factory: String,
+    pub address: String,
+}
+
+
+pub async fn handle_fancy_new(server_data: web::Data<Box<ServerData>>, new_data: web::Json<AddNewData>) -> HttpResponse {
+    let conn = server_data.db_connection.lock().await;
+    let factory = match web3::types::Address::from_str(&new_data.factory) {
+        Ok(factory) => factory,
+        Err(e) => {
+            log::error!("{}", e);
+            return HttpResponse::BadRequest().finish();
+        }
+    };
+    let result = match fancy::parse_fancy(new_data.salt.clone(), factory, new_data.miner.clone()) {
+        Ok(fancy) => fancy,
+        Err(e) => {
+            log::error!("{}", e);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    if format!("{:#x}", result.address.addr()) != new_data.address.to_lowercase() {
+        log::error!("Address mismatch expected: {}, got: {}", format!("{:#x}", result.address.addr()), new_data.address.to_lowercase());
+        return HttpResponse::BadRequest().body("Address mismatch");
+    }
+
+    println!("{:?}", result);
+    match insert_fancy_obj(&conn, result).await {
+        Ok(_) => (return HttpResponse::Ok().body("Entry accepted")),
+        Err(e) => {
+            if e.to_string().contains("UNIQUE constraint failed") {
+                HttpResponse::Ok().body("Already exists")
+            } else {
+                log::error!("{}", e);
+                HttpResponse::InternalServerError().finish()
+            }
+        }
+    }
 }
 
 pub async fn handle_greet(session: Session) -> impl Responder {
@@ -150,7 +204,10 @@ async fn main() -> std::io::Result<()> {
                         .build();
 
                 let api_scope = Scope::new("/api")
+                    .route("/fancy/list", web::get().to(handle_list))
+                    .route("/fancy/new", web::post().to(handle_fancy_new))
                     .route("/greet", web::get().to(handle_greet));
+
 
                 App::new()
                     .wrap(session_middleware)

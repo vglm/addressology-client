@@ -21,3 +21,14 @@ VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;
     .await?;
     Ok(res)
 }
+
+pub async fn list_all(
+    conn: &SqlitePool,
+) -> Result<Vec<FancyDbObj>, sqlx::Error> {
+    let res = sqlx::query_as::<_, FancyDbObj>(
+        r"SELECT * FROM fancy;",
+    )
+    .fetch_all(conn)
+    .await?;
+    Ok(res)
+}
