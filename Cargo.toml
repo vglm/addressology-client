@@ -12,6 +12,7 @@ actix-session = { version = "0.10", features = ["cookie-session"] }
 actix-web = "4.9"
 actix-web-httpauth = "0.8"
 awc = { version = "3", features = ["rustls"] }
+censor = "0.3.0"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["cargo", "derive"] }
 dotenv = "0.15"

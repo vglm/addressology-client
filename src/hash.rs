@@ -4,16 +4,15 @@ use crate::err_custom_create;
 use crate::error::AddressologyError;
 
 pub fn salt_to_guarded_salt(salt: &[u8]) -> [u8; 32] {
-    let mut hasher = tiny_keccak::Keccak::v256();
-    hasher.update(salt);
+    //take last 32 bytes
     let mut result = [0; 32];
-    hasher.finalize(&mut result);
+    result.copy_from_slice(&salt[0..32]);
     result
 }
 
 pub fn compute_create3_command(
-    factory: String,
-    salt: String,
+    factory: &str,
+    salt: &str,
 ) -> Result<String, AddressologyError> {
     log::info!("Computing create3 for factory: {}, salt: {}", factory, salt);
 
@@ -113,11 +112,11 @@ mod tests {
 
     #[test]
     fn test_compute_create3_command() {
-        let factory = "0x811Ed372428e629955fA48015f4B279a1ffa9c87".to_string();
-        let salt = "0xa9228d0032789a3bcaa479000000000000000000000000000000000000000000".to_string();
+        let factory = "0x9E3F8eaE49E442A323EF2094f277Bf62752E6995".to_string();
+        let salt = "0x9a07547b2ac4220006e585000000000000000000000000000000000000000000".to_string();
 
-        let result = compute_create3_command(factory, salt);
+        let result = compute_create3_command(&factory, &salt);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "0xc88d73a05d191e247b331484fbeb03eba8967eab".to_string());
+        assert_eq!(result.unwrap(), "0x31585b5cd5557777376822555552bb555ee18882".to_string());
     }
 }

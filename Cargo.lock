@@ -336,6 +336,7 @@ dependencies = [
  "actix-web",
  "actix-web-httpauth",
  "awc",
+ "censor",
  "chrono",
  "clap",
  "dotenv",
@@ -790,6 +791,15 @@ dependencies = [
  "jobserver",
  "libc",
  "shlex",
+]
+
+[[package]]
+name = "censor"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d41e3b9fdbb9b3edc10dc66a06dc255822f699c432e19403fb966e6d60e0dec4"
+dependencies = [
+ "once_cell",
 ]
 
 [[package]]
