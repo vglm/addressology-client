@@ -1,14 +1,14 @@
-mod error;
-mod hash;
-mod db;
-mod types;
-mod fancy;
 mod cookie;
+mod db;
+mod error;
+mod fancy;
+mod hash;
+mod types;
 
-
-use crate::hash::compute_create3_command;
+use crate::cookie::load_key_or_create;
 use crate::db::connection::create_sqlite_connection;
 use crate::db::ops::{insert_fancy_obj, list_all};
+use crate::hash::compute_create3_command;
 use actix_multipart::form::MultipartFormConfig;
 use actix_session::config::CookieContentSecurity;
 use actix_session::storage::CookieSessionStore;
@@ -20,17 +20,16 @@ use actix_web::{
 use awc::http::StatusCode;
 use awc::Client;
 use clap::{crate_version, Parser, Subcommand};
+use lazy_static::lazy_static;
+use serde::Deserialize;
+use serde_json::json;
 use sqlx::SqlitePool;
 use std::collections::{BTreeSet, HashMap};
 use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
-use lazy_static::lazy_static;
-use serde::Deserialize;
-use serde_json::json;
 use tokio::sync::Mutex;
-use crate::cookie::load_key_or_create;
 
 fn get_allowed_emails() -> Vec<String> {
     let res = env::var("ALLOWED_EMAILS")
@@ -59,7 +58,6 @@ lazy_static! {
         .unwrap_or(false);
 }
 
-
 pub struct ServerData {
     pub db_connection: Arc<Mutex<SqlitePool>>,
 }
@@ -80,8 +78,10 @@ pub struct AddNewData {
     pub address: String,
 }
 
-
-pub async fn handle_fancy_new(server_data: web::Data<Box<ServerData>>, new_data: web::Json<AddNewData>) -> HttpResponse {
+pub async fn handle_fancy_new(
+    server_data: web::Data<Box<ServerData>>,
+    new_data: web::Json<AddNewData>,
+) -> HttpResponse {
     let conn = server_data.db_connection.lock().await;
     let factory = match web3::types::Address::from_str(&new_data.factory) {
         Ok(factory) => factory,
@@ -99,7 +99,11 @@ pub async fn handle_fancy_new(server_data: web::Data<Box<ServerData>>, new_data:
     };
 
     if format!("{:#x}", result.address.addr()) != new_data.address.to_lowercase() {
-        log::error!("Address mismatch expected: {}, got: {}", format!("{:#x}", result.address.addr()), new_data.address.to_lowercase());
+        log::error!(
+            "Address mismatch expected: {}, got: {}",
+            format!("{:#x}", result.address.addr()),
+            new_data.address.to_lowercase()
+        );
         return HttpResponse::BadRequest().body("Address mismatch");
     }
 
@@ -127,7 +131,6 @@ pub async fn handle_greet(session: Session) -> impl Responder {
         "version": describe_version,
     }))
 }
-
 
 /// Enum that defines the available subcommands
 #[derive(Subcommand)]
@@ -186,7 +189,6 @@ async fn main() -> std::io::Result<()> {
                 .await
                 .unwrap();
 
-
             HttpServer::new(move || {
                 let cors = actix_cors::Cors::permissive();
 
@@ -208,7 +210,6 @@ async fn main() -> std::io::Result<()> {
                     .route("/fancy/new", web::post().to(handle_fancy_new))
                     .route("/greet", web::get().to(handle_greet));
 
-
                 App::new()
                     .wrap(session_middleware)
                     .wrap(cors)
@@ -216,15 +217,12 @@ async fn main() -> std::io::Result<()> {
                     .app_data(client)
                     .service(api_scope)
             })
-                .workers(threads.unwrap_or(std::thread::available_parallelism().unwrap().into()))
-                .bind(addr)?
-                .run()
-                .await
+            .workers(threads.unwrap_or(std::thread::available_parallelism().unwrap().into()))
+            .bind(addr)?
+            .run()
+            .await
         }
-        Commands::ComputeCreate3 {
-            factory,
-            salt,
-        } => {
+        Commands::ComputeCreate3 { factory, salt } => {
             let result = compute_create3_command(&factory, &salt);
             match result {
                 Ok(hash) => {
@@ -243,11 +241,9 @@ async fn main() -> std::io::Result<()> {
             salt,
             miner,
         } => {
-
             let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
                 .await
                 .unwrap();
-
 
             let factory = web3::types::Address::from_str(&factory).unwrap();
             let result = match fancy::parse_fancy(salt, factory, miner) {
@@ -266,7 +262,6 @@ async fn main() -> std::io::Result<()> {
                     std::process::exit(1);
                 }
             }
-
 
             Ok(())
         }

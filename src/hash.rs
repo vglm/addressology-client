@@ -1,7 +1,7 @@
-use tiny_keccak::Hasher;
-use web3::types::Address;
 use crate::err_custom_create;
 use crate::error::AddressologyError;
+use tiny_keccak::Hasher;
+use web3::types::Address;
 
 pub fn salt_to_guarded_salt(salt: &[u8]) -> [u8; 32] {
     //take last 32 bytes
@@ -10,10 +10,7 @@ pub fn salt_to_guarded_salt(salt: &[u8]) -> [u8; 32] {
     result
 }
 
-pub fn compute_create3_command(
-    factory: &str,
-    salt: &str,
-) -> Result<String, AddressologyError> {
+pub fn compute_create3_command(factory: &str, salt: &str) -> Result<String, AddressologyError> {
     log::info!("Computing create3 for factory: {}, salt: {}", factory, salt);
 
     /*if let Some(caller) = &caller {
@@ -47,10 +44,14 @@ pub fn compute_create3_command(
     };
 
     if factory_bytes.len() != 20 {
-        return Err(err_custom_create!("Factory len has to be 20 bytes (40 characters)"));
+        return Err(err_custom_create!(
+            "Factory len has to be 20 bytes (40 characters)"
+        ));
     }
     if salt_bytes.len() != 32 {
-        return Err(err_custom_create!("Salt len has to be 32 bytes (64 characters)"));
+        return Err(err_custom_create!(
+            "Salt len has to be 32 bytes (64 characters)"
+        ));
     }
     let guarded_hash_bytes = salt_to_guarded_salt(&salt_bytes);
 
@@ -105,7 +106,6 @@ pub fn compute_create3_command(
     Ok(format!("0x{}", hex::encode(&result.as_slice()[12..])))
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -117,6 +117,9 @@ mod tests {
 
         let result = compute_create3_command(&factory, &salt);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "0x31585b5cd5557777376822555552bb555ee18882".to_string());
+        assert_eq!(
+            result.unwrap(),
+            "0x31585b5cd5557777376822555552bb555ee18882".to_string()
+        );
     }
 }

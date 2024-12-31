@@ -1,25 +1,32 @@
-use censor::Censor;
-use web3::types::Address;
 use crate::db::model::FancyDbObj;
 use crate::err_custom_create;
 use crate::error::AddressologyError;
 use crate::hash::compute_create3_command;
 use crate::types::DbAddress;
+use censor::Censor;
+use web3::types::Address;
 
-pub fn parse_fancy(salt: String, factory: Address, miner_unfiltered: String) -> Result<FancyDbObj, AddressologyError> {
+pub fn parse_fancy(
+    salt: String,
+    factory: Address,
+    miner_unfiltered: String,
+) -> Result<FancyDbObj, AddressologyError> {
     let censor = censor::Standard + censor::Zealous + censor::Sex;
 
     //get rid of any weird characters from miner string
-    let miner_filtered = miner_unfiltered.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '.' || *c == '-' || *c == '_' || *c == ' ').take(20).collect::<String>();
+    let miner_filtered = miner_unfiltered
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '.' || *c == '-' || *c == '_' || *c == ' ')
+        .take(20)
+        .collect::<String>();
 
     let miner_censored = censor.censor(&miner_filtered);
 
     let address = compute_create3_command(&format!("{:#x}", factory), &salt)?;
 
-    Ok(FancyDbObj{
-        address: DbAddress::from_str(&address).map_err(
-            |_| err_custom_create!("Failed to parse address")
-        )?,
+    Ok(FancyDbObj {
+        address: DbAddress::from_str(&address)
+            .map_err(|_| err_custom_create!("Failed to parse address"))?,
         salt,
         factory: DbAddress::wrap(factory),
         created: chrono::Utc::now().naive_utc(),
@@ -32,8 +39,8 @@ pub fn parse_fancy(salt: String, factory: Address, miner_unfiltered: String) -> 
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn test_parse_fancy() {
@@ -47,7 +54,10 @@ mod tests {
         let parsed = result.unwrap();
         assert_eq!(parsed.miner, "****ty-miner v1.0.2");
 
-        assert_eq!(format!("{:#x}", parsed.address.addr()), "0x31585b5cd5557777376822555552bb555ee18882");
+        assert_eq!(
+            format!("{:#x}", parsed.address.addr()),
+            "0x31585b5cd5557777376822555552bb555ee18882"
+        );
         println!("{:?}", parsed);
     }
 }
