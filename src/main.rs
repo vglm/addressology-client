@@ -142,7 +142,7 @@ pub async fn handle_fancy_deploy(
 
         let command = "npx hardhat run deploy3Universal.ts --network holesky";
         let command = if cfg!(windows) {
-            format!("cmd /C {}", command)
+            command.to_string()
         } else {
             format!("/bin/bash -c {}", command)
         };
@@ -153,7 +153,11 @@ pub async fn handle_fancy_deploy(
         };
 
 
-        let args = command.split_whitespace().collect::<Vec<&str>>();
+        let args = if cfg!(windows) {
+            command.split_whitespace().collect::<Vec<&str>>()
+        } else {
+            vec!["/bin/bash", "-c", &command]
+        };
 
         let env_vars = vec![
             ("ADDRESS", format!("{:#x}", fancy.address.addr())),
