@@ -3,7 +3,6 @@ use crate::err_custom_create;
 use crate::error::AddressologyError;
 use crate::hash::compute_create3_command;
 use crate::types::DbAddress;
-use censor::Censor;
 use web3::types::Address;
 
 pub fn parse_fancy(

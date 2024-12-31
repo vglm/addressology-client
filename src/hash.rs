@@ -1,7 +1,6 @@
 use crate::err_custom_create;
 use crate::error::AddressologyError;
 use tiny_keccak::Hasher;
-use web3::types::Address;
 
 pub fn salt_to_guarded_salt(salt: &[u8]) -> [u8; 32] {
     //take last 32 bytes

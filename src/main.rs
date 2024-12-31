@@ -9,22 +9,19 @@ use crate::cookie::load_key_or_create;
 use crate::db::connection::create_sqlite_connection;
 use crate::db::ops::{insert_fancy_obj, list_all};
 use crate::hash::compute_create3_command;
-use actix_multipart::form::MultipartFormConfig;
 use actix_session::config::CookieContentSecurity;
 use actix_session::storage::CookieSessionStore;
 use actix_session::{Session, SessionMiddleware};
 use actix_web::cookie::SameSite;
 use actix_web::{
-    web, App, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder, Scope,
+    web, App, HttpResponse, HttpServer, Responder, Scope,
 };
-use awc::http::StatusCode;
 use awc::Client;
 use clap::{crate_version, Parser, Subcommand};
 use lazy_static::lazy_static;
 use serde::Deserialize;
 use serde_json::json;
 use sqlx::SqlitePool;
-use std::collections::{BTreeSet, HashMap};
 use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -109,7 +106,7 @@ pub async fn handle_fancy_new(
 
     println!("{:?}", result);
     match insert_fancy_obj(&conn, result).await {
-        Ok(_) => (return HttpResponse::Ok().body("Entry accepted")),
+        Ok(_) => return HttpResponse::Ok().body("Entry accepted"),
         Err(e) => {
             if e.to_string().contains("UNIQUE constraint failed") {
                 HttpResponse::Ok().body("Already exists")

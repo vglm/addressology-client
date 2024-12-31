@@ -1,5 +1,5 @@
 use crate::types::DbAddress;
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
