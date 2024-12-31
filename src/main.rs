@@ -142,9 +142,9 @@ pub async fn handle_fancy_deploy(
 
         let command = "npx hardhat run deploy3Universal.ts --network holesky";
         let command = if cfg!(windows) {
-            command.to_string()
+            format!("cmd /C {}", command)
         } else {
-            format!("/bin/bash -c {}", command)
+            command.to_string()
         };
         let current_dir = if cfg!(windows) {
             "C:/vglm/pretzel/locker"
