@@ -144,7 +144,7 @@ pub async fn handle_fancy_deploy(
         let command = if cfg!(windows) {
             format!("cmd /C {}", command)
         } else {
-            format!("{}", command)
+            format!("/bin/bash -c {}", command)
         };
         let current_dir = if cfg!(windows) {
             "C:/vglm/pretzel/locker"
