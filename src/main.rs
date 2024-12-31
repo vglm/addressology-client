@@ -7,15 +7,14 @@ mod types;
 
 use crate::cookie::load_key_or_create;
 use crate::db::connection::create_sqlite_connection;
-use crate::db::ops::{insert_fancy_obj, list_all};
+use crate::db::ops::{get_by_address, insert_fancy_obj, list_all};
 use crate::hash::compute_create3_command;
+use crate::types::DbAddress;
 use actix_session::config::CookieContentSecurity;
 use actix_session::storage::CookieSessionStore;
 use actix_session::{Session, SessionMiddleware};
 use actix_web::cookie::SameSite;
-use actix_web::{
-    web, App, HttpResponse, HttpServer, Responder, Scope,
-};
+use actix_web::{web, App, HttpResponse, HttpServer, Responder, Scope};
 use awc::Client;
 use clap::{crate_version, Parser, Subcommand};
 use lazy_static::lazy_static;
@@ -118,6 +117,90 @@ pub async fn handle_fancy_new(
     }
 }
 
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DeployData {
+    pub address: DbAddress,
+    pub network: String,
+    pub bytecode: String,
+}
+
+pub async fn handle_fancy_deploy(
+    server_data: web::Data<Box<ServerData>>,
+    deploy_data: web::Json<DeployData>,
+) -> HttpResponse {
+    let conn = server_data.db_connection.lock().await;
+    let fancy = match get_by_address(&conn, deploy_data.address).await {
+        Ok(fancy) => fancy,
+        Err(e) => {
+            log::error!("{}", e);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    if let Some(fancy) = fancy {
+
+        let command = "npx hardhat run deploy3Universal.ts --network holesky";
+        let command = if cfg!(windows) {
+            format!("cmd /C {}", command)
+        } else {
+            format!("{}", command)
+        };
+        let current_dir = if cfg!(windows) {
+            "C:/vglm/pretzel/locker"
+        } else {
+            "/addressology/pretzel/locker"
+        };
+
+
+        let args = command.split_whitespace().collect::<Vec<&str>>();
+
+        let env_vars = vec![
+            ("ADDRESS", format!("{:#x}", fancy.address.addr())),
+            ("FACTORY", format!("{:#x}", fancy.factory.addr())),
+            ("SALT", fancy.salt.clone()),
+            ("MINER", fancy.miner.clone()),
+            ("BYTECODE", deploy_data.bytecode.clone()),
+        ];
+
+        let cmd = match tokio::process::Command::new(args[0])
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .envs(env_vars)
+            .current_dir(current_dir)
+            .args(&args[1..])
+            .spawn()
+        {
+            Ok(cmd) => cmd,
+            Err(e) => {
+                log::error!("Failed to spawn command {}", e);
+                return HttpResponse::InternalServerError().finish();
+            }
+        };
+
+        let output = match cmd.wait_with_output().await {
+            Ok(output) => output,
+            Err(e) => {
+                log::error!("{}", e);
+                return HttpResponse::InternalServerError().finish();
+            }
+        };
+
+        if output.status.success() {
+            HttpResponse::Ok().body(output.stdout)
+        } else {
+            log::error!(
+                "Command failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            HttpResponse::InternalServerError().finish()
+        }
+    } else {
+        HttpResponse::NotFound().body("Address not found")
+    }
+    //run command
+}
+
 pub async fn handle_greet(session: Session) -> impl Responder {
     println!("Session: {:?}", session.status());
     let describe_version = crate_version!();
@@ -205,6 +288,7 @@ async fn main() -> std::io::Result<()> {
                 let api_scope = Scope::new("/api")
                     .route("/fancy/list", web::get().to(handle_list))
                     .route("/fancy/new", web::post().to(handle_fancy_new))
+                    .route("/fancy/deploy", web::post().to(handle_fancy_deploy))
                     .route("/greet", web::get().to(handle_greet));
 
                 App::new()
