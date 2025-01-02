@@ -1,0 +1,79 @@
+.outgoing-table {
+    display: table;
+    border-collapse: collapse;
+    margin-top: 3px;
+}
+.outgoing-table tr.check-ok td {
+    background-color: #f5fff5;
+}
+.outgoing-table tr.check-ok-unfinished td {
+    background-color: #ffffff;
+}
+.outgoing-table tr.recomputing td {
+    background-color: #dedeee;
+}
+.outgoing-table tr td {
+    background-color: #ffffff;
+}
+
+.outgoing-table td {
+    width: 79px;
+    max-width: 79px;
+    border: 1px solid lightblue;
+    padding: 5px 5px;
+    max-width: 89px;
+}
+.outgoing-table th {
+    width: 79px;
+    max-width: 79px;
+    border: 1px solid lightblue;
+    background-color: #eeeeee;
+    padding: 5px 5px;
+}
+.outgoing-table tr td:nth-child(1) {
+    width: 70px;
+    max-width: 70px;
+}
+.outgoing-table tr th:nth-child(1) {
+    width: 70px;
+    max-width: 70px;
+}
+.outgoing-table tr td:nth-child(2) {
+    width: 90px;
+    max-width: 90px;
+}
+.outgoing-table tr th:nth-child(2) {
+    width: 90px;
+    max-width: 90px;
+}
+.outgoing-table tr td:nth-child(3) {
+    width: 400px;
+    max-width: 400px;
+}
+
+.outgoing-table td.numeric {
+    text-align: right;
+}
+.outgoing-table td.outgoing-number {
+    text-align: center;
+}
+.outgoing-table td.timestamp {
+    font-size: 0.8em;
+    text-align: center;
+}
+
+.outgoing-table tr.summary td {
+    background-color: #eeeeee;
+    padding: 5px 5px;
+}
+
+.outgoing-table-footer {
+    margin-top: 3px;
+    position: relative;
+    height: 40px;
+}
+.outgoing-table-footer > div {
+    position: absolute;
+    width: 100px;
+    font-weight: bold;
+}
