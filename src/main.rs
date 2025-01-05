@@ -4,6 +4,7 @@ mod error;
 mod fancy;
 mod hash;
 mod types;
+mod solc;
 
 use crate::cookie::load_key_or_create;
 use crate::db::connection::create_sqlite_connection;
@@ -27,6 +28,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use actix_web::http::StatusCode;
 use tokio::sync::Mutex;
+use crate::solc::compile_solc;
 
 fn get_allowed_emails() -> Vec<String> {
     let res = env::var("ALLOWED_EMAILS")
@@ -464,6 +466,15 @@ async fn main() -> std::io::Result<()> {
         }
         Commands::Test {} => {
             //test_command(conn).await;
+            match compile_solc(
+                "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.28;\n\n// Uncomment this line to use console.log\n// import \"hardhat/console.sol\";\n\ncontract Lock {\n    uint public unlockTime;\n    address payable public owner;\n\n    event Withdrawal(uint amount, uint when);\n\n    constructor(uint _unlockTime) payable {\n        require(\n            block.timestamp < _unlockTime,\n            \"Unlock time should be in the future\"\n        );\n\n        unlockTime = _unlockTime;\n        owner = payable(msg.sender);\n    }\n\n    function withdraw() public {\n        // Uncomment this line, and the import of \"hardhat/console.sol\", to print a log in your terminal\n        // console.log(\"Unlock time is %o and block timestamp is %o\", unlockTime, block.timestamp);\n\n        require(block.timestamp >= unlockTime, \"You can't withdraw yet\");\n        require(msg.sender == owner, \"You aren't the owner\");\n\n        emit Withdrawal(address(this).balance, block.timestamp);\n\n        owner.transfer(address(this).balance);\n    }\n}\n\n",
+                               "0.8.28").await {
+                Ok(_) => (),
+                Err(e) => {
+                    log::error!("{}", e);
+                    std::process::exit(1);
+                }
+            }
 
             Ok(())
         }
