@@ -49,7 +49,16 @@ pub async fn compile_solc(
     solidity_version: &str,
 ) -> Result<SolidityJsonResponse, AddressologyError> {
     let bin = if solidity_version == "0.8.28" {
-        "solc-windows.exe"
+        if cfg!(target_os = "linux") {
+            "solc_0.8.28"
+        } else if cfg!(target_os = "windows") {
+            "solc-windows.exe"
+        } else {
+            return Err(err_custom_create!(
+                "Unsupported solidity version: {}",
+                solidity_version
+            ));
+        }
     } else {
         return Err(err_custom_create!(
             "Unsupported solidity version: {}",
