@@ -110,7 +110,7 @@ pub async fn handle_fancy_new(
 
     println!("{:?}", result);
     match insert_fancy_obj(&conn, result).await {
-        Ok(_) => return HttpResponse::Ok().body("Entry accepted"),
+        Ok(_) => HttpResponse::Ok().body("Entry accepted"),
         Err(e) => {
             if e.to_string().contains("UNIQUE constraint failed") {
                 HttpResponse::Ok().body("Already exists")

@@ -54,7 +54,7 @@ pub fn compute_create3_command(factory: &str, salt: &str) -> Result<String, Addr
     }
     let guarded_hash_bytes = salt_to_guarded_salt(&salt_bytes);
 
-    println!("Guarded hash: 0x{}", hex::encode(&guarded_hash_bytes));
+    println!("Guarded hash: 0x{}", hex::encode(guarded_hash_bytes));
 
     let mut mem = Vec::new();
 

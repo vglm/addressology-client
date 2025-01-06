@@ -113,7 +113,7 @@ pub async fn compile_solc(sources: BTreeMap<String, String>, solidity_version: &
                     if let Some(_errors) = &json.errors {
                         log::info!("Solidity compilation failed");
                     } else if let Some(contracts_map) = &json.contracts {
-                        for (contract_name, _contract) in contracts_map {
+                        for contract_name in contracts_map.keys() {
                             log::info!("Successfully compiled contract: {}", contract_name);
                         }
                     } else {
