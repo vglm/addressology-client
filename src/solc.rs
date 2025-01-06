@@ -50,7 +50,7 @@ pub async fn compile_solc(
 ) -> Result<SolidityJsonResponse, AddressologyError> {
     let bin = if solidity_version == "0.8.28" {
         if cfg!(target_os = "linux") {
-            "solc_0.8.28"
+            "/addressology/bin/solc_0.8.28"
         } else if cfg!(target_os = "windows") {
             "solc-windows.exe"
         } else {
