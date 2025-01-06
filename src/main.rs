@@ -5,6 +5,7 @@ mod fancy;
 mod hash;
 mod types;
 mod solc;
+mod update;
 
 use std::collections::{BTreeMap, HashMap};
 use crate::cookie::load_key_or_create;
@@ -439,6 +440,7 @@ async fn main() -> std::io::Result<()> {
                     .route("/", web::get().to(redirect_to_dashboard))
                     .route("/dashboard", web::get().to(redirect_to_dashboard))
                     .route("/dashboard/{_:.*}", web::get().to(dashboard_serve))
+                    .route("/service/update", web::post().to(update::push_update))
                     .service(api_scope)
             })
             .workers(threads.unwrap_or(std::thread::available_parallelism().unwrap().into()))
