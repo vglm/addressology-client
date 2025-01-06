@@ -1,8 +1,8 @@
-use std::collections::BTreeMap;
-use serde::{Deserialize, Serialize};
-use tokio::io::{AsyncWriteExt};
 use crate::err_custom_create;
 use crate::error::AddressologyError;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use tokio::io::AsyncWriteExt;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -27,7 +27,6 @@ pub struct SolidityContract {
 #[serde(rename_all = "camelCase")]
 pub struct SoliditySourceFile(BTreeMap<String, SolidityContract>);
 
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SolidityError {
@@ -38,30 +37,35 @@ pub struct SolidityError {
     pub typ: String,
 }
 
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SolidityJsonResponse {
     pub errors: Option<Vec<SolidityError>>,
-    pub contracts: Option<BTreeMap<String, SoliditySourceFile>>
+    pub contracts: Option<BTreeMap<String, SoliditySourceFile>>,
 }
 
-pub async fn compile_solc(sources: BTreeMap<String, String>, solidity_version: &str) -> Result<SolidityJsonResponse, AddressologyError> {
-    let bin ;
-    if solidity_version == "0.8.28" {
-        bin = "solc-windows.exe";
+pub async fn compile_solc(
+    sources: BTreeMap<String, String>,
+    solidity_version: &str,
+) -> Result<SolidityJsonResponse, AddressologyError> {
+    let bin = if solidity_version == "0.8.28" {
+        "solc-windows.exe"
     } else {
-        return Err(err_custom_create!("Unsupported solidity version: {}", solidity_version));
-    }
+        return Err(err_custom_create!(
+            "Unsupported solidity version: {}",
+            solidity_version
+        ));
+    };
 
     let mut cmd = match tokio::process::Command::new(bin)
         .arg("--standard-json")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
-        .spawn() {
+        .spawn()
+    {
         Ok(cmd) => cmd,
-        Err(err) => return Err(err_custom_create!("Error starting solc: {} {}", bin, err))
+        Err(err) => return Err(err_custom_create!("Error starting solc: {} {}", bin, err)),
     };
     let sol_input_json = r#"
 {
@@ -81,31 +85,42 @@ pub async fn compile_solc(sources: BTreeMap<String, String>, solidity_version: &
 }
 "#;
 
-    let mut sol_input_json = serde_json::from_str::<serde_json::Value>(sol_input_json).map_err(
-        |err| err_custom_create!("Error parsing solc input json: {}", err)
-    )?;
+    let mut sol_input_json = serde_json::from_str::<serde_json::Value>(sol_input_json)
+        .map_err(|err| err_custom_create!("Error parsing solc input json: {}", err))?;
 
     for (source_name, source_code) in sources {
         log::info!("Compiling source: {}", source_name);
         sol_input_json["sources"][source_name]["content"] = serde_json::Value::String(source_code);
     }
 
-
     {
-        let stdin = cmd.stdin.as_mut().ok_or_else(|| err_custom_create!("Error getting stdin"))?;
+        let stdin = cmd
+            .stdin
+            .as_mut()
+            .ok_or_else(|| err_custom_create!("Error getting stdin"))?;
 
-        stdin.write_all(sol_input_json.to_string().as_bytes()).await.map_err(
-            |err| err_custom_create!("Error writing to stdin: {}", err)
-        )?;
+        stdin
+            .write_all(sol_input_json.to_string().as_bytes())
+            .await
+            .map_err(|err| err_custom_create!("Error writing to stdin: {}", err))?;
     }
-    let output = cmd.wait_with_output().await.map_err(
-        |err| err_custom_create!("Error waiting for solc: {}", err)
-    )?;
+    let output = cmd
+        .wait_with_output()
+        .await
+        .map_err(|err| err_custom_create!("Error waiting for solc: {}", err))?;
 
+    #[allow(clippy::match_single_binding)]
     match output {
-        std::process::Output { status, stdout, stderr } => {
+        std::process::Output {
+            status,
+            stdout,
+            stderr,
+        } => {
             if !status.success() {
-                return Err(err_custom_create!("Error compiling solidity code: {}", String::from_utf8_lossy(&stderr)));
+                return Err(err_custom_create!(
+                    "Error compiling solidity code: {}",
+                    String::from_utf8_lossy(&stderr)
+                ));
             }
 
             match serde_json::from_slice::<SolidityJsonResponse>(stdout.as_slice()) {
@@ -121,14 +136,11 @@ pub async fn compile_solc(sources: BTreeMap<String, String>, solidity_version: &
                     }
                     Ok(json)
                 }
-                Err(err) => {
-                    Err(err_custom_create!("Error parsing solc output: {}", err))
-                }
+                Err(err) => Err(err_custom_create!("Error parsing solc output: {}", err)),
             }
         }
     }
 }
-
 
 //experimental - not working
 /*pub async fn compile_solc_in_docker_not_working() -> Result<(), AddressologyError> {

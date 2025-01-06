@@ -3,34 +3,36 @@ mod db;
 mod error;
 mod fancy;
 mod hash;
-mod types;
 mod solc;
+mod types;
 mod update;
 
-use std::collections::{BTreeMap};
 use crate::cookie::load_key_or_create;
 use crate::db::connection::create_sqlite_connection;
 use crate::db::ops::{get_by_address, insert_fancy_obj, list_all};
 use crate::hash::compute_create3_command;
+use crate::solc::compile_solc;
 use crate::types::DbAddress;
 use actix_session::config::CookieContentSecurity;
 use actix_session::storage::CookieSessionStore;
 use actix_session::{Session, SessionMiddleware};
 use actix_web::cookie::SameSite;
-use actix_web::{web, App, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder, Scope};
+use actix_web::http::StatusCode;
+use actix_web::{
+    web, App, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder, Scope,
+};
 use awc::Client;
 use clap::{crate_version, Parser, Subcommand};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::SqlitePool;
+use std::collections::BTreeMap;
 use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
-use actix_web::http::StatusCode;
 use tokio::sync::Mutex;
-use crate::solc::compile_solc;
 
 fn get_allowed_emails() -> Vec<String> {
     let res = env::var("ALLOWED_EMAILS")
@@ -152,7 +154,6 @@ pub struct DeployData {
     pub bytecode: String,
 }
 
-
 pub async fn handle_fancy_deploy(
     server_data: web::Data<Box<ServerData>>,
     deploy_data: web::Json<DeployData>,
@@ -167,7 +168,6 @@ pub async fn handle_fancy_deploy(
     };
 
     if let Some(fancy) = fancy {
-
         let command = "npx hardhat run deploy3Universal.ts --network holesky";
         let command = if cfg!(windows) {
             format!("cmd /C {}", command)
@@ -179,7 +179,6 @@ pub async fn handle_fancy_deploy(
         } else {
             "/addressology/pretzel/locker"
         };
-
 
         let args = if cfg!(windows) {
             command.split_whitespace().collect::<Vec<&str>>()
