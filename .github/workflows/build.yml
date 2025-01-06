@@ -1,0 +1,44 @@
+name: Build
+on:
+  push:
+    branches: [ "main", "actions/build" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  run_build:
+    name: Build
+
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm install --silent
+          npm run build
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build backend
+        run: |
+          cargo build --release --no-default-features --features=dashboard
+
+      - name: Run server for simple tests
+        run: |
+          mkdir testing
+          cp target/release/addresser testing/
+          cd testing
+          ./addresser server --addr localhost:57888&
+
+      - name: Auto update dev
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          curl -i -H "Update-Secret:${{ secrets.UPDATE_SECRET }}" -X POST -F file=@target/release/addresser https://addressology.ovh/service/update
+          
+
