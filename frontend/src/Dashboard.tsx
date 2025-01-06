@@ -6,12 +6,82 @@ import Editor from "react-simple-code-editor";
 import { highlight, languages } from 'prismjs/components/prism-core';
 import 'prismjs/components/prism-clike';
 import 'prismjs/components/prism-solidity';
-import 'prismjs/themes/prism.css'; //Example style, you can use another
+import 'prismjs/themes/prism.css';
+import {backendFetch} from "./common/BackendCall";
+import {Button} from "@mui/material"; //Example style, you can use another
 
+interface CompileErrors {
+    message: string;
+    formattedMessage: string;
+    severity: string;
+    type: string;
+}
+
+interface ContractCompiledBytecode {
+    object: string;
+    opcodes: string;
+    sourceMap: string;
+}
+interface ContractCompiledEvm {
+    bytecode: ContractCompiledBytecode;
+}
+interface ContractCompiled {
+    evm: ContractCompiledEvm;
+}
+
+interface CompileResponse {
+    contracts?: { [key: string]: { [key: string]: ContractCompiled } };
+    errors?: CompileErrors[];
+}
+
+interface CompiledContractProps {
+    contract: ContractCompiledEvm;
+}
+
+const CompiledContractEl = (props: CompiledContractProps) => {
+
+    const [network, setNetwork] = useState("holesky");
+    const [address, setAddress] = useState("0xff0b5eeeeeeeec81111c136f4bbb1bbbdaab0f51");
+
+    const deploySourceCode = async (bytecode: string)  => {
+        const response = await backendFetch("/api/fancy/deploy", {
+            method: "Post",
+            body: JSON.stringify({
+                "network": network,
+                "address": address,
+                "bytecode": "0x" + bytecode,
+            }),
+        });
+        const deploy = await response.json();
+        console.log(deploy);
+    }
+
+    return (
+        <div>
+            <textarea style={{
+                backgroundColor: "#f5f5f5",
+                border: "1px solid #ddd",
+                borderRadius: "5px",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                fontSize: "14px",
+                lineHeight: "20px",
+                width: "100%",
+                height: "200px",
+            }}>
+                {props.contract.bytecode.object}
+            </textarea>
+
+            <Button onClick={e => deploySourceCode(props.contract.bytecode.object)}>Deploy</Button>
+        </div>
+
+    );
+}
 
 const Dashboard = () => {
     //const loginInformation = useLoginOrNull();
     const navigate = useNavigate();
+    const [errors, setErrors] = useState<CompileErrors[]>([]);
+    const [contracts, setContracts] = useState<{ [key: string]: ContractCompiledEvm }>({});
     const [code, setCode] = useState("// SPDX-License-Identifier: UNLICENSED\n" +
         "pragma solidity ^0.8.28;\n" +
         "\n" +
@@ -47,6 +117,29 @@ const Dashboard = () => {
         "    }\n" +
         "}\n" +
         "\n" );
+
+    const compileSourceCode = async (sourceCode: string)  => {
+        const response = await backendFetch("/api/contract/compile", {
+            method: "Post",
+            body: JSON.stringify({
+                "sources": {
+                    "main": sourceCode,
+                }
+            }),
+        });
+        const compile = await response.json();
+        console.log(compile);
+        if (compile.errors) {
+            setErrors(compile.errors);
+            console.log(compile.errors);
+        } else {
+            console.log(compile);
+        }
+        if (compile.contracts) {
+            console.log(compile.contracts);
+            setContracts(compile.contracts);
+        }
+    }
 
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
     const urlParams = new URLSearchParams(window.location.search);
@@ -89,6 +182,15 @@ const Dashboard = () => {
     const open = Boolean(anchorEl);
     const marginLeft = getMarginLeft();
 
+
+    const evms: {[key: string]: ContractCompiledEvm} = {};
+    for (const [key, value] of Object.entries(contracts)) {
+        for (const [key2, value2] of Object.entries(value)) {
+            console.log(key2, value2);
+            evms[key2] = value2.evm;
+        }
+    }
+
     return (
         <div className="main-page" style={{ marginLeft: marginLeft }}>
             <div style={{
@@ -109,6 +211,15 @@ const Dashboard = () => {
                         lineHeight: "20px",
                     }}
                 />
+                <Button onClick={e => compileSourceCode(code)}>Compile</Button>
+
+                {errors.map((error, index) => (
+                    <div key={index}>{error.severity} {error.type} {error.message} {error.formattedMessage}</div>
+                ))}
+                {Object.keys(evms).map((key, index) => (
+                    <CompiledContractEl key={index} contract={evms[key]} />
+                ))}
+
             </div>
         </div>
     );

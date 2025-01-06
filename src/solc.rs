@@ -1,34 +1,61 @@
+use std::collections::{BTreeMap, HashMap};
 use bollard::Docker;
 use bollard::container::{AttachContainerOptions, Config, CreateContainerOptions, LogOutput, StartContainerOptions};
 use bollard::image::CreateImageOptions;
 use bollard::models::{CreateImageInfo, HostConfig};
+use clap::builder::Str;
 use futures_util::stream::StreamExt;
 use futures_util::TryStreamExt;
 use lettre::transport::smtp::response::Severity;
+use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use web3::types::Res;
 use crate::err_custom_create;
 use crate::error::AddressologyError;
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct SolidityError {
-    message: String,
-    severity: String,
-    formatted_message: String,
+pub struct SolidityBytecode {
+    pub object: String,
+    pub opcodes: String,
+    pub source_map: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SolidityEvm {
+    #[serde(rename = "bytecode")]
+    pub bytecode: SolidityBytecode,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SolidityContract {
+    pub evm: SolidityEvm,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SoliditySourceFile(BTreeMap<String, SolidityContract>);
+
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SolidityError {
+    pub message: String,
+    pub severity: String,
+    pub formatted_message: String,
     #[serde(rename = "type")]
-    typ: String,
+    pub typ: String,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct SolidityJsonResponse {
-    errors: Option<Vec<SolidityError>>,
+pub struct SolidityJsonResponse {
+    pub errors: Option<Vec<SolidityError>>,
+    pub contracts: Option<BTreeMap<String, SoliditySourceFile>>
 }
 
-
-
-pub async fn compile_solc(solidity_code: &str, solidity_version: &str) -> Result<(), AddressologyError> {
+pub async fn compile_solc(sources: BTreeMap<String, String>, solidity_version: &str) -> Result<SolidityJsonResponse, AddressologyError> {
     let mut bin = "solc";
     if solidity_version == "0.8.28" {
         bin = "solc-windows.exe";
@@ -45,14 +72,10 @@ pub async fn compile_solc(solidity_code: &str, solidity_version: &str) -> Result
         Ok(cmd) => cmd,
         Err(err) => return Err(err_custom_create!("Error starting solc: {} {}", bin, err))
     };
-
     let sol_input_json = r#"
 {
     "language": "Solidity",
     "sources": {
-        "Contract.sol": {
-            "content": ""
-        }
     },
     "settings": {
         "outputSelection": {
@@ -66,11 +89,15 @@ pub async fn compile_solc(solidity_code: &str, solidity_version: &str) -> Result
     }
 }
 "#;
+
     let mut sol_input_json = serde_json::from_str::<serde_json::Value>(sol_input_json).map_err(
         |err| err_custom_create!("Error parsing solc input json: {}", err)
     )?;
 
-    sol_input_json["sources"]["Contract.sol"]["content"] = serde_json::Value::String(solidity_code.to_string());
+    for (source_name, source_code) in sources {
+        log::info!("Compiling source: {}", source_name);
+        sol_input_json["sources"][source_name]["content"] = serde_json::Value::String(source_code);
+    }
 
 
     {
@@ -83,6 +110,7 @@ pub async fn compile_solc(solidity_code: &str, solidity_version: &str) -> Result
     let output = cmd.wait_with_output().await.map_err(
         |err| err_custom_create!("Error waiting for solc: {}", err)
     )?;
+
     match output {
         std::process::Output { status, stdout, stderr } => {
             if !status.success() {
@@ -91,17 +119,23 @@ pub async fn compile_solc(solidity_code: &str, solidity_version: &str) -> Result
 
             match serde_json::from_slice::<SolidityJsonResponse>(stdout.as_slice()) {
                 Ok(json) => {
-                    println!("Parsed solc output: {:?}", json);
+                    if let Some(errors) = &json.errors {
+                        log::info!("Solidity compilation failed");
+                    } else if let Some(contracts_map) = &json.contracts {
+                        for (contract_name, _contract) in contracts_map {
+                            log::info!("Successfully compiled contract: {}", contract_name);
+                        }
+                    } else {
+                        log::info!("No contracts found in solc output");
+                    }
+                    Ok(json)
                 }
                 Err(err) => {
-                    return Err(err_custom_create!("Error parsing solc output: {}", err));
+                    Err(err_custom_create!("Error parsing solc output: {}", err))
                 }
-
             }
-            println!("Command finished with {}", String::from_utf8_lossy(&stdout));
         }
     }
-    Ok(())
 }
 
 

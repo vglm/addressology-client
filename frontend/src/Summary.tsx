@@ -23,26 +23,6 @@ const getLastDayInMonth = (year: number, month: number) => {
 
 
 const Summary = () => {
-    const [code, setCode] = useState("// Write your code here...\nconsole.log('Hello, World!');");
-    // Function to highlight code using Prism.js
-
-    return (
-        <div className={"content-main"}>
-            <Editor
-                value={code}
-                onValueChange={(newCode) => setCode(newCode)}
-                padding={10}
-                style={{
-                    backgroundColor: "#f5f5f5",
-                    border: "1px solid #ddd",
-                    borderRadius: "5px",
-                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                    fontSize: "14px",
-                    lineHeight: "20px",
-                }}
-            />
-        </div>
-    );
 };
 
 export default Summary;

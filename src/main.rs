@@ -6,6 +6,7 @@ mod hash;
 mod types;
 mod solc;
 
+use std::collections::{BTreeMap, HashMap};
 use crate::cookie::load_key_or_create;
 use crate::db::connection::create_sqlite_connection;
 use crate::db::ops::{get_by_address, insert_fancy_obj, list_all};
@@ -19,7 +20,7 @@ use actix_web::{web, App, HttpRequest, HttpResponse, HttpResponseBuilder, HttpSe
 use awc::Client;
 use clap::{crate_version, Parser, Subcommand};
 use lazy_static::lazy_static;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::SqlitePool;
 use std::env;
@@ -120,6 +121,28 @@ pub async fn handle_fancy_new(
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CompileData {
+    pub sources: BTreeMap<String, String>,
+}
+
+pub async fn handle_compile(
+    server_data: web::Data<Box<ServerData>>,
+    deploy_data: web::Json<CompileData>,
+) -> HttpResponse {
+    let conn = server_data.db_connection.lock().await;
+
+    log::info!("Compiling contract: {:#?}", deploy_data.sources);
+    match compile_solc(deploy_data.sources.clone(), "0.8.28").await {
+        Ok(res) => HttpResponse::Ok().json(res),
+        Err(e) => {
+            log::error!("{}", e);
+            HttpResponse::InternalServerError().finish()
+        }
+    }
+}
+
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DeployData {
@@ -127,6 +150,7 @@ pub struct DeployData {
     pub network: String,
     pub bytecode: String,
 }
+
 
 pub async fn handle_fancy_deploy(
     server_data: web::Data<Box<ServerData>>,
@@ -404,6 +428,7 @@ async fn main() -> std::io::Result<()> {
                     .route("/fancy/list", web::get().to(handle_list))
                     .route("/fancy/new", web::post().to(handle_fancy_new))
                     .route("/fancy/deploy", web::post().to(handle_fancy_deploy))
+                    .route("/contract/compile", web::post().to(handle_compile))
                     .route("/greet", web::get().to(handle_greet));
 
                 App::new()
@@ -466,15 +491,17 @@ async fn main() -> std::io::Result<()> {
         }
         Commands::Test {} => {
             //test_command(conn).await;
-            match compile_solc(
+            /*match compile_solc(
                 "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.28;\n\n// Uncomment this line to use console.log\n// import \"hardhat/console.sol\";\n\ncontract Lock {\n    uint public unlockTime;\n    address payable public owner;\n\n    event Withdrawal(uint amount, uint when);\n\n    constructor(uint _unlockTime) payable {\n        require(\n            block.timestamp < _unlockTime,\n            \"Unlock time should be in the future\"\n        );\n\n        unlockTime = _unlockTime;\n        owner = payable(msg.sender);\n    }\n\n    function withdraw() public {\n        // Uncomment this line, and the import of \"hardhat/console.sol\", to print a log in your terminal\n        // console.log(\"Unlock time is %o and block timestamp is %o\", unlockTime, block.timestamp);\n\n        require(block.timestamp >= unlockTime, \"You can't withdraw yet\");\n        require(msg.sender == owner, \"You aren't the owner\");\n\n        emit Withdrawal(address(this).balance, block.timestamp);\n\n        owner.transfer(address(this).balance);\n    }\n}\n\n",
                                "0.8.28").await {
-                Ok(_) => (),
+                Ok(res) => (
+                    println!("Output of compilation: {:#?}", res)
+                    ),
                 Err(e) => {
                     log::error!("{}", e);
                     std::process::exit(1);
                 }
-            }
+            }*/
 
             Ok(())
         }
