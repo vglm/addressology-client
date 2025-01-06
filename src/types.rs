@@ -23,10 +23,12 @@ impl DbBigInt {
         Self(val.as_u128() as i128)
     }
 
+    #[allow(dead_code)]
     pub fn val(&self) -> i128 {
         self.0
     }
 
+    #[allow(dead_code)]
     pub fn zero() -> Self {
         Self(0)
     }

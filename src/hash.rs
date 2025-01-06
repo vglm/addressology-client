@@ -92,7 +92,7 @@ pub fn compute_create3_command(factory: &str, salt: &str) -> Result<String, Addr
 
     mem.as_mut_slice()[0x14..0x14 + 0x20].copy_from_slice(&result);
 
-    println!("0x{}", hex::encode(&mem.as_slice()));
+    println!("0x{}", hex::encode(mem.as_slice()));
 
     mem[0x1e] = 0xd6;
     mem[0x1f] = 0x94;

@@ -7,7 +7,7 @@ mod types;
 mod solc;
 mod update;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap};
 use crate::cookie::load_key_or_create;
 use crate::db::connection::create_sqlite_connection;
 use crate::db::ops::{get_by_address, insert_fancy_obj, list_all};
@@ -132,7 +132,7 @@ pub async fn handle_compile(
     server_data: web::Data<Box<ServerData>>,
     deploy_data: web::Json<CompileData>,
 ) -> HttpResponse {
-    let conn = server_data.db_connection.lock().await;
+    let _conn = server_data.db_connection.lock().await;
 
     log::info!("Compiling contract: {:#?}", deploy_data.sources);
     match compile_solc(deploy_data.sources.clone(), "0.8.28").await {

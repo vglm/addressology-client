@@ -1,15 +1,6 @@
-use std::collections::{BTreeMap, HashMap};
-use bollard::Docker;
-use bollard::container::{AttachContainerOptions, Config, CreateContainerOptions, LogOutput, StartContainerOptions};
-use bollard::image::CreateImageOptions;
-use bollard::models::{CreateImageInfo, HostConfig};
-use clap::builder::Str;
-use futures_util::stream::StreamExt;
-use futures_util::TryStreamExt;
-use lettre::transport::smtp::response::Severity;
+use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use web3::types::Res;
+use tokio::io::{AsyncWriteExt};
 use crate::err_custom_create;
 use crate::error::AddressologyError;
 
@@ -56,7 +47,7 @@ pub struct SolidityJsonResponse {
 }
 
 pub async fn compile_solc(sources: BTreeMap<String, String>, solidity_version: &str) -> Result<SolidityJsonResponse, AddressologyError> {
-    let mut bin = "solc";
+    let bin ;
     if solidity_version == "0.8.28" {
         bin = "solc-windows.exe";
     } else {
@@ -119,7 +110,7 @@ pub async fn compile_solc(sources: BTreeMap<String, String>, solidity_version: &
 
             match serde_json::from_slice::<SolidityJsonResponse>(stdout.as_slice()) {
                 Ok(json) => {
-                    if let Some(errors) = &json.errors {
+                    if let Some(_errors) = &json.errors {
                         log::info!("Solidity compilation failed");
                     } else if let Some(contracts_map) = &json.contracts {
                         for (contract_name, _contract) in contracts_map {
@@ -140,7 +131,7 @@ pub async fn compile_solc(sources: BTreeMap<String, String>, solidity_version: &
 
 
 //experimental - not working
-pub async fn compile_solc_in_docker_not_working() -> Result<(), AddressologyError> {
+/*pub async fn compile_solc_in_docker_not_working() -> Result<(), AddressologyError> {
     // Initialize the Docker client
     let docker = Docker::connect_with_local_defaults().map_err(
         |err| err_custom_create!("Error connecting to Docker: {}", err)
@@ -240,4 +231,4 @@ pub async fn compile_solc_in_docker_not_working() -> Result<(), AddressologyErro
     )?;
 
     Ok(())
-}
+}*/

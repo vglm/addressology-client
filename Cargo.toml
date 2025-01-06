@@ -1,7 +1,10 @@
 [package]
 name = "addresser"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
+authors = ["sieciech.czajka@golem.network"]
+description = "Addresser is a service that provides a REST API for generating Ethereum addresses and signing messages."
+license = "MIT"
 
 [dependencies]
 actix-cors = "0.7"
