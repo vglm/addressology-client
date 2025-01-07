@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
-import {BrowserRouter} from "react-router-dom";
+import { BrowserRouter } from "react-router-dom";
 import Dashboard from "./Dashboard";
 
 const rootEl = document.getElementById("root");
@@ -13,7 +13,7 @@ const root = ReactDOM.createRoot(rootEl);
 root.render(
     <React.StrictMode>
         <BrowserRouter basename={"/dashboard"}>
-            <Dashboard/>
+            <Dashboard />
         </BrowserRouter>
     </React.StrictMode>,
 );

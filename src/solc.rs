@@ -20,6 +20,7 @@ pub struct SolidityEvm {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SolidityContract {
+    pub metadata: String,
     pub evm: SolidityEvm,
 }
 
@@ -132,6 +133,7 @@ pub async fn compile_solc(
                 ));
             }
 
+            log::info!("{}", String::from_utf8_lossy(&stdout));
             match serde_json::from_slice::<SolidityJsonResponse>(stdout.as_slice()) {
                 Ok(json) => {
                     if let Some(_errors) = &json.errors {

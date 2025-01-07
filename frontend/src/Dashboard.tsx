@@ -1,14 +1,30 @@
-import React, {useState} from "react";
+import React, { useEffect, useState } from "react";
 
-import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import Editor from "react-simple-code-editor";
-//@ts-ignore
-import { highlight, languages } from 'prismjs/components/prism-core';
-import 'prismjs/components/prism-clike';
-import 'prismjs/components/prism-solidity';
-import 'prismjs/themes/prism.css';
-import {backendFetch} from "./common/BackendCall";
-import {Button} from "@mui/material"; //Example style, you can use another
+import { highlight, languages } from "prismjs";
+import "prismjs/components/prism-clike";
+import "prismjs/components/prism-solidity";
+import "prismjs/themes/prism.css";
+import { backendFetch } from "./common/BackendCall";
+import { Button } from "@mui/material";
+import { ethers } from "ethers"; //Example style, you can use another
+
+interface CompilerMetadata {
+    compiler: {
+        version: string;
+    };
+    language: string;
+    output: {
+        abi: any[];
+    };
+    settings: {
+        evmVersion: string;
+        optimizer: {
+            enabled: boolean;
+            runs: number;
+        };
+    };
+}
 
 interface CompileErrors {
     message: string;
@@ -27,6 +43,7 @@ interface ContractCompiledEvm {
 }
 interface ContractCompiled {
     evm: ContractCompiledEvm;
+    metadata: string;
 }
 
 interface CompileResponse {
@@ -35,99 +52,162 @@ interface CompileResponse {
 }
 
 interface CompiledContractProps {
-    contract: ContractCompiledEvm;
+    contract: ContractCompiled;
 }
 
 const CompiledContractEl = (props: CompiledContractProps) => {
+    const [network, _setNetwork] = useState("holesky");
+    const [address, setAddress] = useState();
+    const [bytecode, setBytecode] = useState(props.contract.evm.bytecode.object);
+    const [constructorArgs, setConstructorArgs] = useState("");
 
-    const [network, setNetwork] = useState("holesky");
-    const [address, setAddress] = useState("0xff0b5eeeeeeeec81111c136f4bbb1bbbdaab0f51");
+    const getAddress = async () => {
+        const response = await backendFetch("/api/fancy/random", {
+            method: "Get",
+        });
+        const address = await response.json();
+        setAddress(address.address);
+    };
 
-    const deploySourceCode = async (bytecode: string)  => {
+    useEffect(() => {
+        getAddress().then();
+    }, []);
+
+    const deploySourceCode = async (bytecode: string, constructorArgs: string) => {
+        const bytecodeBytes = ethers.getBytes("0x" + bytecode.replace("0x", ""));
+        const constructorArgsBytes = ethers.getBytes("0x" + constructorArgs.replace("0x", ""));
+
         const response = await backendFetch("/api/fancy/deploy", {
             method: "Post",
             body: JSON.stringify({
-                "network": network,
-                "address": address,
-                "bytecode": "0x" + bytecode,
+                network: network,
+                address: address,
+                bytecode: ethers.hexlify(bytecodeBytes),
+                constructorArgs: ethers.hexlify(constructorArgsBytes),
             }),
         });
         const deploy = await response.json();
         console.log(deploy);
-    }
+    };
+
+    const metadata = JSON.parse(props.contract.metadata) as CompilerMetadata;
 
     return (
         <div>
-            <textarea style={{
-                backgroundColor: "#f5f5f5",
-                border: "1px solid #ddd",
-                borderRadius: "5px",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                fontSize: "14px",
-                lineHeight: "20px",
-                width: "100%",
-                height: "200px",
-            }}>
-                {props.contract.bytecode.object}
-            </textarea>
-
-            <Button onClick={e => deploySourceCode(props.contract.bytecode.object)}>Deploy</Button>
+            <div>Address {address}</div>
+            <Button onClick={(_e) => getAddress()}>Get Random Address</Button>
+            <div>
+                Compiler version: {metadata.language} - {metadata.compiler.version}
+            </div>
+            <div>
+                Optimizer enabled:
+                <span style={{ fontWeight: "bold" }}>
+                    {metadata.settings.optimizer.enabled ? "true" : "false"}
+                </span>{" "}
+                runs:
+                <span style={{ fontWeight: "bold" }}>{metadata.settings.optimizer.runs}</span>
+            </div>
+            <textarea
+                value={bytecode}
+                onChange={(e) => setBytecode(e.target.value)}
+                style={{
+                    backgroundColor: "#f5f5f5",
+                    border: "1px solid #ddd",
+                    borderRadius: "5px",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    fontSize: "14px",
+                    lineHeight: "20px",
+                    width: "100%",
+                    height: "200px",
+                }}
+            ></textarea>
+            ABI
+            <textarea
+                value={JSON.stringify(metadata.output.abi, null, 2)}
+                style={{
+                    backgroundColor: "#f5f5f5",
+                    border: "1px solid #ddd",
+                    borderRadius: "5px",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    fontSize: "14px",
+                    lineHeight: "20px",
+                    width: "100%",
+                    height: "200px",
+                }}
+            />
+            Constructor binary data
+            <textarea
+                value={constructorArgs}
+                onChange={(e) => setConstructorArgs(e.target.value)}
+                style={{
+                    backgroundColor: "#f5f5f5",
+                    border: "1px solid #ddd",
+                    borderRadius: "5px",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    fontSize: "14px",
+                    lineHeight: "20px",
+                    width: "100%",
+                    height: "200px",
+                }}
+            ></textarea>
+            <Button onClick={(_e) => deploySourceCode(bytecode, constructorArgs)}>Deploy</Button>
         </div>
-
     );
-}
+};
 
 const Dashboard = () => {
     //const loginInformation = useLoginOrNull();
-    const navigate = useNavigate();
+    //const navigate = useNavigate();
     const [errors, setErrors] = useState<CompileErrors[]>([]);
-    const [contracts, setContracts] = useState<{ [key: string]: ContractCompiledEvm }>({});
-    const [code, setCode] = useState("// SPDX-License-Identifier: UNLICENSED\n" +
-        "pragma solidity ^0.8.28;\n" +
-        "\n" +
-        "// Uncomment this line to use console.log\n" +
-        "// import \"hardhat/console.sol\";\n" +
-        "\n" +
-        "contract Lock {\n" +
-        "    uint public unlockTime;\n" +
-        "    address payable public owner;\n" +
-        "\n" +
-        "    event Withdrawal(uint amount, uint when);\n" +
-        "\n" +
-        "    constructor(uint _unlockTime) payable {\n" +
-        "        require(\n" +
-        "            block.timestamp < _unlockTime,\n" +
-        "            \"Unlock time should be in the future\"\n" +
-        "        );\n" +
-        "\n" +
-        "        unlockTime = _unlockTime;\n" +
-        "        owner = payable(msg.sender);\n" +
-        "    }\n" +
-        "\n" +
-        "    function withdraw() public {\n" +
-        "        // Uncomment this line, and the import of \"hardhat/console.sol\", to print a log in your terminal\n" +
-        "        // console.log(\"Unlock time is %o and block timestamp is %o\", unlockTime, block.timestamp);\n" +
-        "\n" +
-        "        require(block.timestamp >= unlockTime, \"You can't withdraw yet\");\n" +
-        "        require(msg.sender == owner, \"You aren't the owner\");\n" +
-        "\n" +
-        "        emit Withdrawal(address(this).balance, block.timestamp);\n" +
-        "\n" +
-        "        owner.transfer(address(this).balance);\n" +
-        "    }\n" +
-        "}\n" +
-        "\n" );
+    const [contracts, setContracts] = useState<{ [key: string]: { [key: string]: ContractCompiled } }>({});
+    const [code, setCode] = useState(
+        "// SPDX-License-Identifier: UNLICENSED\n" +
+            "pragma solidity ^0.8.28;\n" +
+            "\n" +
+            "// Uncomment this line to use console.log\n" +
+            '// import "hardhat/console.sol";\n' +
+            "\n" +
+            "contract Lock {\n" +
+            "    uint public unlockTime;\n" +
+            "    address payable public owner;\n" +
+            "\n" +
+            "    event Withdrawal(uint amount, uint when);\n" +
+            "\n" +
+            "    constructor(uint _unlockTime) payable {\n" +
+            "        require(\n" +
+            "            block.timestamp < _unlockTime,\n" +
+            '            "Unlock time should be in the future"\n' +
+            "        );\n" +
+            "\n" +
+            "        unlockTime = _unlockTime;\n" +
+            "        owner = payable(msg.sender);\n" +
+            "    }\n" +
+            "\n" +
+            "    function withdraw() public {\n" +
+            '        // Uncomment this line, and the import of "hardhat/console.sol", to print a log in your terminal\n' +
+            '        // console.log("Unlock time is %o and block timestamp is %o", unlockTime, block.timestamp);\n' +
+            "\n" +
+            '        require(block.timestamp >= unlockTime, "You can\'t withdraw yet");\n' +
+            '        require(msg.sender == owner, "You aren\'t the owner");\n' +
+            "\n" +
+            "        emit Withdrawal(address(this).balance, block.timestamp);\n" +
+            "\n" +
+            "        owner.transfer(address(this).balance);\n" +
+            "    }\n" +
+            "}\n" +
+            "\n",
+    );
 
-    const compileSourceCode = async (sourceCode: string)  => {
+    const compileSourceCode = async (sourceCode: string) => {
         const response = await backendFetch("/api/contract/compile", {
             method: "Post",
             body: JSON.stringify({
-                "sources": {
-                    "main": sourceCode,
-                }
+                sources: {
+                    main: sourceCode,
+                },
             }),
         });
-        const compile = await response.json();
+        const compile: CompileResponse = await response.json();
         console.log(compile);
         if (compile.errors) {
             setErrors(compile.errors);
@@ -139,15 +219,7 @@ const Dashboard = () => {
             console.log(compile.contracts);
             setContracts(compile.contracts);
         }
-    }
-
-    const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
-    const urlParams = new URLSearchParams(window.location.search);
-    const reset_token = urlParams.get("reset_token");
-
-    //const isLoggedIn = loginInformation.loginData != null;
-    const [_logoutInProgress, setLogoutInProgress] = React.useState(false);
-    //const updateLogin = useLoginEvent();
+    };
 
     function getMarginLeft() {
         return Math.max((window.innerWidth - 1500) / 2, 15);
@@ -157,51 +229,26 @@ const Dashboard = () => {
         document.getElementsByClassName("main-page")[0].setAttribute("style", `margin-left: ${marginLeft}px`);
     };
 
-    const location = useLocation();
-
-
-    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-        setAnchorEl(event.currentTarget);
-    };
-
-    const handleClose = () => {
-        setAnchorEl(null);
-    };
-    const handleChangePass = () => {
-        window.location.href = "/dashboard/change_pass";
-        setAnchorEl(null);
-    };
-
-    const handleChangeOrg = (newOrg: string) => {
-        localStorage.setItem("organization", newOrg);
-        localStorage.removeItem("scans");
-        localStorage.removeItem("address");
-
-        window.location.href = "/dashboard";
-    };
-    const open = Boolean(anchorEl);
-    const marginLeft = getMarginLeft();
-
-
-    const evms: {[key: string]: ContractCompiledEvm} = {};
-    for (const [key, value] of Object.entries(contracts)) {
+    const compiledContracts: { [key: string]: ContractCompiled } = {};
+    for (const value of Object.values(contracts)) {
         for (const [key2, value2] of Object.entries(value)) {
-            console.log(key2, value2);
-            evms[key2] = value2.evm;
+            compiledContracts[key2] = value2;
         }
     }
 
     return (
-        <div className="main-page" style={{ marginLeft: marginLeft }}>
-            <div style={{
-                fontFamily: '"Fira code", "Fira Mono", monospace',
-            }}>
+        <div className="main-page">
+            <div
+                style={{
+                    fontFamily: '"Fira code", "Fira Mono", monospace',
+                }}
+            >
                 <Editor
                     value={code}
                     onValueChange={(newCode) => setCode(newCode)}
                     padding={10}
                     tabSize={4}
-                    highlight={code => highlight(code, languages.solidity)}
+                    highlight={(code) => highlight(code, languages.solidity, "Solidity")}
                     style={{
                         backgroundColor: "#f5f5f5",
                         border: "1px solid #ddd",
@@ -211,15 +258,16 @@ const Dashboard = () => {
                         lineHeight: "20px",
                     }}
                 />
-                <Button onClick={e => compileSourceCode(code)}>Compile</Button>
+                <Button onClick={(_e) => compileSourceCode(code)}>Compile</Button>
 
                 {errors.map((error, index) => (
-                    <div key={index}>{error.severity} {error.type} {error.message} {error.formattedMessage}</div>
+                    <div key={index}>
+                        {error.severity} {error.type} {error.message} {error.formattedMessage}
+                    </div>
                 ))}
-                {Object.keys(evms).map((key, index) => (
-                    <CompiledContractEl key={index} contract={evms[key]} />
+                {Object.keys(compiledContracts).map((key, index) => (
+                    <CompiledContractEl key={index} contract={compiledContracts[key]} />
                 ))}
-
             </div>
         </div>
     );

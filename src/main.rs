@@ -32,6 +32,7 @@ use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
+use rand::prelude::SliceRandom;
 use tokio::sync::Mutex;
 
 fn get_allowed_emails() -> Vec<String> {
@@ -63,6 +64,15 @@ lazy_static! {
 
 pub struct ServerData {
     pub db_connection: Arc<Mutex<SqlitePool>>,
+}
+
+pub async fn handle_random(server_data: web::Data<Box<ServerData>>) -> impl Responder {
+    let conn = server_data.db_connection.lock().await;
+    let list = list_all(&conn).await.unwrap();
+    let random = list.choose(&mut rand::thread_rng()).unwrap();
+
+
+    HttpResponse::Ok().json(random)
 }
 
 pub async fn handle_list(server_data: web::Data<Box<ServerData>>) -> impl Responder {
@@ -152,6 +162,7 @@ pub struct DeployData {
     pub address: DbAddress,
     pub network: String,
     pub bytecode: String,
+    pub construct_args: String,
 }
 
 pub async fn handle_fancy_deploy(
@@ -185,6 +196,15 @@ pub async fn handle_fancy_deploy(
         } else {
             vec!["/bin/bash", "-c", &command]
         };
+
+        let constr_bytes = match hex::decode(deploy_data.construct_args.replace("0x", "").clone()) {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                log::error!("{}", e);
+                return HttpResponse::InternalServerError().finish();
+            }
+        };
+        
 
         let env_vars = vec![
             ("ADDRESS", format!("{:#x}", fancy.address.addr())),
@@ -425,6 +445,7 @@ async fn main() -> std::io::Result<()> {
                         .build();
 
                 let api_scope = Scope::new("/api")
+                    .route("/fancy/random", web::get().to(handle_random))
                     .route("/fancy/list", web::get().to(handle_list))
                     .route("/fancy/new", web::post().to(handle_fancy_new))
                     .route("/fancy/deploy", web::post().to(handle_fancy_deploy))
