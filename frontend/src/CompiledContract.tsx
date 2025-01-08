@@ -4,20 +4,25 @@ import "prismjs/components/prism-clike";
 import "prismjs/components/prism-solidity";
 import "prismjs/themes/prism.css";
 import { backendFetch } from "./common/BackendCall";
-import { Button } from "@mui/material";
+import {Button, MenuItem, Select} from "@mui/material";
 import { ethers } from "ethers"; //Example style, you can use another
 import { CompilerMetadata, ContractCompiled } from "./model/Contract";
 import "./CompiledContract.css";
 
 interface CompiledContractProps {
-    contract: ContractCompiled;
+    contract?: ContractCompiled;
 }
 
 const CompiledContract = (props: CompiledContractProps) => {
     const [network, _setNetwork] = useState("holesky");
     const [address, setAddress] = useState();
-    const [bytecode, _setBytecode] = useState(props.contract.evm.bytecode.object);
+    const [bytecode, _setBytecode] = useState(props.contract?.evm.bytecode.object ?? "");
     const [constructorArgs, setConstructorArgs] = useState("");
+    const [networks, setNetworks] = useState<string[]>([]);
+
+    const getNetworks = async () => {
+        return ["holesky", "amoy"];
+    }
 
     const getAddress = async () => {
         const response = await backendFetch("/api/fancy/random", {
@@ -29,6 +34,7 @@ const CompiledContract = (props: CompiledContractProps) => {
 
     useEffect(() => {
         getAddress().then();
+        getNetworks().then(setNetworks);
     }, []);
 
     const deploySourceCode = async (bytecode: string, constructorArgs: string) => {
@@ -47,6 +53,10 @@ const CompiledContract = (props: CompiledContractProps) => {
         const deploy = await response.json();
         console.log(deploy);
     };
+
+    if (!props.contract) {
+        return <div>No contract</div>;
+    }
 
     const metadata = JSON.parse(props.contract.metadata) as CompilerMetadata;
 
@@ -125,7 +135,23 @@ const CompiledContract = (props: CompiledContractProps) => {
                     height: "200px",
                 }}
             ></textarea>
-            <Button onClick={(_e) => deploySourceCode(bytecode, constructorArgs)}>Deploy</Button>
+            <Button onClick={(_e) => deploySourceCode(bytecode, constructorArgs)}>Save to</Button>
+            <Select
+                value={network}
+                onChange={(e) => _setNetwork(e.target.value)}
+                style={{ width: "100px" }}
+            >
+                {networks.map((network) => (
+                    <MenuItem key={network} value={network}>
+                        {network}
+                    </MenuItem>
+                ))}
+            </Select>
+
+            <div style={{height: 300}}>
+                Empty
+
+            </div>
         </div>
     );
 };

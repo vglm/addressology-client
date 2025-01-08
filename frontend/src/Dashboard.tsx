@@ -8,6 +8,7 @@ import { backendFetch } from "./common/BackendCall";
 
 import ChangePassScreen from "./ChangePassScreen";
 import ContractFromSources from "./ContractFromSources";
+import CompiledContract from "./CompiledContract";
 
 const Dashboard = () => {
     const loginInformation = useLoginOrNull();
@@ -76,6 +77,13 @@ const Dashboard = () => {
     const open = Boolean(anchorEl);
     const marginLeft = getMarginLeft();
 
+    const compiledContractStr = localStorage.getItem("currentContract");
+    let compiledContract = null;
+    try {
+        compiledContract = compiledContractStr ? JSON.parse(compiledContractStr) : null;
+    } catch (e) {
+        console.error(e);
+    }
     return (
         <div className="main-page" style={{ marginLeft: marginLeft }}>
             <div className="top-header">
@@ -88,15 +96,15 @@ const Dashboard = () => {
                                     navigate("/");
                                 }}
                             >
-                                Statistics
+                                Create Contract
                             </Button>
                             <Button
-                                disabled={location.pathname === "/aggregates"}
+                                disabled={location.pathname === "/contract"}
                                 onClick={() => {
-                                    navigate("/aggregates");
+                                    navigate("/contract");
                                 }}
                             >
-                                Aggregates
+                                Edit Contract
                             </Button>
                             <Button
                                 disabled={location.pathname === "/blocks"}
@@ -187,6 +195,7 @@ const Dashboard = () => {
                     <Route path="/" element={<div>{isLoggedIn && <ContractFromSources />}</div>} />
                     <Route path="/login" element={<div>{reset_token ? <ChangePassScreen /> : <LoginScreen />}</div>} />
                     <Route path="/change_pass" element={<div>{isLoggedIn && <ChangePassScreen />}</div>} />
+                    <Route path="/contract" element={<div>{isLoggedIn && <CompiledContract contract={compiledContract} />}</div>} />
                 </Routes>
             </div>
         </div>
