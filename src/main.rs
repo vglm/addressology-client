@@ -1,43 +1,45 @@
+mod api;
 mod cookie;
 mod db;
+mod email;
 mod error;
 mod fancy;
 mod hash;
+mod oauth;
 mod solc;
 mod types;
 mod update;
-mod api;
-mod oauth;
-mod email;
 
 use crate::api::oauth::google::{handle_google_callback, handle_login_via_google};
 use crate::api::user;
+use crate::api::user::handle_greet;
 use crate::cookie::load_key_or_create;
 use crate::db::connection::create_sqlite_connection;
 use crate::db::ops::{get_by_address, insert_fancy_obj, list_all};
 use crate::hash::compute_create3_command;
 use crate::solc::compile_solc;
 use crate::types::DbAddress;
+use actix_multipart::form::MultipartFormConfig;
+use actix_multipart::MultipartError;
 use actix_session::config::CookieContentSecurity;
 use actix_session::storage::CookieSessionStore;
-use actix_session::{Session, SessionMiddleware};
+use actix_session::SessionMiddleware;
 use actix_web::cookie::SameSite;
 use actix_web::http::StatusCode;
 use actix_web::{
     web, App, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder, Scope,
 };
 use awc::Client;
-use clap::{crate_version, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
+use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use sqlx::SqlitePool;
 use std::collections::BTreeMap;
 use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
-use rand::prelude::SliceRandom;
 use tokio::sync::Mutex;
 
 fn get_allowed_emails() -> Vec<String> {
@@ -75,7 +77,6 @@ pub async fn handle_random(server_data: web::Data<Box<ServerData>>) -> impl Resp
     let conn = server_data.db_connection.lock().await;
     let list = list_all(&conn).await.unwrap();
     let random = list.choose(&mut rand::thread_rng()).unwrap();
-
 
     HttpResponse::Ok().json(random)
 }
@@ -364,17 +365,6 @@ pub async fn dashboard_serve(
     HttpResponse::NotFound().body(format!("404 Not Found: {}", path))
 }
 
-pub async fn handle_greet(session: Session) -> impl Responder {
-    println!("Session: {:?}", session.status());
-    let describe_version = crate_version!();
-
-    HttpResponse::Ok().json(json!({
-        "message": "Hello, World!",
-        "domain": *WEB_PORTAL_DOMAIN.clone(),
-        "version": describe_version,
-    }))
-}
-
 /// Enum that defines the available subcommands
 #[derive(Subcommand)]
 enum Commands {
@@ -411,6 +401,11 @@ struct Cli {
 
     #[arg(long, default_value = "addressology.sqlite")]
     db: String,
+}
+
+fn handle_multipart_error(err: MultipartError, _req: &HttpRequest) -> actix_web::Error {
+    log::error!("Multipart error: {}", err);
+    actix_web::Error::from(err)
 }
 
 #[actix_rt::main]
@@ -453,17 +448,15 @@ async fn main() -> std::io::Result<()> {
                         "/auth/callback/google",
                         web::get().to(handle_google_callback),
                     )
-
                     .route("/auth/login/google", web::get().to(handle_login_via_google))
                     .route("/login", web::post().to(user::handle_login))
-		    .route("/session/check", web::get().to(user::handle_session_check))
+                    .route("/session/check", web::get().to(user::handle_session_check))
                     .route("/is_login", web::get().to(user::handle_is_login))
                     .route("/is_login", web::post().to(user::handle_is_login))
                     .route("/logout", web::post().to(user::handle_logout))
                     .route("/reset_pass", web::post().to(user::handle_password_reset))
                     .route("/set_pass", web::post().to(user::handle_password_set))
                     .route("/change_pass", web::post().to(user::handle_password_change))
-		    
                     .route("/fancy/random", web::get().to(handle_random))
                     .route("/fancy/list", web::get().to(handle_list))
                     .route("/fancy/new", web::post().to(handle_fancy_new))
@@ -476,6 +469,12 @@ async fn main() -> std::io::Result<()> {
                     .wrap(cors)
                     .app_data(server_data)
                     .app_data(client)
+                    .app_data(
+                        MultipartFormConfig::default()
+                            .total_limit(10 * 1024 * 1024 * 1024) // 10 GB
+                            .memory_limit(10 * 1024 * 1024) // 10 MB
+                            .error_handler(handle_multipart_error),
+                    )
                     .route("/", web::get().to(redirect_to_dashboard))
                     .route("/dashboard", web::get().to(redirect_to_dashboard))
                     .route("/dashboard/{_:.*}", web::get().to(dashboard_serve))

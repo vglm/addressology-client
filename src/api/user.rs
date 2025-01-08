@@ -6,7 +6,6 @@ mod reset_pass;
 mod set_pass;
 mod utils;
 
-use crate::db::model::UserDbObj;
 use actix_session::Session;
 use actix_web::{HttpResponse, Responder};
 use clap::crate_version;
@@ -49,12 +48,6 @@ lazy_static! {
     pub static ref ALLOW_CREATING_NEW_ACCOUNTS: bool = env::var("ALLOW_CREATING_NEW_ACCOUNTS")
         .map(|v| v == "true")
         .unwrap_or(false);
-}
-
-#[derive(Debug, Clone)]
-pub struct UserSessions {
-    pub user: UserDbObj,
-    pub session_id: String,
 }
 
 fn pass_to_hash(password_binary: &[u8]) -> String {

@@ -1,8 +1,8 @@
-mod user;
 mod fancy;
+mod user;
 
-pub use user::*;
 pub use fancy::*;
+pub use user::*;
 
 use std::future::Future;
 use std::time::Duration;

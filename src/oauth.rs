@@ -60,7 +60,9 @@ pub struct OAuthTokenInfo {
     pub error_description: Option<String>,
 }
 
-pub async fn verify_access_token(access_token: String) -> Result<OAuthTokenInfo, AddressologyError> {
+pub async fn verify_access_token(
+    access_token: String,
+) -> Result<OAuthTokenInfo, AddressologyError> {
     let req = reqwest::Client::new()
         .get("https://www.googleapis.com/oauth2/v1/tokeninfo")
         .query(&[("access_token", access_token)])

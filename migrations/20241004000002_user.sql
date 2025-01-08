@@ -9,6 +9,9 @@ CREATE TABLE users
     set_pass_token      TEXT,
     set_pass_token_date TEXT,
 
+    allow_pass_login    INT NULL,
+    allow_google_login  INT NULL,
+
     CONSTRAINT users_pk PRIMARY KEY (uid),
     CONSTRAINT idx_users_email UNIQUE (email)
 ) strict;

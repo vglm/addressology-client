@@ -42,6 +42,8 @@ pub async fn handle_password_reset(
                 pass_hash: "000000000000000".to_string(),
                 created_date,
                 last_pass_change: created_date,
+                allow_pass_login: true,
+                allow_google_login: false,
                 set_pass_token: None,
                 set_pass_token_date: None,
             };

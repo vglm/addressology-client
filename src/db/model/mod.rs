@@ -18,6 +18,9 @@ pub struct UserDbObj {
     pub set_pass_token: Option<String>,
     #[serde(skip)]
     pub set_pass_token_date: Option<DateTime<Utc>>,
+
+    pub allow_pass_login: bool,
+    pub allow_google_login: bool,
 }
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Eq, Debug, Clone)]

@@ -40,12 +40,11 @@ pub async fn delete_old_oauth_stages(conn: &SqlitePool) -> Result<(), sqlx::Erro
     Ok(())
 }
 
-#[allow(dead_code)]
 pub async fn insert_user(conn: &SqlitePool, user: &UserDbObj) -> Result<UserDbObj, sqlx::Error> {
     let res = sqlx::query_as::<_, UserDbObj>(
         r"INSERT INTO users
-(uid, email, pass_hash, created_date, last_pass_change)
-VALUES ($1, $2, $3, $4, $5) RETURNING *;
+(uid, email, pass_hash, created_date, last_pass_change, allow_pass_login, allow_google_login)
+VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;
 ",
     )
     .bind(&user.uid)
@@ -53,6 +52,8 @@ VALUES ($1, $2, $3, $4, $5) RETURNING *;
     .bind(&user.pass_hash)
     .bind(user.created_date)
     .bind(user.last_pass_change)
+    .bind(user.allow_pass_login)
+    .bind(user.allow_google_login)
     .fetch_one(conn)
     .await?;
     Ok(res)
@@ -104,7 +105,9 @@ pass_hash = $3,
 created_date = $4,
 last_pass_change = $5,
 set_pass_token = $6,
-set_pass_token_date = $7
+set_pass_token_date = $7,
+allow_pass_login = $8,
+allow_google_login = $9
 WHERE id = $1
 ",
     )
@@ -115,6 +118,8 @@ WHERE id = $1
     .bind(user.last_pass_change)
     .bind(&user.set_pass_token)
     .bind(user.set_pass_token_date)
+    .bind(user.allow_pass_login)
+    .bind(user.allow_google_login)
     .execute(conn)
     .await?;
     Ok(user.clone())
@@ -147,13 +152,20 @@ async fn tx_test() -> sqlx::Result<()> {
         pass_hash: "324235235".to_string(),
         created_date,
         last_pass_change,
+        allow_pass_login: false,
+        allow_google_login: true,
         set_pass_token: None,
         set_pass_token_date: None,
     };
 
-    let user_from_insert = insert_user(&conn, &user_to_insert).await?;
-    let user_from_dao = get_user(&conn, &user_from_insert.email).await?;
+    let user_from_insert = insert_user(&conn, &user_to_insert)
+        .await
+        .expect("insert failed");
+    let user_from_dao = get_user(&conn, &user_from_insert.email)
+        .await
+        .expect("get failed");
 
+    println!("User inserted: {:?}", user_from_insert);
     //all three should be equal
     assert_eq!(user_to_insert, user_from_dao);
     assert_eq!(user_from_insert, user_from_dao);
