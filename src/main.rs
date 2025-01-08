@@ -6,7 +6,12 @@ mod hash;
 mod solc;
 mod types;
 mod update;
+mod api;
+mod oauth;
+mod email;
 
+use crate::api::oauth::google::{handle_google_callback, handle_login_via_google};
+use crate::api::user;
 use crate::cookie::load_key_or_create;
 use crate::db::connection::create_sqlite_connection;
 use crate::db::ops::{get_by_address, insert_fancy_obj, list_all};
@@ -444,6 +449,21 @@ async fn main() -> std::io::Result<()> {
                         .build();
 
                 let api_scope = Scope::new("/api")
+                    .route(
+                        "/auth/callback/google",
+                        web::get().to(handle_google_callback),
+                    )
+
+                    .route("/auth/login/google", web::get().to(handle_login_via_google))
+                    .route("/login", web::post().to(user::handle_login))
+		    .route("/session/check", web::get().to(user::handle_session_check))
+                    .route("/is_login", web::get().to(user::handle_is_login))
+                    .route("/is_login", web::post().to(user::handle_is_login))
+                    .route("/logout", web::post().to(user::handle_logout))
+                    .route("/reset_pass", web::post().to(user::handle_password_reset))
+                    .route("/set_pass", web::post().to(user::handle_password_set))
+                    .route("/change_pass", web::post().to(user::handle_password_change))
+		    
                     .route("/fancy/random", web::get().to(handle_random))
                     .route("/fancy/list", web::get().to(handle_list))
                     .route("/fancy/new", web::post().to(handle_fancy_new))

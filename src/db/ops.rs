@@ -1,5 +1,7 @@
+mod user;
 mod fancy;
 
+pub use user::*;
 pub use fancy::*;
 
 use std::future::Future;
