@@ -66,21 +66,27 @@ pub async fn handle_google_callback(
                 return Ok(HttpResponse::Unauthorized().body("This email is not allowed"));
             }
 
-            if let Ok(usr) = get_user(&data.db_connection.lock().await.clone(), &email).await {
-                if !usr.allow_google_login {
-                    log::error!("User {} is not allowed to login with google", email);
-                    return Ok(HttpResponse::Unauthorized().body("This email is not allowed"));
+            match get_user(&data.db_connection.lock().await.clone(), &email).await {
+                Ok(usr) => {
+                    if !usr.allow_google_login {
+                        log::error!("User {} is not allowed to login with google", email);
+                        return Ok(HttpResponse::Unauthorized().body("This email is not allowed"));
+                    }
+                    session.insert("user", &usr)?;
+                    Ok(
+                        HttpResponseBuilder::new(actix_web::http::StatusCode::TEMPORARY_REDIRECT)
+                            .append_header((actix_web::http::header::LOCATION, "/dashboard/"))
+                            .finish(),
+                    )
                 }
-                session.insert("user", &usr)?;
-                return Ok(HttpResponseBuilder::new(
-                    actix_web::http::StatusCode::TEMPORARY_REDIRECT,
-                )
-                .append_header((actix_web::http::header::LOCATION, "/dashboard/"))
-                .finish());
+                Err(err) => {
+                    log::error!("Error getting user: {}", err);
+                    Ok(HttpResponse::InternalServerError().body("Failed to get user"))
+                }
             }
+        } else {
+            Ok(HttpResponse::Unauthorized().body("User not found"))
         }
-
-        Ok(HttpResponse::Unauthorized().body("User not found"))
     } else {
         Ok(HttpResponse::BadRequest().body("Missing code or state"))
     }
