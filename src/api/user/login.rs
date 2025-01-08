@@ -52,6 +52,10 @@ pub async fn handle_login(
             return HttpResponse::Unauthorized().body("Invalid email or password");
         }
     };
+    if !usr.allow_pass_login {
+        log::error!("User {} is not allowed to login with password", email);
+        return HttpResponse::Unauthorized().body("Invalid email or password");
+    }
     //log::info!("Login {} == {}", usr.pass_hash, key);
     if usr.pass_hash == key {
         log::info!("User {} logged in", email);

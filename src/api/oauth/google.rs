@@ -67,6 +67,10 @@ pub async fn handle_google_callback(
             }
 
             if let Ok(usr) = get_user(&data.db_connection.lock().await.clone(), &email).await {
+                if !usr.allow_google_login {
+                    log::error!("User {} is not allowed to login with google", email);
+                    return Ok(HttpResponse::Unauthorized().body("This email is not allowed"));
+                }
                 session.insert("user", &usr)?;
                 return Ok(HttpResponseBuilder::new(
                     actix_web::http::StatusCode::TEMPORARY_REDIRECT,
