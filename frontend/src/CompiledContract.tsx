@@ -16,7 +16,7 @@ interface CompiledContractProps {
 const CompiledContract = (props: CompiledContractProps) => {
     const [network, _setNetwork] = useState("holesky");
     const [address, setAddress] = useState();
-    const [bytecode, setBytecode] = useState(props.contract.evm.bytecode.object);
+    const [bytecode, _setBytecode] = useState(props.contract.evm.bytecode.object);
     const [constructorArgs, setConstructorArgs] = useState("");
 
     const getAddress = async () => {
@@ -68,7 +68,7 @@ const CompiledContract = (props: CompiledContractProps) => {
             </div>
             <textarea
                 value={bytecode}
-                onChange={(e) => {
+                onChange={(_e) => {
                     console.log("Readonly");
                 }}
                 style={{
@@ -111,7 +111,6 @@ const CompiledContract = (props: CompiledContractProps) => {
                     height: "200px",
                 }}
             ></textarea>
-
             Source code
             <textarea
                 value={props.contract.singleFileCode}
@@ -124,7 +123,8 @@ const CompiledContract = (props: CompiledContractProps) => {
                     lineHeight: "20px",
                     width: "100%",
                     height: "200px",
-                }}></textarea>
+                }}
+            ></textarea>
             <Button onClick={(_e) => deploySourceCode(bytecode, constructorArgs)}>Deploy</Button>
         </div>
     );

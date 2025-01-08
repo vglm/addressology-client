@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 import Editor from "react-simple-code-editor";
 import { highlight, languages } from "prismjs";
@@ -7,10 +7,8 @@ import "prismjs/components/prism-solidity";
 import "prismjs/themes/prism.css";
 import { backendFetch } from "./common/BackendCall";
 import { Button } from "@mui/material";
-import { ethers } from "ethers"; //Example style, you can use another
 import "./ContractFromSources.css";
 import { CompileErrors, CompileResponse, ContractCompiled } from "./model/Contract";
-import CompiledContract from "./CompiledContract";
 
 const ContractFromSources = () => {
     //const loginInformation = useLoginOrNull();
@@ -93,7 +91,7 @@ const ContractFromSources = () => {
         }
     }
 
-    function selectContract(key: String, objWithSource: ContractCompiled) {
+    function selectContract(key: string, objWithSource: ContractCompiled) {
         localStorage.setItem("key", JSON.stringify(objWithSource));
     }
 
@@ -135,12 +133,12 @@ const ContractFromSources = () => {
                     const objWithSource = compiledContracts[key];
                     objWithSource.singleFileCode = code;
                     return (
-                        <div>Successfully compiled contract {key}
-                            <Button onClick={e => selectContract(key, objWithSource)}>Select {key}</Button>
+                        <div key={key}>
+                            {index + 1} : Successfully compiled contract {key}
+                            <Button onClick={(_e) => selectContract(key, objWithSource)}>Select {key}</Button>
                         </div>
-                    )})}
-
-
+                    );
+                })}
             </div>
         </div>
     );

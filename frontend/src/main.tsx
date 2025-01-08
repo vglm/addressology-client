@@ -2,8 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import { BrowserRouter } from "react-router-dom";
-import ContractFromSources from "./ContractFromSources";
-import {LoginProvider} from "./LoginProvider";
+import { LoginProvider } from "./LoginProvider";
 import Dashboard from "./Dashboard";
 
 const rootEl = document.getElementById("root");
@@ -16,9 +15,7 @@ root.render(
     <React.StrictMode>
         <BrowserRouter basename={"dashboard"}>
             <LoginProvider>
-
-                    <Dashboard />
- 
+                <Dashboard />
             </LoginProvider>
         </BrowserRouter>
     </React.StrictMode>,

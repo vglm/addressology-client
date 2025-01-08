@@ -9,7 +9,6 @@ import { backendFetch } from "./common/BackendCall";
 import ChangePassScreen from "./ChangePassScreen";
 import ContractFromSources from "./ContractFromSources";
 
-
 const Dashboard = () => {
     const loginInformation = useLoginOrNull();
     const navigate = useNavigate();
@@ -188,7 +187,6 @@ const Dashboard = () => {
                     <Route path="/" element={<div>{isLoggedIn && <ContractFromSources />}</div>} />
                     <Route path="/login" element={<div>{reset_token ? <ChangePassScreen /> : <LoginScreen />}</div>} />
                     <Route path="/change_pass" element={<div>{isLoggedIn && <ChangePassScreen />}</div>} />
-
                 </Routes>
             </div>
         </div>
