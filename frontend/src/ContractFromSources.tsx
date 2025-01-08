@@ -8,156 +8,14 @@ import "prismjs/themes/prism.css";
 import { backendFetch } from "./common/BackendCall";
 import { Button } from "@mui/material";
 import { ethers } from "ethers"; //Example style, you can use another
-import "./Dashboard.css";
+import "./ContractFromSources.css";
+import {CompileErrors, CompileResponse, ContractCompiled} from "./model/Contract";
+import CompiledContract from "./CompiledContract";
 
-interface CompilerMetadata {
-    compiler: {
-        version: string;
-    };
-    language: string;
-    output: {
-        abi: any[];
-    };
-    settings: {
-        evmVersion: string;
-        optimizer: {
-            enabled: boolean;
-            runs: number;
-        };
-    };
-}
 
-interface CompileErrors {
-    message: string;
-    formattedMessage: string;
-    severity: string;
-    type: string;
-}
 
-interface ContractCompiledBytecode {
-    object: string;
-    opcodes: string;
-    sourceMap: string;
-}
-interface ContractCompiledEvm {
-    bytecode: ContractCompiledBytecode;
-}
-interface ContractCompiled {
-    evm: ContractCompiledEvm;
-    metadata: string;
-}
 
-interface CompileResponse {
-    contracts?: { [key: string]: { [key: string]: ContractCompiled } };
-    errors?: CompileErrors[];
-}
-
-interface CompiledContractProps {
-    contract: ContractCompiled;
-}
-
-const CompiledContractEl = (props: CompiledContractProps) => {
-    const [network, _setNetwork] = useState("holesky");
-    const [address, setAddress] = useState();
-    const [bytecode, setBytecode] = useState(props.contract.evm.bytecode.object);
-    const [constructorArgs, setConstructorArgs] = useState("");
-
-    const getAddress = async () => {
-        const response = await backendFetch("/api/fancy/random", {
-            method: "Get",
-        });
-        const address = await response.json();
-        setAddress(address.address);
-    };
-
-    useEffect(() => {
-        getAddress().then();
-    }, []);
-
-    const deploySourceCode = async (bytecode: string, constructorArgs: string) => {
-        const bytecodeBytes = ethers.getBytes("0x" + bytecode.replace("0x", ""));
-        const constructorArgsBytes = ethers.getBytes("0x" + constructorArgs.replace("0x", ""));
-
-        const response = await backendFetch("/api/fancy/deploy", {
-            method: "Post",
-            body: JSON.stringify({
-                network: network,
-                address: address,
-                bytecode: ethers.hexlify(bytecodeBytes),
-                constructorArgs: ethers.hexlify(constructorArgsBytes),
-            }),
-        });
-        const deploy = await response.json();
-        console.log(deploy);
-    };
-
-    const metadata = JSON.parse(props.contract.metadata) as CompilerMetadata;
-
-    return (
-        <div>
-            <h3>Contract info</h3>
-            <div>Address {address}</div>
-            <Button onClick={(_e) => getAddress()}>Get Random Address</Button>
-            <div>
-                Compiler version: {metadata.language} - {metadata.compiler.version}
-            </div>
-            <div>
-                Optimizer enabled:
-                <span style={{ fontWeight: "bold" }}>
-                    {metadata.settings.optimizer.enabled ? "true" : "false"}
-                </span>{" "}
-                runs:
-                <span style={{ fontWeight: "bold" }}>{metadata.settings.optimizer.runs}</span>
-            </div>
-            <textarea
-                value={bytecode}
-                onChange={(e) => {}}
-                style={{
-                    backgroundColor: "#f5f5f5",
-                    border: "1px solid #ddd",
-                    borderRadius: "5px",
-                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                    fontSize: "14px",
-                    lineHeight: "20px",
-                    width: "100%",
-                    height: "200px",
-                }}
-            ></textarea>
-            ABI
-            <textarea
-                value={JSON.stringify(metadata.output.abi, null, 2)}
-                style={{
-                    backgroundColor: "#f5f5f5",
-                    border: "1px solid #ddd",
-                    borderRadius: "5px",
-                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                    fontSize: "14px",
-                    lineHeight: "20px",
-                    width: "100%",
-                    height: "200px",
-                }}
-            />
-            Constructor binary data
-            <textarea
-                value={constructorArgs}
-                onChange={(e) => setConstructorArgs(e.target.value)}
-                style={{
-                    backgroundColor: "#f5f5f5",
-                    border: "1px solid #ddd",
-                    borderRadius: "5px",
-                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                    fontSize: "14px",
-                    lineHeight: "20px",
-                    width: "100%",
-                    height: "200px",
-                }}
-            ></textarea>
-            <Button onClick={(_e) => deploySourceCode(bytecode, constructorArgs)}>Deploy</Button>
-        </div>
-    );
-};
-
-const Dashboard = () => {
+const ContractFromSources = () => {
     //const loginInformation = useLoginOrNull();
     //const navigate = useNavigate();
     const [errors, setErrors] = useState<CompileErrors[]>([]);
@@ -273,11 +131,11 @@ const Dashboard = () => {
                     </div>
                 ))}
                 {Object.keys(compiledContracts).map((key, index) => (
-                    <CompiledContractEl key={index} contract={compiledContracts[key]} />
+                    <CompiledContract key={index} contract={compiledContracts[key]} />
                 ))}
             </div>
         </div>
     );
 };
 
-export default Dashboard;
+export default ContractFromSources;
