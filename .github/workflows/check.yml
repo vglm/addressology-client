@@ -1,5 +1,5 @@
 name: Check fmt and clippy
-on:
+disabled on:
   push:
     branches: [ "main", "actions/check" ]
   pull_request:

@@ -1,16 +1,13 @@
 import React, { useEffect, useState } from "react";
 
-import Editor from "react-simple-code-editor";
-import { highlight, languages } from "prismjs";
 import "prismjs/components/prism-clike";
 import "prismjs/components/prism-solidity";
 import "prismjs/themes/prism.css";
 import { backendFetch } from "./common/BackendCall";
 import { Button } from "@mui/material";
 import { ethers } from "ethers"; //Example style, you can use another
-import {CompilerMetadata, ContractCompiled} from "./model/Contract";
+import { CompilerMetadata, ContractCompiled } from "./model/Contract";
 import "./CompiledContract.css";
-
 
 interface CompiledContractProps {
     contract: ContractCompiled;
@@ -71,7 +68,9 @@ const CompiledContract = (props: CompiledContractProps) => {
             </div>
             <textarea
                 value={bytecode}
-                onChange={(e) => {}}
+                onChange={(e) => {
+                    console.log("Readonly");
+                }}
                 style={{
                     backgroundColor: "#f5f5f5",
                     border: "1px solid #ddd",
@@ -112,6 +111,20 @@ const CompiledContract = (props: CompiledContractProps) => {
                     height: "200px",
                 }}
             ></textarea>
+
+            Source code
+            <textarea
+                value={props.contract.singleFileCode}
+                style={{
+                    backgroundColor: "#f5f5f5",
+                    border: "1px solid #ddd",
+                    borderRadius: "5px",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    fontSize: "14px",
+                    lineHeight: "20px",
+                    width: "100%",
+                    height: "200px",
+                }}></textarea>
             <Button onClick={(_e) => deploySourceCode(bytecode, constructorArgs)}>Deploy</Button>
         </div>
     );

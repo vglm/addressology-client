@@ -9,11 +9,8 @@ import { backendFetch } from "./common/BackendCall";
 import { Button } from "@mui/material";
 import { ethers } from "ethers"; //Example style, you can use another
 import "./ContractFromSources.css";
-import {CompileErrors, CompileResponse, ContractCompiled} from "./model/Contract";
+import { CompileErrors, CompileResponse, ContractCompiled } from "./model/Contract";
 import CompiledContract from "./CompiledContract";
-
-
-
 
 const ContractFromSources = () => {
     //const loginInformation = useLoginOrNull();
@@ -96,6 +93,10 @@ const ContractFromSources = () => {
         }
     }
 
+    function selectContract(key: String, objWithSource: ContractCompiled) {
+        localStorage.setItem("key", JSON.stringify(objWithSource));
+    }
+
     return (
         <div className="main-page">
             <div
@@ -118,7 +119,7 @@ const ContractFromSources = () => {
                                 borderRadius: "5px",
                                 boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                                 fontSize: "14px",
-                                lineHeight: "20px"
+                                lineHeight: "20px",
                             }}
                         />
                     </div>
@@ -130,9 +131,16 @@ const ContractFromSources = () => {
                         {error.severity} {error.type} {error.message} {error.formattedMessage}
                     </div>
                 ))}
-                {Object.keys(compiledContracts).map((key, index) => (
-                    <CompiledContract key={index} contract={compiledContracts[key]} />
-                ))}
+                {Object.keys(compiledContracts).map((key, index) => {
+                    const objWithSource = compiledContracts[key];
+                    objWithSource.singleFileCode = code;
+                    return (
+                        <div>Successfully compiled contract {key}
+                            <Button onClick={e => selectContract(key, objWithSource)}>Select {key}</Button>
+                        </div>
+                    )})}
+
+
             </div>
         </div>
     );

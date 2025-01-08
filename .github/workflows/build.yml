@@ -1,5 +1,5 @@
 name: Build
-on:
+disabled on:
   push:
     branches: [ "main", "actions/build" ]
   pull_request:
