@@ -197,14 +197,13 @@ pub async fn handle_fancy_deploy(
             vec!["/bin/bash", "-c", &command]
         };
 
-        let constr_bytes = match hex::decode(deploy_data.construct_args.replace("0x", "").clone()) {
+        match hex::decode(deploy_data.construct_args.replace("0x", "").clone()) {
             Ok(bytes) => bytes,
             Err(e) => {
                 log::error!("{}", e);
                 return HttpResponse::InternalServerError().finish();
             }
         };
-        
 
         let env_vars = vec![
             ("ADDRESS", format!("{:#x}", fancy.address.addr())),

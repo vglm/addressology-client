@@ -8,6 +8,7 @@ import "prismjs/themes/prism.css";
 import { backendFetch } from "./common/BackendCall";
 import { Button } from "@mui/material";
 import { ethers } from "ethers"; //Example style, you can use another
+import "./Dashboard.css";
 
 interface CompilerMetadata {
     compiler: {
@@ -94,6 +95,7 @@ const CompiledContractEl = (props: CompiledContractProps) => {
 
     return (
         <div>
+            <h3>Contract info</h3>
             <div>Address {address}</div>
             <Button onClick={(_e) => getAddress()}>Get Random Address</Button>
             <div>
@@ -109,7 +111,7 @@ const CompiledContractEl = (props: CompiledContractProps) => {
             </div>
             <textarea
                 value={bytecode}
-                onChange={(e) => setBytecode(e.target.value)}
+                onChange={(e) => {}}
                 style={{
                     backgroundColor: "#f5f5f5",
                     border: "1px solid #ddd",
@@ -243,21 +245,26 @@ const Dashboard = () => {
                     fontFamily: '"Fira code", "Fira Mono", monospace',
                 }}
             >
-                <Editor
-                    value={code}
-                    onValueChange={(newCode) => setCode(newCode)}
-                    padding={10}
-                    tabSize={4}
-                    highlight={(code) => highlight(code, languages.solidity, "Solidity")}
-                    style={{
-                        backgroundColor: "#f5f5f5",
-                        border: "1px solid #ddd",
-                        borderRadius: "5px",
-                        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                        fontSize: "14px",
-                        lineHeight: "20px",
-                    }}
-                />
+                <div>
+                    <h2>Contract from source code</h2>
+                    <div className={"source-code"}>
+                        <Editor
+                            value={code}
+                            onValueChange={(newCode) => setCode(newCode)}
+                            padding={10}
+                            tabSize={4}
+                            highlight={(code) => highlight(code, languages.solidity, "Solidity")}
+                            style={{
+                                backgroundColor: "#f5f5f5",
+                                border: "1px solid #ddd",
+                                borderRadius: "5px",
+                                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                                fontSize: "14px",
+                                lineHeight: "20px"
+                            }}
+                        />
+                    </div>
+                </div>
                 <Button onClick={(_e) => compileSourceCode(code)}>Compile</Button>
 
                 {errors.map((error, index) => (
