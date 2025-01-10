@@ -351,7 +351,7 @@ pub async fn dashboard_serve(
                 if let Some(compression) = compression_header {
                     builder.append_header(("Content-Encoding", compression));
                 }
-                builder.append_header(("Cache-Control", "public, max-age=2600000")); // 30 days
+                builder.append_header(("Cache-Control", "public, max-age=3600")); // 1 hour
                 builder.body(content.data.into_owned())
             }
             None => HttpResponse::NotFound().body("404 Not Found"),
