@@ -4,9 +4,11 @@ import { backendFetch } from "./common/BackendCall";
 import { useEffect, useState } from "react";
 import { ContractSaved } from "./model/Contract";
 import { Button } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 
 const MyContracts = () => {
     const [contracts, setContracts] = useState<ContractSaved[]>([]);
+    const navigate = useNavigate();
 
     const getContracts = async () => {
         const response = await backendFetch("/api/contracts/list", {
@@ -14,6 +16,10 @@ const MyContracts = () => {
         });
         const contracts = await response.json();
         setContracts(contracts);
+    };
+
+    const selectContract = async (contractId: string) => {
+        navigate(`/contract/${contractId}`);
     };
 
     const deleteContract = async (contractId: string) => {
@@ -35,7 +41,7 @@ const MyContracts = () => {
 
             {contracts.map((contract) => (
                 <div key={contract.contractId} className="contract">
-                    <h3>{contract.contractId}</h3>
+                    <Button onClick={(_e) => selectContract(contract.contractId)}>{contract.contractId}</Button>
                     <p>{contract.network}</p>
                     <Button onClick={(_e) => deleteContract(contract.contractId)}>Delete</Button>
                 </div>

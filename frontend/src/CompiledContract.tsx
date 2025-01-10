@@ -6,19 +6,38 @@ import "prismjs/themes/prism.css";
 import { backendFetch } from "./common/BackendCall";
 import { Button, MenuItem, Select } from "@mui/material";
 import { ethers } from "ethers"; //Example style, you can use another
-import { CompilerMetadata, ContractCompiled } from "./model/Contract";
+import { ContractSaved } from "./model/Contract";
 import "./CompiledContract.css";
+import { useParams } from "react-router-dom";
 
-interface CompiledContractProps {
-    contract?: ContractCompiled;
-}
-
-const CompiledContract = (props: CompiledContractProps) => {
-    const [network, _setNetwork] = useState("holesky");
+const CompiledContract = () => {
+    const [contractDetails, setContractDetails] = useState<ContractSaved | null>(null);
+    const [network, setNetwork] = useState("holesky");
     const [address, setAddress] = useState();
-    const [bytecode, _setBytecode] = useState(props.contract?.evm.bytecode.object ?? "");
     const [constructorArgs, setConstructorArgs] = useState("");
     const [networks, setNetworks] = useState<string[]>([]);
+    const [bytecode, setBytecode] = useState<string | null>(null);
+    const [metadata, setMetadata] = useState<any | null>(null);
+    const [sourceCode, setSourceCode] = useState<string | null>(null);
+    const { contractId } = useParams();
+
+    const getContractDetails = async () => {
+        const response = await backendFetch(`/api/contract/${contractId}`, {
+            method: "Get",
+        });
+        const contract: ContractSaved = await response.json();
+        console.log(contract);
+
+        const data = JSON.parse(contract.data);
+
+        setNetwork(contract.network);
+        setBytecode(data.bytecode);
+        setConstructorArgs(data.constructorArgs);
+        setMetadata(JSON.parse(data.metadata));
+        setSourceCode(data.sourceCode);
+
+        setContractDetails(contract);
+    };
 
     const getNetworks = async () => {
         return ["holesky", "amoy"];
@@ -33,6 +52,7 @@ const CompiledContract = (props: CompiledContractProps) => {
     };
 
     useEffect(() => {
+        getContractDetails().then();
         getAddress().then();
         getNetworks().then(setNetworks);
     }, []);
@@ -54,32 +74,17 @@ const CompiledContract = (props: CompiledContractProps) => {
         console.log(deploy);
     };
 
-    if (!props.contract) {
+    if (!contractDetails || !metadata || !bytecode) {
         return <div>No contract</div>;
     }
 
+    /*
     const metadata = JSON.parse(props.contract.metadata) as CompilerMetadata;
 
     const saveSourceCode = async () => {
         const bytecodeBytes = ethers.getBytes("0x" + bytecode.replace("0x", ""));
         const constructorArgsBytes = ethers.getBytes("0x" + constructorArgs.replace("0x", ""));
-
-        const response = await backendFetch("/api/contract/new", {
-            method: "Post",
-            body: JSON.stringify({
-                contractId: "",
-                userId: "",
-                data: JSON.stringify({
-                    bytecode: ethers.hexlify(bytecodeBytes),
-                    constructorArgs: ethers.hexlify(constructorArgsBytes),
-                    sourceCode: props.contract?.singleFileCode ?? "",
-                }),
-                network: network,
-            }),
-        });
-        const deploy = await response.json();
-        console.log(deploy);
-    };
+     */
 
     return (
         <div>
@@ -144,7 +149,7 @@ const CompiledContract = (props: CompiledContractProps) => {
             ></textarea>
             Source code
             <textarea
-                value={props.contract.singleFileCode}
+                value={sourceCode ?? ""}
                 style={{
                     backgroundColor: "#f5f5f5",
                     border: "1px solid #ddd",
@@ -156,11 +161,10 @@ const CompiledContract = (props: CompiledContractProps) => {
                     height: "200px",
                 }}
             ></textarea>
-            <Button onClick={(_e) => saveSourceCode()}>Save to</Button>
             <Select
                 variant={"filled"}
                 value={network}
-                onChange={(e) => _setNetwork(e.target.value)}
+                onChange={(e) => setNetwork(e.target.value)}
                 style={{ width: "100px" }}
             >
                 {networks.map((network) => (

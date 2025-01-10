@@ -203,7 +203,7 @@ const Dashboard = () => {
                         element={<div>{isLoggedIn && <CompiledContractTemplate contract={compiledContract} />}</div>}
                     />
                     <Route path="/contracts" element={<div>{isLoggedIn && <MyContracts></MyContracts>}</div>} />
-                    <Route path="/contract" element={<div>{isLoggedIn && <CompiledContract />}</div>} />
+                    <Route path="/contract/:contractId" element={<div>{isLoggedIn && <CompiledContract />}</div>} />
                 </Routes>
             </div>
         </div>

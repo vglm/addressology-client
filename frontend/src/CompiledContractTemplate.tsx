@@ -54,6 +54,7 @@ const CompiledContractTemplate = (props: CompiledContractProps) => {
                     bytecode: ethers.hexlify(bytecodeBytes),
                     constructorArgs: ethers.hexlify(constructorArgsBytes),
                     sourceCode: props.contract?.singleFileCode ?? "",
+                    metadata: JSON.stringify(metadata),
                 }),
                 network: network,
                 address: null,
