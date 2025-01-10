@@ -13,7 +13,7 @@ interface CompiledContractProps {
     contract?: ContractCompiled;
 }
 
-const CompiledContract = (props: CompiledContractProps) => {
+const CompiledContractTemplate = (props: CompiledContractProps) => {
     const [network, _setNetwork] = useState("holesky");
     const [address, setAddress] = useState();
     const [bytecode, _setBytecode] = useState(props.contract?.evm.bytecode.object ?? "");
@@ -37,23 +37,6 @@ const CompiledContract = (props: CompiledContractProps) => {
         getNetworks().then(setNetworks);
     }, []);
 
-    const _deploySourceCode = async (bytecode: string, constructorArgs: string) => {
-        const bytecodeBytes = ethers.getBytes("0x" + bytecode.replace("0x", ""));
-        const constructorArgsBytes = ethers.getBytes("0x" + constructorArgs.replace("0x", ""));
-
-        const response = await backendFetch("/api/fancy/deploy", {
-            method: "Post",
-            body: JSON.stringify({
-                network: network,
-                address: address,
-                bytecode: ethers.hexlify(bytecodeBytes),
-                constructorArgs: ethers.hexlify(constructorArgsBytes),
-            }),
-        });
-        const deploy = await response.json();
-        console.log(deploy);
-    };
-
     if (!props.contract) {
         return <div>No contract</div>;
     }
@@ -67,14 +50,13 @@ const CompiledContract = (props: CompiledContractProps) => {
         const response = await backendFetch("/api/contract/new", {
             method: "Post",
             body: JSON.stringify({
-                contractId: "",
-                userId: "",
                 data: JSON.stringify({
                     bytecode: ethers.hexlify(bytecodeBytes),
                     constructorArgs: ethers.hexlify(constructorArgsBytes),
                     sourceCode: props.contract?.singleFileCode ?? "",
                 }),
                 network: network,
+                address: null,
             }),
         });
         const deploy = await response.json();
@@ -169,4 +151,4 @@ const CompiledContract = (props: CompiledContractProps) => {
     );
 };
 
-export default CompiledContract;
+export default CompiledContractTemplate;

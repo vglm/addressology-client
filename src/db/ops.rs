@@ -1,6 +1,8 @@
+mod contract;
 mod fancy;
 mod user;
 
+pub use contract::*;
 pub use fancy::*;
 pub use user::*;
 

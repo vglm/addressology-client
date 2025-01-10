@@ -462,7 +462,27 @@ async fn main() -> std::io::Result<()> {
                     .route("/fancy/new", web::post().to(handle_fancy_new))
                     .route("/fancy/deploy", web::post().to(handle_fancy_deploy))
                     .route("/contract/compile", web::post().to(handle_compile))
-                    .route("/greet", web::get().to(handle_greet));
+                    .route("/greet", web::get().to(handle_greet))
+                    .route(
+                        "/contract/{contract_id}",
+                        web::get().to(api::contract::get_contract_info_api),
+                    )
+                    .route(
+                        "/contract/new",
+                        web::post().to(api::contract::insert_contract_info_api),
+                    )
+                    .route(
+                        "/contract/{contract_id}",
+                        web::post().to(api::contract::update_contract_info_api),
+                    )
+                    .route(
+                        "/contracts/list",
+                        web::get().to(api::contract::get_contracts_api),
+                    )
+                    .route(
+                        "contract/{contract_id}/delete",
+                        web::post().to(api::contract::delete_contract_api),
+                    );
 
                 App::new()
                     .wrap(session_middleware)

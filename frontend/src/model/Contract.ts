@@ -40,3 +40,9 @@ export interface CompileResponse {
     contracts?: { [key: string]: { [key: string]: ContractCompiled } };
     errors?: CompileErrors[];
 }
+
+export interface ContractSaved {
+    contractId: string;
+    network: string;
+    data: string;
+}

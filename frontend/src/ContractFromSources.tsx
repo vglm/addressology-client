@@ -9,7 +9,7 @@ import { backendFetch } from "./common/BackendCall";
 import { Button } from "@mui/material";
 import "./ContractFromSources.css";
 import { CompileErrors, CompileResponse, ContractCompiled } from "./model/Contract";
-import {useNavigate} from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const ContractFromSources = () => {
     //const loginInformation = useLoginOrNull();
@@ -94,7 +94,7 @@ const ContractFromSources = () => {
 
     function selectContract(key: string, objWithSource: ContractCompiled) {
         localStorage.setItem("currentContract", JSON.stringify(objWithSource));
-        navigate("/contract");
+        navigate("/template");
     }
 
     return (

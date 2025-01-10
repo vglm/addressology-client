@@ -9,6 +9,8 @@ import { backendFetch } from "./common/BackendCall";
 import ChangePassScreen from "./ChangePassScreen";
 import ContractFromSources from "./ContractFromSources";
 import CompiledContract from "./CompiledContract";
+import MyContracts from "./MyContracts";
+import CompiledContractTemplate from "./CompiledContractTemplate";
 
 const Dashboard = () => {
     const loginInformation = useLoginOrNull();
@@ -107,20 +109,21 @@ const Dashboard = () => {
                                 Edit Contract
                             </Button>
                             <Button
-                                disabled={location.pathname === "/blocks"}
+                                disabled={location.pathname === "/template"}
                                 onClick={() => {
-                                    navigate("/blocks");
+                                    navigate("/template");
                                 }}
                             >
-                                Blocks
+                                {" "}
+                                Template
                             </Button>
                             <Button
-                                disabled={location.pathname === "/transactions"}
+                                disabled={location.pathname === "/contracts"}
                                 onClick={() => {
-                                    navigate("/transactions");
+                                    navigate("/contracts");
                                 }}
                             >
-                                Transactions
+                                Contracts
                             </Button>
                             <Button
                                 disabled={location.pathname === "/aliases"}
@@ -195,7 +198,12 @@ const Dashboard = () => {
                     <Route path="/" element={<div>{isLoggedIn && <ContractFromSources />}</div>} />
                     <Route path="/login" element={<div>{reset_token ? <ChangePassScreen /> : <LoginScreen />}</div>} />
                     <Route path="/change_pass" element={<div>{isLoggedIn && <ChangePassScreen />}</div>} />
-                    <Route path="/contract" element={<div>{isLoggedIn && <CompiledContract contract={compiledContract} />}</div>} />
+                    <Route
+                        path="/template"
+                        element={<div>{isLoggedIn && <CompiledContractTemplate contract={compiledContract} />}</div>}
+                    />
+                    <Route path="/contracts" element={<div>{isLoggedIn && <MyContracts></MyContracts>}</div>} />
+                    <Route path="/contract" element={<div>{isLoggedIn && <CompiledContract />}</div>} />
                 </Routes>
             </div>
         </div>
