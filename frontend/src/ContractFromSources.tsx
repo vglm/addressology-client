@@ -93,7 +93,13 @@ const ContractFromSources = () => {
     }
 
     function selectContract(key: string, objWithSource: ContractCompiled) {
-        localStorage.setItem("currentContract", JSON.stringify(objWithSource));
+        localStorage.setItem(
+            "currentContract",
+            JSON.stringify({
+                name: key,
+                contract: objWithSource,
+            }),
+        );
         navigate("/template");
     }
 
@@ -133,7 +139,7 @@ const ContractFromSources = () => {
                 ))}
                 {Object.keys(compiledContracts).map((key, index) => {
                     const objWithSource = compiledContracts[key];
-                    objWithSource.singleFileCode = code;
+                    objWithSource.contract.singleFileCode = code;
                     return (
                         <div key={key}>
                             {index + 1} : Successfully compiled contract {key}

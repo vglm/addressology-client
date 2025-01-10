@@ -31,9 +31,12 @@ export interface ContractCompiledEvm {
     bytecode: ContractCompiledBytecode;
 }
 export interface ContractCompiled {
-    evm: ContractCompiledEvm;
-    metadata: string;
-    singleFileCode: string;
+    name: string;
+    contract: {
+        evm: ContractCompiledEvm;
+        metadata: string;
+        singleFileCode: string;
+    };
 }
 
 export interface CompileResponse {
@@ -45,4 +48,7 @@ export interface ContractSaved {
     contractId: string;
     network: string;
     data: string;
+    address?: string;
+    created: string;
+    deployed: string;
 }

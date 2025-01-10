@@ -38,14 +38,38 @@ const MyContracts = () => {
     return (
         <div>
             <h1>My Contracts</h1>
+            <table>
+                <tr>
+                    <th>Contract ID</th>
+                    <th>Name</th>
+                    <th>Address</th>
+                    <th>Network</th>
+                    <th>Create Date</th>
+                    <th>Deployed</th>
+                    <th>Actions</th>
+                </tr>
 
-            {contracts.map((contract) => (
-                <div key={contract.contractId} className="contract">
-                    <Button onClick={(_e) => selectContract(contract.contractId)}>{contract.contractId}</Button>
-                    <p>{contract.network}</p>
-                    <Button onClick={(_e) => deleteContract(contract.contractId)}>Delete</Button>
-                </div>
-            ))}
+                {contracts.map((contract) => {
+                    const data = JSON.parse(contract.data);
+                    return (
+                        <tr key={contract.contractId} className="contract">
+                            <td>
+                                <Button onClick={(_e) => selectContract(contract.contractId)}>
+                                    {contract.contractId}
+                                </Button>
+                            </td>
+
+                            <td>{data.name}</td>
+                            <td>{contract.address ?? "Not assigned"}</td>
+                            <td>{contract.network}</td>
+                            <td>{contract.created}</td>
+                            <td>{contract.deployed}</td>
+
+                            <Button onClick={(_e) => deleteContract(contract.contractId)}>Delete</Button>
+                        </tr>
+                    );
+                })}
+            </table>
         </div>
     );
 };

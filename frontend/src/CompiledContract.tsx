@@ -12,7 +12,10 @@ import { useParams } from "react-router-dom";
 
 const CompiledContract = () => {
     const [contractDetails, setContractDetails] = useState<ContractSaved | null>(null);
+    const [contractName, setContractName] = useState("");
     const [network, setNetwork] = useState("holesky");
+    const [networkCopyTo, setNetworkCopyTo] = useState("holesky");
+
     const [address, setAddress] = useState();
     const [constructorArgs, setConstructorArgs] = useState("");
     const [networks, setNetworks] = useState<string[]>([]);
@@ -32,6 +35,7 @@ const CompiledContract = () => {
 
         setNetwork(contract.network);
         setBytecode(data.bytecode);
+        setContractName(data.name);
         setConstructorArgs(data.constructorArgs);
         setMetadata(JSON.parse(data.metadata));
         setSourceCode(data.sourceCode);
@@ -78,6 +82,24 @@ const CompiledContract = () => {
         return <div>No contract</div>;
     }
 
+    const copyContract = async () => {
+        const response = await backendFetch("/api/contract/new", {
+            method: "Post",
+            body: JSON.stringify({
+                data: JSON.stringify({
+                    bytecode: bytecode,
+                    constructorArgs: constructorArgs,
+                    sourceCode: sourceCode,
+                    metadata: JSON.stringify(metadata),
+                    name: contractName ?? "",
+                }),
+                network: networkCopyTo,
+                address: address,
+            }),
+        });
+        const deploy = await response.json();
+        console.log(deploy);
+    };
     /*
     const metadata = JSON.parse(props.contract.metadata) as CompilerMetadata;
 
@@ -88,7 +110,7 @@ const CompiledContract = () => {
 
     return (
         <div>
-            <h3>Contract info</h3>
+            <h3>Contract {contractName}</h3>
             <div>Address {address}</div>
             <Button onClick={(_e) => getAddress()}>Get Random Address</Button>
             <div>
@@ -161,6 +183,21 @@ const CompiledContract = () => {
                     height: "200px",
                 }}
             ></textarea>
+            <div>
+                <Select
+                    variant={"filled"}
+                    value={networkCopyTo}
+                    onChange={(e) => setNetworkCopyTo(e.target.value)}
+                    style={{ width: "100px" }}
+                >
+                    {networks.map((network) => (
+                        <MenuItem key={network} value={network}>
+                            {network}
+                        </MenuItem>
+                    ))}
+                </Select>
+                <Button onClick={(_e) => copyContract()}>Copy to</Button>
+            </div>
             <Select
                 variant={"filled"}
                 value={network}
@@ -173,8 +210,8 @@ const CompiledContract = () => {
                     </MenuItem>
                 ))}
             </Select>
-            <div style={{ height: 300 }}>Empty</div>
             <Button onClick={(_e) => deploySourceCode(bytecode, constructorArgs)}>Deploy</Button>
+            <div style={{ height: 300 }}>Empty</div>
         </div>
     );
 };

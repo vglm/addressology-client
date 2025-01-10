@@ -16,7 +16,7 @@ interface CompiledContractProps {
 const CompiledContractTemplate = (props: CompiledContractProps) => {
     const [network, _setNetwork] = useState("holesky");
     const [address, setAddress] = useState();
-    const [bytecode, _setBytecode] = useState(props.contract?.evm.bytecode.object ?? "");
+    const [bytecode, _setBytecode] = useState(props.contract?.contract.evm.bytecode.object ?? "");
     const [constructorArgs, setConstructorArgs] = useState("");
     const [networks, setNetworks] = useState<string[]>([]);
 
@@ -41,7 +41,7 @@ const CompiledContractTemplate = (props: CompiledContractProps) => {
         return <div>No contract</div>;
     }
 
-    const metadata = JSON.parse(props.contract.metadata) as CompilerMetadata;
+    const metadata = JSON.parse(props.contract.contract.metadata) as CompilerMetadata;
 
     const saveSourceCode = async () => {
         const bytecodeBytes = ethers.getBytes("0x" + bytecode.replace("0x", ""));
@@ -53,8 +53,9 @@ const CompiledContractTemplate = (props: CompiledContractProps) => {
                 data: JSON.stringify({
                     bytecode: ethers.hexlify(bytecodeBytes),
                     constructorArgs: ethers.hexlify(constructorArgsBytes),
-                    sourceCode: props.contract?.singleFileCode ?? "",
+                    sourceCode: props.contract?.contract.singleFileCode ?? "",
                     metadata: JSON.stringify(metadata),
+                    name: props.contract?.name ?? "",
                 }),
                 network: network,
                 address: null,
@@ -127,7 +128,7 @@ const CompiledContractTemplate = (props: CompiledContractProps) => {
             ></textarea>
             Source code
             <textarea
-                value={props.contract.singleFileCode}
+                value={props.contract.contract.singleFileCode}
                 style={{
                     backgroundColor: "#f5f5f5",
                     border: "1px solid #ddd",
