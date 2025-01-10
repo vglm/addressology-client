@@ -202,7 +202,7 @@ div::-webkit-scrollbar-thumb:hover {
     padding: 10px 10px 10px 25px;
 }
 .add-new-alias > h3 {
-    padding: 0px 0px 0px 25px;
+    padding: 0 0 0 25px;
 }
 .identicon {
     border: 1px solid rgba(128, 128, 128, 0.3); /* Softer border */

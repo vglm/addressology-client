@@ -37,7 +37,7 @@ const CompiledContract = (props: CompiledContractProps) => {
         getNetworks().then(setNetworks);
     }, []);
 
-    const _deploySourceCode = async (bytecode: string, constructorArgs: string) => {
+    const deploySourceCode = async (bytecode: string, constructorArgs: string) => {
         const bytecodeBytes = ethers.getBytes("0x" + bytecode.replace("0x", ""));
         const constructorArgsBytes = ethers.getBytes("0x" + constructorArgs.replace("0x", ""));
 
@@ -157,7 +157,12 @@ const CompiledContract = (props: CompiledContractProps) => {
                 }}
             ></textarea>
             <Button onClick={(_e) => saveSourceCode()}>Save to</Button>
-            <Select value={network} onChange={(e) => _setNetwork(e.target.value)} style={{ width: "100px" }}>
+            <Select
+                variant={"filled"}
+                value={network}
+                onChange={(e) => _setNetwork(e.target.value)}
+                style={{ width: "100px" }}
+            >
                 {networks.map((network) => (
                     <MenuItem key={network} value={network}>
                         {network}
@@ -165,6 +170,7 @@ const CompiledContract = (props: CompiledContractProps) => {
                 ))}
             </Select>
             <div style={{ height: 300 }}>Empty</div>
+            <Button onClick={(_e) => deploySourceCode(bytecode, constructorArgs)}>Deploy</Button>
         </div>
     );
 };

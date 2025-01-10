@@ -22,7 +22,7 @@ const ChangePassScreen = (_props: LoginScreenProps) => {
     const animate = (time: DOMHighResTimeStamp) => {
         if (previousTimeRef.current != undefined) {
             // Calculate the elapsed time between frames
-            const _deltaTime = time - previousTimeRef.current;
+            //const _deltaTime = time - previousTimeRef.current;
 
             //Or if you want to update after a specific time (e.g. 60 frames per second)
             //if (deltaTime > 1000 / 60) { // for 60 FPS

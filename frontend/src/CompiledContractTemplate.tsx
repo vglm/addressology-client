@@ -139,7 +139,12 @@ const CompiledContractTemplate = (props: CompiledContractProps) => {
                 }}
             ></textarea>
             <Button onClick={(_e) => saveSourceCode()}>Save to</Button>
-            <Select value={network} onChange={(e) => _setNetwork(e.target.value)} style={{ width: "100px" }}>
+            <Select
+                variant={"filled"}
+                value={network}
+                onChange={(e) => _setNetwork(e.target.value)}
+                style={{ width: "100px" }}
+            >
                 {networks.map((network) => (
                     <MenuItem key={network} value={network}>
                         {network}
