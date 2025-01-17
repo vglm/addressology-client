@@ -8,7 +8,7 @@ pub async fn insert_fancy_obj(
 ) -> Result<FancyDbObj, sqlx::Error> {
     let res = sqlx::query_as::<_, FancyDbObj>(
         r"INSERT INTO fancy
-(address, salt, factory, created, score, miner)
+(address, salt, factory, created, score, miner, owner, price)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;
 ",
     )
