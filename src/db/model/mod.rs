@@ -1,3 +1,6 @@
+mod contract;
+pub use contract::*;
+
 use crate::types::DbAddress;
 use chrono::NaiveDateTime;
 
@@ -21,6 +24,8 @@ pub struct UserDbObj {
 
     pub allow_pass_login: bool,
     pub allow_google_login: bool,
+
+    pub tokens: i32,
 }
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Eq, Debug, Clone)]
@@ -40,19 +45,8 @@ pub struct FancyDbObj {
     pub created: NaiveDateTime,
     pub score: f64,
     pub miner: String,
-}
-
-#[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ContractDbObj {
-    pub contract_id: String,
-    pub user_id: String,
-    pub created: NaiveDateTime,
-    pub address: Option<String>,
-    pub network: String,
-    pub data: String,
-    pub tx: Option<String>,
-    pub deployed: Option<NaiveDateTime>,
+    pub owner: Option<String>,
+    pub price: i32,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

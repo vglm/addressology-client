@@ -5,17 +5,17 @@ import "prismjs/components/prism-solidity";
 import "prismjs/themes/prism.css";
 import { backendFetch } from "./common/BackendCall";
 import { Button, MenuItem, Select } from "@mui/material";
-import { ethers } from "ethers"; //Example style, you can use another
 import { CompilerMetadata, ContractCompiled } from "./model/Contract";
 import "./CompiledContract.css";
 
 interface CompiledContractProps {
     contract?: ContractCompiled;
+
+    onDelete: () => void;
 }
 
 const CompiledContractTemplate = (props: CompiledContractProps) => {
     const [network, _setNetwork] = useState("holesky");
-    const [address, setAddress] = useState();
     const [bytecode, _setBytecode] = useState(props.contract?.contract.evm.bytecode.object ?? "");
     const [constructorArgs, setConstructorArgs] = useState("");
     const [networks, setNetworks] = useState<string[]>([]);
@@ -24,16 +24,7 @@ const CompiledContractTemplate = (props: CompiledContractProps) => {
         return ["holesky", "amoy"];
     };
 
-    const getAddress = async () => {
-        const response = await backendFetch("/api/fancy/random", {
-            method: "Get",
-        });
-        const address = await response.json();
-        setAddress(address.address);
-    };
-
     useEffect(() => {
-        getAddress().then();
         getNetworks().then(setNetworks);
     }, []);
 
@@ -44,19 +35,10 @@ const CompiledContractTemplate = (props: CompiledContractProps) => {
     const metadata = JSON.parse(props.contract.contract.metadata) as CompilerMetadata;
 
     const saveSourceCode = async () => {
-        const bytecodeBytes = ethers.getBytes("0x" + bytecode.replace("0x", ""));
-        const constructorArgsBytes = ethers.getBytes("0x" + constructorArgs.replace("0x", ""));
-
         const response = await backendFetch("/api/contract/new", {
             method: "Post",
             body: JSON.stringify({
-                data: JSON.stringify({
-                    bytecode: ethers.hexlify(bytecodeBytes),
-                    constructorArgs: ethers.hexlify(constructorArgsBytes),
-                    sourceCode: props.contract?.contract.singleFileCode ?? "",
-                    metadata: JSON.stringify(metadata),
-                    name: props.contract?.name ?? "",
-                }),
+                data: JSON.stringify(props.contract),
                 network: network,
                 address: null,
             }),
@@ -68,8 +50,7 @@ const CompiledContractTemplate = (props: CompiledContractProps) => {
     return (
         <div>
             <h3>Contract info</h3>
-            <div>Address {address}</div>
-            <Button onClick={(_e) => getAddress()}>Get Random Address</Button>
+            <div>Address not set at this point</div>
             <div>
                 Compiler version: {metadata.language} - {metadata.compiler.version}
             </div>
@@ -140,6 +121,7 @@ const CompiledContractTemplate = (props: CompiledContractProps) => {
                     height: "200px",
                 }}
             ></textarea>
+            <Button onClick={(_e) => props.onDelete()}>Delete this template</Button>
             <Button onClick={(_e) => saveSourceCode()}>Save to</Button>
             <Select
                 variant={"filled"}

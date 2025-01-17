@@ -5,10 +5,10 @@ import "prismjs/components/prism-solidity";
 import "prismjs/themes/prism.css";
 import { backendFetch } from "./common/BackendCall";
 import { Button, MenuItem, Select } from "@mui/material";
-import { ethers } from "ethers"; //Example style, you can use another
-import { ContractSaved } from "./model/Contract";
+import { ContractCompiled, ContractSaved } from "./model/Contract";
 import "./CompiledContract.css";
 import { useParams } from "react-router-dom";
+import InputParameters from "./InputParameters";
 
 const CompiledContract = () => {
     const [contractDetails, setContractDetails] = useState<ContractSaved | null>(null);
@@ -16,7 +16,7 @@ const CompiledContract = () => {
     const [network, setNetwork] = useState("holesky");
     const [networkCopyTo, setNetworkCopyTo] = useState("holesky");
 
-    const [address, setAddress] = useState();
+    const [address, setAddress] = useState<string | null>(null);
     const [constructorArgs, setConstructorArgs] = useState("");
     const [networks, setNetworks] = useState<string[]>([]);
     const [bytecode, setBytecode] = useState<string | null>(null);
@@ -31,14 +31,14 @@ const CompiledContract = () => {
         const contract: ContractSaved = await response.json();
         console.log(contract);
 
-        const data = JSON.parse(contract.data);
+        const data: ContractCompiled = JSON.parse(contract.data);
 
         setNetwork(contract.network);
-        setBytecode(data.bytecode);
+        setBytecode(data.contract.evm.bytecode.object);
         setContractName(data.name);
         setConstructorArgs(data.constructorArgs);
-        setMetadata(JSON.parse(data.metadata));
-        setSourceCode(data.sourceCode);
+        setMetadata(JSON.parse(data.contract.metadata));
+        setSourceCode(data.contract.singleFileCode);
 
         setContractDetails(contract);
     };
@@ -57,22 +57,13 @@ const CompiledContract = () => {
 
     useEffect(() => {
         getContractDetails().then();
-        getAddress().then();
+
         getNetworks().then(setNetworks);
     }, []);
 
-    const deploySourceCode = async (bytecode: string, constructorArgs: string) => {
-        const bytecodeBytes = ethers.getBytes("0x" + bytecode.replace("0x", ""));
-        const constructorArgsBytes = ethers.getBytes("0x" + constructorArgs.replace("0x", ""));
-
-        const response = await backendFetch("/api/fancy/deploy", {
+    const deploySourceCode = async () => {
+        const response = await backendFetch(`/api/fancy/deploy/${contractId}`, {
             method: "Post",
-            body: JSON.stringify({
-                network: network,
-                address: address,
-                bytecode: ethers.hexlify(bytecodeBytes),
-                constructorArgs: ethers.hexlify(constructorArgsBytes),
-            }),
         });
         const deploy = await response.json();
         console.log(deploy);
@@ -83,19 +74,32 @@ const CompiledContract = () => {
     }
 
     const copyContract = async () => {
+        const data: ContractCompiled = JSON.parse(contractDetails.data);
+
         const response = await backendFetch("/api/contract/new", {
             method: "Post",
             body: JSON.stringify({
-                data: JSON.stringify({
-                    bytecode: bytecode,
-                    constructorArgs: constructorArgs,
-                    sourceCode: sourceCode,
-                    metadata: JSON.stringify(metadata),
-                    name: contractName ?? "",
-                }),
+                data: JSON.stringify(data),
                 network: networkCopyTo,
                 address: address,
             }),
+        });
+        const deploy = await response.json();
+        console.log(deploy);
+    };
+
+    const saveChanges = async () => {
+        const data: ContractCompiled = JSON.parse(contractDetails.data);
+        const newContract: ContractSaved = {
+            ...contractDetails,
+            data: JSON.stringify(data),
+            network: networkCopyTo,
+            address: address,
+        };
+
+        const response = await backendFetch("/api/contract/update", {
+            method: "Post",
+            body: JSON.stringify(newContract),
         });
         const deploy = await response.json();
         console.log(deploy);
@@ -197,6 +201,7 @@ const CompiledContract = () => {
                     ))}
                 </Select>
                 <Button onClick={(_e) => copyContract()}>Copy to</Button>
+                <Button onClick={(_e) => saveChanges()}>Save changes</Button>
             </div>
             <Select
                 variant={"filled"}
@@ -210,7 +215,12 @@ const CompiledContract = () => {
                     </MenuItem>
                 ))}
             </Select>
-            <Button onClick={(_e) => deploySourceCode(bytecode, constructorArgs)}>Deploy</Button>
+            <InputParameters
+                abi={JSON.stringify(metadata.output.abi)}
+                constructorArgs={constructorArgs}
+                setConstructorArgs={setConstructorArgs}
+            ></InputParameters>
+            <Button onClick={(_e) => deploySourceCode()}>Deploy</Button>
             <div style={{ height: 300 }}>Empty</div>
         </div>
     );

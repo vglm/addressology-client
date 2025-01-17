@@ -8,14 +8,14 @@ import "prismjs/themes/prism.css";
 import { backendFetch } from "./common/BackendCall";
 import { Button } from "@mui/material";
 import "./ContractFromSources.css";
-import { CompileErrors, CompileResponse, ContractCompiled } from "./model/Contract";
+import { CompileErrors, CompileResponse, ContractCompiled, ContractCompiledInt } from "./model/Contract";
 import { useNavigate } from "react-router-dom";
 
 const ContractFromSources = () => {
     //const loginInformation = useLoginOrNull();
     const navigate = useNavigate();
     const [errors, setErrors] = useState<CompileErrors[]>([]);
-    const [contracts, setContracts] = useState<{ [key: string]: { [key: string]: ContractCompiled } }>({});
+    const [contracts, setContracts] = useState<{ [key: string]: { [key: string]: ContractCompiledInt } }>({});
     const [code, setCode] = useState(
         "// SPDX-License-Identifier: UNLICENSED\n" +
             "pragma solidity ^0.8.28;\n" +
@@ -85,21 +85,23 @@ const ContractFromSources = () => {
         document.getElementsByClassName("main-page")[0].setAttribute("style", `margin-left: ${marginLeft}px`);
     };
 
-    const compiledContracts: { [key: string]: ContractCompiled } = {};
+    if (!contracts) {
+        return <div>No contract</div>;
+    }
+    const compiledContracts: { [key: string]: ContractCompiledInt } = {};
     for (const value of Object.values(contracts)) {
         for (const [key2, value2] of Object.entries(value)) {
             compiledContracts[key2] = value2;
         }
     }
 
-    function selectContract(key: string, objWithSource: ContractCompiled) {
-        localStorage.setItem(
-            "currentContract",
-            JSON.stringify({
-                name: key,
-                contract: objWithSource,
-            }),
-        );
+    function selectContract(key: string, objWithSource: ContractCompiledInt) {
+        const newObj: ContractCompiled = {
+            name: key,
+            constructorArgs: "0x",
+            contract: objWithSource,
+        };
+        localStorage.setItem("currentContract", JSON.stringify(newObj));
         navigate("/template");
     }
 
@@ -139,7 +141,7 @@ const ContractFromSources = () => {
                 ))}
                 {Object.keys(compiledContracts).map((key, index) => {
                     const objWithSource = compiledContracts[key];
-                    objWithSource.contract.singleFileCode = code;
+                    objWithSource.singleFileCode = code;
                     return (
                         <div key={key}>
                             {index + 1} : Successfully compiled contract {key}

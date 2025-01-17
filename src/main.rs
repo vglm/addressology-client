@@ -1,6 +1,7 @@
 mod api;
 mod cookie;
 mod db;
+mod deploy;
 mod email;
 mod error;
 mod fancy;
@@ -15,7 +16,13 @@ use crate::api::user;
 use crate::api::user::handle_greet;
 use crate::cookie::load_key_or_create;
 use crate::db::connection::create_sqlite_connection;
-use crate::db::ops::{get_by_address, insert_fancy_obj, list_all};
+use crate::db::model::{DeployStatus, UserDbObj};
+use crate::db::ops::{
+    fancy_get_by_address, fancy_list_best_score, fancy_list_newest, fancy_update_owner,
+    get_all_contracts_by_deploy_status_and_network, get_contract_by_id, get_user, insert_fancy_obj,
+    list_all_free, update_contract_data, update_user_tokens,
+};
+use crate::deploy::handle_fancy_deploy;
 use crate::hash::compute_create3_command;
 use crate::solc::compile_solc;
 use crate::types::DbAddress;
@@ -23,7 +30,7 @@ use actix_multipart::form::MultipartFormConfig;
 use actix_multipart::MultipartError;
 use actix_session::config::CookieContentSecurity;
 use actix_session::storage::CookieSessionStore;
-use actix_session::SessionMiddleware;
+use actix_session::{Session, SessionMiddleware};
 use actix_web::cookie::SameSite;
 use actix_web::http::StatusCode;
 use actix_web::{
@@ -75,7 +82,7 @@ pub struct ServerData {
 
 pub async fn handle_random(server_data: web::Data<Box<ServerData>>) -> impl Responder {
     let conn = server_data.db_connection.lock().await;
-    let list = list_all(&conn).await.unwrap();
+    let list = list_all_free(&conn).await.unwrap();
     let random = list.choose(&mut rand::thread_rng()).unwrap();
 
     HttpResponse::Ok().json(random)
@@ -83,7 +90,21 @@ pub async fn handle_random(server_data: web::Data<Box<ServerData>>) -> impl Resp
 
 pub async fn handle_list(server_data: web::Data<Box<ServerData>>) -> impl Responder {
     let conn = server_data.db_connection.lock().await;
-    let list = list_all(&conn).await.unwrap();
+    let list = list_all_free(&conn).await.unwrap();
+
+    HttpResponse::Ok().json(list)
+}
+
+pub async fn handle_list_newest(server_data: web::Data<Box<ServerData>>) -> impl Responder {
+    let conn = server_data.db_connection.lock().await;
+    let list = fancy_list_newest(&conn).await.unwrap();
+
+    HttpResponse::Ok().json(list)
+}
+
+pub async fn handle_list_best_score(server_data: web::Data<Box<ServerData>>) -> impl Responder {
+    let conn = server_data.db_connection.lock().await;
+    let list = fancy_list_best_score(&conn).await.unwrap();
 
     HttpResponse::Ok().json(list)
 }
@@ -162,99 +183,139 @@ pub async fn handle_compile(
     }
 }
 
-#[derive(Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct DeployData {
-    pub address: DbAddress,
-    pub network: String,
-    pub bytecode: String,
-    pub construct_args: String,
-}
-
-pub async fn handle_fancy_deploy(
+pub async fn handle_fancy_deploy_start(
     server_data: web::Data<Box<ServerData>>,
-    deploy_data: web::Json<DeployData>,
+    contract_id: web::Path<String>,
+    session: Session,
 ) -> HttpResponse {
+    let user: UserDbObj = login_check_and_get!(session);
+    let contract_id = contract_id.into_inner();
+
     let conn = server_data.db_connection.lock().await;
-    let fancy = match get_by_address(&conn, deploy_data.address).await {
-        Ok(fancy) => fancy,
+
+    let contract = match get_contract_by_id(&*conn, contract_id, user.uid.clone()).await {
+        Ok(Some(contract)) => {
+            let mut contract = contract;
+            match contract.deploy_status {
+                DeployStatus::None => {
+                    contract.deploy_status = DeployStatus::Requested;
+                    contract
+                }
+                DeployStatus::Requested => return HttpResponse::Ok().body("Already requested"),
+                DeployStatus::TxSent => return HttpResponse::Ok().body("Already sent"),
+                DeployStatus::Failed => return HttpResponse::Ok().body("Deployment Failed"),
+                DeployStatus::Succeeded => return HttpResponse::Ok().body("Deployment Succeeded"),
+            }
+        }
+        Ok(None) => {
+            return HttpResponse::NotFound().finish();
+        }
         Err(e) => {
             log::error!("{}", e);
             return HttpResponse::InternalServerError().finish();
         }
     };
 
-    if let Some(fancy) = fancy {
-        let command = "npx hardhat run deploy3Universal.ts --network holesky";
-        let command = if cfg!(windows) {
-            format!("cmd /C {}", command)
-        } else {
-            command.to_string()
-        };
-        let current_dir = if cfg!(windows) {
-            "C:/vglm/pretzel/locker"
-        } else {
-            "/addressology/pretzel/locker"
-        };
-
-        let args = if cfg!(windows) {
-            command.split_whitespace().collect::<Vec<&str>>()
-        } else {
-            vec!["/bin/bash", "-c", &command]
-        };
-
-        match hex::decode(deploy_data.construct_args.replace("0x", "").clone()) {
-            Ok(bytes) => bytes,
-            Err(e) => {
-                log::error!("{}", e);
-                return HttpResponse::InternalServerError().finish();
-            }
-        };
-
-        let env_vars = vec![
-            ("ADDRESS", format!("{:#x}", fancy.address.addr())),
-            ("FACTORY", format!("{:#x}", fancy.factory.addr())),
-            ("SALT", fancy.salt.clone()),
-            ("MINER", fancy.miner.clone()),
-            ("BYTECODE", deploy_data.bytecode.clone()),
-        ];
-
-        let cmd = match tokio::process::Command::new(args[0])
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
-            .envs(env_vars)
-            .current_dir(current_dir)
-            .args(&args[1..])
-            .spawn()
-        {
-            Ok(cmd) => cmd,
-            Err(e) => {
-                log::error!("Failed to spawn command {}", e);
-                return HttpResponse::InternalServerError().finish();
-            }
-        };
-
-        let output = match cmd.wait_with_output().await {
-            Ok(output) => output,
-            Err(e) => {
-                log::error!("{}", e);
-                return HttpResponse::InternalServerError().finish();
-            }
-        };
-
-        if output.status.success() {
-            HttpResponse::Ok().body(output.stdout)
-        } else {
-            log::error!(
-                "Command failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
+    match update_contract_data(&*conn, contract).await {
+        Ok(contr) => HttpResponse::Ok().json(contr),
+        Err(err) => {
+            log::error!("Error updating contract data {}", err);
             HttpResponse::InternalServerError().finish()
         }
-    } else {
-        HttpResponse::NotFound().body("Address not found")
     }
-    //run command
+}
+pub async fn handle_fancy_buy_api(
+    server_data: web::Data<Box<ServerData>>,
+    address: web::Path<String>,
+    session: Session,
+) -> HttpResponse {
+    let user: UserDbObj = login_check_and_get!(session);
+
+    let address = address.into_inner();
+
+    let conn = server_data.db_connection.lock().await;
+
+    let mut trans = match conn.begin().await {
+        Ok(tx) => tx,
+        Err(err) => {
+            log::error!("Error starting transaction: {}", err);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    let user_for_tx = match get_user(&mut *trans, &user.email).await {
+        Ok(user) => user,
+        Err(err) => {
+            log::error!("Error getting user: {}", err);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    let address = normalize_address!(address);
+    let address_db = match fancy_get_by_address(&mut *trans, address).await {
+        Ok(Some(addr)) => addr,
+        Ok(None) => {
+            log::error!("Address not found: {}", address);
+            return HttpResponse::NotFound().finish();
+        }
+        Err(err) => {
+            log::error!("Error getting address: {}", err);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    if address_db.owner.is_some() {
+        log::error!("Address already owned: {}", address);
+        return HttpResponse::BadRequest().body("Address already owned");
+    }
+
+    if user_for_tx.tokens < address_db.price {
+        log::error!(
+            "User has insufficient funds: {} < {}",
+            user_for_tx.tokens,
+            address_db.price
+        );
+        return HttpResponse::BadRequest().body("Insufficient funds");
+    }
+
+    match fancy_update_owner(&mut *trans, address, user.uid.clone()).await {
+        Ok(_) => {}
+        Err(err) => {
+            log::error!("Error updating owner: {}", err);
+            return HttpResponse::InternalServerError().finish();
+        }
+    }
+
+    match update_user_tokens(
+        &mut *trans,
+        &user.uid,
+        user_for_tx.tokens - address_db.price,
+    )
+    .await
+    {
+        Ok(_) => {}
+        Err(err) => {
+            log::error!("Error updating user tokens: {}", err);
+            return HttpResponse::InternalServerError().finish();
+        }
+    }
+
+    match trans.commit().await {
+        Ok(_) => HttpResponse::Ok().finish(),
+        Err(err) => {
+            log::error!("Error committing transaction: {}", err);
+            HttpResponse::InternalServerError().finish()
+        }
+    }
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DeployData {
+    pub address: DbAddress,
+    pub network: String,
+    pub bytecode: String,
+    pub constructor_args: String,
 }
 
 #[cfg(feature = "dashboard")]
@@ -369,6 +430,10 @@ pub async fn dashboard_serve(
 #[derive(Subcommand)]
 enum Commands {
     Test {},
+    ProcessDeploy {
+        #[arg(short, long)]
+        network: String,
+    },
     ComputeCreate3 {
         #[arg(short, long)]
         factory: String,
@@ -459,8 +524,17 @@ async fn main() -> std::io::Result<()> {
                     .route("/change_pass", web::post().to(user::handle_password_change))
                     .route("/fancy/random", web::get().to(handle_random))
                     .route("/fancy/list", web::get().to(handle_list))
+                    .route("/fancy/list_newest", web::get().to(handle_list_newest))
+                    .route(
+                        "/fancy/list_best_score",
+                        web::get().to(handle_list_best_score),
+                    )
                     .route("/fancy/new", web::post().to(handle_fancy_new))
-                    .route("/fancy/deploy", web::post().to(handle_fancy_deploy))
+                    .route("/fancy/buy/{address}", web::post().to(handle_fancy_buy_api))
+                    .route(
+                        "/fancy/deploy/{contract_id}",
+                        web::post().to(handle_fancy_deploy_start),
+                    )
                     .route("/contract/compile", web::post().to(handle_compile))
                     .route("/greet", web::get().to(handle_greet))
                     .route(
@@ -505,6 +579,37 @@ async fn main() -> std::io::Result<()> {
             .bind(addr)?
             .run()
             .await
+        }
+        Commands::ProcessDeploy { network } => {
+            let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
+                .await
+                .unwrap();
+
+            let contracts = get_all_contracts_by_deploy_status_and_network(
+                &conn,
+                DeployStatus::Requested,
+                network,
+            )
+            .await
+            .unwrap();
+
+            if let Some(contract) = contracts.first() {
+                log::info!("Processing contract: {:#?}", contract);
+
+                match handle_fancy_deploy(&conn, contract.clone()).await {
+                    Ok(_) => {
+                        log::info!("Deployment successful");
+                        Ok(())
+                    }
+                    Err(e) => {
+                        log::error!("{}", e);
+                        std::process::exit(1)
+                    }
+                }
+            } else {
+                log::info!("No contracts to process");
+                Ok(())
+            }
         }
         Commands::ComputeCreate3 { factory, salt } => {
             let result = compute_create3_command(&factory, &salt);
