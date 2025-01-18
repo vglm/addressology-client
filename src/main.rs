@@ -41,6 +41,7 @@ use awc::Client;
 use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
 use rand::prelude::SliceRandom;
+use rust_decimal::prelude::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use std::collections::BTreeMap;
@@ -599,7 +600,15 @@ async fn main() -> std::io::Result<()> {
 
                 if fancy.score != score.total_score {
                     log::info!("Updating score for: {:#x}", fancy.address.addr());
-                    match fancy_update_score(&conn, fancy.address, score.total_score).await {
+                    let new_price = score.price_multiplier * 1000.0;
+                    match fancy_update_score(
+                        &conn,
+                        fancy.address,
+                        score.total_score,
+                        new_price.to_i32().unwrap(),
+                    )
+                    .await
+                    {
                         Ok(_) => (),
                         Err(e) => {
                             log::error!("{}", e);

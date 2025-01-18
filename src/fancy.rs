@@ -1,8 +1,8 @@
 use crate::db::model::{FancyDbObj, FancyScore};
-use crate::err_custom_create;
 use crate::error::AddressologyError;
 use crate::hash::compute_create3_command;
 use crate::types::DbAddress;
+use crate::{err_custom_create, fancy};
 use web3::types::Address;
 
 pub fn score_fancy(address: Address) -> FancyScore {
@@ -10,6 +10,7 @@ pub fn score_fancy(address: Address) -> FancyScore {
         leading_zeroes_score: 0.0,
         leading_any_score: 0.0,
         total_score: 0.0,
+        price_multiplier: 0.0,
     };
 
     let address_str = format!("{:#x}", address);
@@ -36,7 +37,20 @@ pub fn score_fancy(address: Address) -> FancyScore {
     score.leading_zeroes_score = leading_zeroes as f64;
     score.leading_any_score = leading_any as f64 - 0.9_f64;
 
-    score.total_score = score.leading_zeroes_score.max(score.leading_any_score);
+    let exp_score_leading_zeroes = 16.0f64.powf(leading_zeroes as f64);
+    let exp_score_leading_any = 15.0 * 16.0f64.powf(leading_any as f64 - 1.0);
+
+    let biggest_score = exp_score_leading_zeroes.max(exp_score_leading_any);
+    let netural_price_point = 16.0f64.powf(10f64);
+
+    let price_multiplier = if biggest_score <= netural_price_point {
+        1.0
+    } else {
+        biggest_score / netural_price_point
+    };
+
+    score.total_score = biggest_score;
+    score.price_multiplier = price_multiplier;
     score
 }
 
@@ -58,16 +72,20 @@ pub fn parse_fancy(
 
     let address = compute_create3_command(&format!("{:#x}", factory), &salt)?;
 
+    let address =
+        DbAddress::from_str(&address).map_err(|_| err_custom_create!("Failed to parse address"))?;
+
+    let score = fancy::score_fancy(address.addr());
+
     Ok(FancyDbObj {
-        address: DbAddress::from_str(&address)
-            .map_err(|_| err_custom_create!("Failed to parse address"))?,
+        address,
         salt,
         factory: DbAddress::wrap(factory),
         created: chrono::Utc::now().naive_utc(),
-        score: 0.0,
+        score: score.total_score,
         miner: miner_censored,
         owner: None,
-        price: 0,
+        price: (score.price_multiplier * 1000.0) as i32,
     })
 }
 

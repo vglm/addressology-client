@@ -91,12 +91,14 @@ pub async fn fancy_update_score<'c, E>(
     conn: E,
     address: DbAddress,
     score: f64,
+    price: i32,
 ) -> Result<(), sqlx::Error>
 where
     E: Executor<'c, Database = Sqlite>,
 {
-    let _res = sqlx::query(r"UPDATE fancy SET score = $1 WHERE address = $2;")
+    let _res = sqlx::query(r"UPDATE fancy SET score = $1, price = $2 WHERE address = $3;")
         .bind(score)
+        .bind(price)
         .bind(address)
         .execute(conn)
         .await?;
