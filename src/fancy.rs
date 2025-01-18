@@ -11,6 +11,7 @@ pub fn score_fancy(address: Address) -> FancyScore {
         leading_any_score: 0.0,
         total_score: 0.0,
         price_multiplier: 0.0,
+        category: "".to_string(),
     };
 
     let address_str = format!("{:#x}", address);
@@ -40,8 +41,26 @@ pub fn score_fancy(address: Address) -> FancyScore {
     let exp_score_leading_zeroes = 16.0f64.powf(leading_zeroes as f64);
     let exp_score_leading_any = 15.0 * 16.0f64.powf(leading_any as f64 - 1.0);
 
-    let biggest_score = exp_score_leading_zeroes.max(exp_score_leading_any);
     let netural_price_point = 16.0f64.powf(10f64);
+
+    let current_biggest_score = {
+        score.category = "none".to_string();
+        1E6
+    };
+
+    let biggest_score = if exp_score_leading_zeroes > current_biggest_score {
+        score.category = "leading_zeroes".to_string();
+        exp_score_leading_zeroes
+    } else {
+        current_biggest_score
+    };
+
+    let biggest_score = if exp_score_leading_any > biggest_score {
+        score.category = "leading_any".to_string();
+        exp_score_leading_any
+    } else {
+        biggest_score
+    };
 
     let price_multiplier = if biggest_score <= netural_price_point {
         1.0
@@ -86,6 +105,7 @@ pub fn parse_fancy(
         miner: miner_censored,
         owner: None,
         price: (score.price_multiplier * 1000.0) as i32,
+        category: score.category,
     })
 }
 

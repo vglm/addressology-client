@@ -41,7 +41,6 @@ use awc::Client;
 use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
 use rand::prelude::SliceRandom;
-use rust_decimal::prelude::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use std::collections::BTreeMap;
@@ -605,7 +604,8 @@ async fn main() -> std::io::Result<()> {
                         &conn,
                         fancy.address,
                         score.total_score,
-                        new_price.to_i32().unwrap(),
+                        new_price as i32,
+                        &score.category,
                     )
                     .await
                     {

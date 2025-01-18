@@ -43,6 +43,7 @@ pub struct FancyScore {
     pub leading_any_score: f64,
     pub total_score: f64,
     pub price_multiplier: f64,
+    pub category: String,
 }
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
@@ -56,6 +57,7 @@ pub struct FancyDbObj {
     pub miner: String,
     pub owner: Option<String>,
     pub price: i32,
+    pub category: String,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

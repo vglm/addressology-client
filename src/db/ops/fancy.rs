@@ -8,8 +8,8 @@ pub async fn insert_fancy_obj(
 ) -> Result<FancyDbObj, sqlx::Error> {
     let res = sqlx::query_as::<_, FancyDbObj>(
         r"INSERT INTO fancy
-(address, salt, factory, created, score, miner, owner, price)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;
+(address, salt, factory, created, score, miner, owner, price, category)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;
 ",
     )
     .bind(fancy_data.address)
@@ -20,6 +20,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;
     .bind(&fancy_data.miner)
     .bind(&fancy_data.owner)
     .bind(fancy_data.price)
+    .bind(&fancy_data.category)
     .fetch_one(conn)
     .await?;
     Ok(res)
@@ -92,15 +93,18 @@ pub async fn fancy_update_score<'c, E>(
     address: DbAddress,
     score: f64,
     price: i32,
+    category: &str,
 ) -> Result<(), sqlx::Error>
 where
     E: Executor<'c, Database = Sqlite>,
 {
-    let _res = sqlx::query(r"UPDATE fancy SET score = $1, price = $2 WHERE address = $3;")
-        .bind(score)
-        .bind(price)
-        .bind(address)
-        .execute(conn)
-        .await?;
+    let _res =
+        sqlx::query(r"UPDATE fancy SET score = $1, price = $2, category = $3 WHERE address = $4;")
+            .bind(score)
+            .bind(price)
+            .bind(address)
+            .bind(category)
+            .execute(conn)
+            .await?;
     Ok(())
 }
