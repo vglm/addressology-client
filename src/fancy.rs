@@ -104,7 +104,7 @@ pub fn parse_fancy(
         score: score.total_score,
         miner: miner_censored,
         owner: None,
-        price: (score.price_multiplier * 1000.0) as i32,
+        price: (score.price_multiplier * 1000.0) as i64,
         category: score.category,
     })
 }

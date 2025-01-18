@@ -92,7 +92,7 @@ pub async fn fancy_update_score<'c, E>(
     conn: E,
     address: DbAddress,
     score: f64,
-    price: i32,
+    price: i64,
     category: &str,
 ) -> Result<(), sqlx::Error>
 where
@@ -102,8 +102,8 @@ where
         sqlx::query(r"UPDATE fancy SET score = $1, price = $2, category = $3 WHERE address = $4;")
             .bind(score)
             .bind(price)
-            .bind(address)
             .bind(category)
+            .bind(address)
             .execute(conn)
             .await?;
     Ok(())

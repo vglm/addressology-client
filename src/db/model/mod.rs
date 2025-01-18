@@ -25,7 +25,7 @@ pub struct UserDbObj {
     pub allow_pass_login: bool,
     pub allow_google_login: bool,
 
-    pub tokens: i32,
+    pub tokens: i64,
 }
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Eq, Debug, Clone)]
@@ -56,7 +56,7 @@ pub struct FancyDbObj {
     pub score: f64,
     pub miner: String,
     pub owner: Option<String>,
-    pub price: i32,
+    pub price: i64,
     pub category: String,
 }
 

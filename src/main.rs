@@ -597,14 +597,17 @@ async fn main() -> std::io::Result<()> {
                     score.total_score
                 );
 
-                if fancy.score != score.total_score {
+                let new_price = (score.price_multiplier * 1000.0) as i64;
+                if fancy.score != score.total_score
+                    || fancy.price != new_price
+                    || fancy.category != score.category
+                {
                     log::info!("Updating score for: {:#x}", fancy.address.addr());
-                    let new_price = score.price_multiplier * 1000.0;
                     match fancy_update_score(
                         &conn,
                         fancy.address,
                         score.total_score,
-                        new_price as i32,
+                        new_price,
                         &score.category,
                     )
                     .await

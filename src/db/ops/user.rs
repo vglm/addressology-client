@@ -139,7 +139,7 @@ where
     Ok(res)
 }
 
-pub async fn update_user_tokens<'c, E>(conn: E, email: &str, tokens: i32) -> Result<(), sqlx::Error>
+pub async fn update_user_tokens<'c, E>(conn: E, email: &str, tokens: i64) -> Result<(), sqlx::Error>
 where
     E: Executor<'c, Database = Sqlite>,
 {
