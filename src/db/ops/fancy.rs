@@ -25,7 +25,14 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;
     Ok(res)
 }
 
-pub async fn list_all_free(conn: &SqlitePool) -> Result<Vec<FancyDbObj>, sqlx::Error> {
+pub async fn fancy_list_all(conn: &SqlitePool) -> Result<Vec<FancyDbObj>, sqlx::Error> {
+    let res = sqlx::query_as::<_, FancyDbObj>(r"SELECT * FROM fancy")
+        .fetch_all(conn)
+        .await?;
+    Ok(res)
+}
+
+pub async fn fancy_list_all_free(conn: &SqlitePool) -> Result<Vec<FancyDbObj>, sqlx::Error> {
     let res = sqlx::query_as::<_, FancyDbObj>(r"SELECT * FROM fancy WHERE owner is NULL;")
         .fetch_all(conn)
         .await?;
@@ -74,6 +81,22 @@ where
 {
     let _res = sqlx::query(r"UPDATE fancy SET owner = $1 WHERE address = $2;")
         .bind(owner)
+        .bind(address)
+        .execute(conn)
+        .await?;
+    Ok(())
+}
+
+pub async fn fancy_update_score<'c, E>(
+    conn: E,
+    address: DbAddress,
+    score: f64,
+) -> Result<(), sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
+    let _res = sqlx::query(r"UPDATE fancy SET score = $1 WHERE address = $2;")
+        .bind(score)
         .bind(address)
         .execute(conn)
         .await?;

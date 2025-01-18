@@ -1,9 +1,44 @@
-use crate::db::model::FancyDbObj;
+use crate::db::model::{FancyDbObj, FancyScore};
 use crate::err_custom_create;
 use crate::error::AddressologyError;
 use crate::hash::compute_create3_command;
 use crate::types::DbAddress;
 use web3::types::Address;
+
+pub fn score_fancy(address: Address) -> FancyScore {
+    let mut score = FancyScore {
+        leading_zeroes_score: 0.0,
+        leading_any_score: 0.0,
+        total_score: 0.0,
+    };
+
+    let address_str = format!("{:#x}", address);
+    let address_str = address_str.trim_start_matches("0x");
+    let mut leading_zeroes = 0;
+    for c in address_str.chars() {
+        if c == '0' {
+            leading_zeroes += 1;
+        } else {
+            break;
+        }
+    }
+
+    let char_start = address_str.chars().next().unwrap();
+    let mut leading_any = 0;
+    for c in address_str.chars() {
+        if c == char_start {
+            leading_any += 1;
+        } else {
+            break;
+        }
+    }
+
+    score.leading_zeroes_score = leading_zeroes as f64;
+    score.leading_any_score = leading_any as f64 - 0.9_f64;
+
+    score.total_score = score.leading_zeroes_score.max(score.leading_any_score);
+    score
+}
 
 pub fn parse_fancy(
     salt: String,
