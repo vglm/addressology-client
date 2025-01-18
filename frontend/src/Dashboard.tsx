@@ -11,6 +11,7 @@ import ContractFromSources from "./ContractFromSources";
 import CompiledContract from "./CompiledContract";
 import MyContracts from "./MyContracts";
 import CompiledContractTemplate from "./CompiledContractTemplate";
+import BrowseAddresses from "./BrowseAddresses";
 
 const Dashboard = () => {
     const loginInformation = useLoginOrNull();
@@ -131,12 +132,12 @@ const Dashboard = () => {
                                 Contracts
                             </Button>
                             <Button
-                                disabled={location.pathname === "/aliases"}
+                                disabled={location.pathname === "/addresses"}
                                 onClick={() => {
-                                    navigate("/aliases");
+                                    navigate("/addresses");
                                 }}
                             >
-                                Aliases
+                                Addresses
                             </Button>
                             <Button
                                 disabled={location.pathname === "/charts"}
@@ -215,6 +216,7 @@ const Dashboard = () => {
                     />
                     <Route path="/contracts" element={<div>{isLoggedIn && <MyContracts></MyContracts>}</div>} />
                     <Route path="/contract/:contractId" element={<div>{isLoggedIn && <CompiledContract />}</div>} />
+                    <Route path="/addresses" element={<div>{isLoggedIn && <BrowseAddresses></BrowseAddresses>}</div>} />
                 </Routes>
             </div>
         </div>
