@@ -36,6 +36,13 @@ pub fn score_fancy(address: Address) -> FancyScore {
         }
     }
 
+    let mut numbers_only = 0;
+    for c in address_str.chars() {
+        if c.is_numeric() {
+            numbers_only += 1;
+        }
+    }
+
     score.leading_zeroes_score = leading_zeroes as f64;
     score.leading_any_score = leading_any as f64 - 0.9_f64;
     score.letters_only_score = letters_only as f64;
@@ -43,6 +50,7 @@ pub fn score_fancy(address: Address) -> FancyScore {
     let exp_score_leading_zeroes = 16.0f64.powf(leading_zeroes as f64);
     let exp_score_leading_any = 16.0f64.powf(leading_any as f64 - (15. / 16.));
     let exp_score_letters_only = 16.0f64.powf((letters_only-25) as f64);
+    let exp_score_numbers_only = 16.0f64.powf((numbers_only-30) as f64);
 
     let netural_price_point = 16.0f64.powf(10f64);
 
@@ -72,7 +80,12 @@ pub fn score_fancy(address: Address) -> FancyScore {
         biggest_score
     };
 
-
+    let biggest_score = if exp_score_numbers_only > biggest_score {
+        score.category = "numbers_only".to_string();
+        exp_score_numbers_only
+    } else {
+        biggest_score
+    };
 
     let price_multiplier = if biggest_score <= netural_price_point {
         1.0
