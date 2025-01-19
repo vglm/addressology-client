@@ -36,11 +36,12 @@ pub struct OauthStageDbObj {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct FancyScore {
     pub leading_zeroes_score: f64,
     pub leading_any_score: f64,
+    pub letters_only_score: f64,
     pub total_score: f64,
     pub price_multiplier: f64,
     pub category: String,

@@ -6,13 +6,7 @@ use crate::{err_custom_create, fancy};
 use web3::types::Address;
 
 pub fn score_fancy(address: Address) -> FancyScore {
-    let mut score = FancyScore {
-        leading_zeroes_score: 0.0,
-        leading_any_score: 0.0,
-        total_score: 0.0,
-        price_multiplier: 0.0,
-        category: "".to_string(),
-    };
+    let mut score = FancyScore::default();
 
     let address_str = format!("{:#x}", address);
     let address_str = address_str.trim_start_matches("0x");
@@ -35,11 +29,20 @@ pub fn score_fancy(address: Address) -> FancyScore {
         }
     }
 
+    let mut letters_only = 0;
+    for c in address_str.chars() {
+        if c.is_alphabetic() {
+            letters_only += 1;
+        }
+    }
+
     score.leading_zeroes_score = leading_zeroes as f64;
     score.leading_any_score = leading_any as f64 - 0.9_f64;
+    score.letters_only_score = letters_only as f64;
 
     let exp_score_leading_zeroes = 16.0f64.powf(leading_zeroes as f64);
     let exp_score_leading_any = 16.0f64.powf(leading_any as f64 - (15. / 16.));
+    let exp_score_letters_only = 16.0f64.powf((letters_only-25) as f64);
 
     let netural_price_point = 16.0f64.powf(10f64);
 
@@ -61,6 +64,15 @@ pub fn score_fancy(address: Address) -> FancyScore {
     } else {
         biggest_score
     };
+
+    let biggest_score = if exp_score_letters_only > biggest_score {
+        score.category = "letters_only".to_string();
+        exp_score_letters_only
+    } else {
+        biggest_score
+    };
+
+
 
     let price_multiplier = if biggest_score <= netural_price_point {
         1.0
