@@ -39,7 +39,7 @@ pub fn score_fancy(address: Address) -> FancyScore {
     score.leading_any_score = leading_any as f64 - 0.9_f64;
 
     let exp_score_leading_zeroes = 16.0f64.powf(leading_zeroes as f64);
-    let exp_score_leading_any = 15.0 * 16.0f64.powf(leading_any as f64 - 1.0);
+    let exp_score_leading_any = 16.0f64.powf(leading_any as f64 - (15. / 16.));
 
     let netural_price_point = 16.0f64.powf(10f64);
 
