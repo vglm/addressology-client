@@ -14,7 +14,7 @@ const BrowseAddresses = () => {
     const [totalHash, setTotalHash] = useState<TotalHashInfo | null>(null);
 
     const loadAddresses = async () => {
-        const response = await backendFetch("/api/fancy/list_best_score", {
+        const response = await backendFetch("/api/fancy/list_best_score?limit=1000", {
             method: "Get",
         });
         const addresses = await response.json();

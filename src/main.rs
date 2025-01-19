@@ -14,6 +14,7 @@ mod update;
 use crate::api::oauth::google::{handle_google_callback, handle_login_via_google};
 use crate::api::user;
 use crate::api::user::handle_greet;
+use crate::api::utils::extract_url_int_param;
 use crate::cookie::load_key_or_create;
 use crate::db::connection::create_sqlite_connection;
 use crate::db::model::{DeployStatus, UserDbObj};
@@ -42,13 +43,13 @@ use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
 use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use sqlx::SqlitePool;
 use std::collections::BTreeMap;
 use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
-use serde_json::json;
 use tokio::sync::Mutex;
 
 fn get_allowed_emails() -> Vec<String> {
@@ -104,11 +105,21 @@ pub async fn handle_list_newest(server_data: web::Data<Box<ServerData>>) -> impl
     HttpResponse::Ok().json(list)
 }
 
-pub async fn handle_list_best_score(server_data: web::Data<Box<ServerData>>) -> impl Responder {
+pub async fn handle_list_best_score(
+    server_data: web::Data<Box<ServerData>>,
+    request: HttpRequest,
+) -> Result<HttpResponse, actix_web::Error> {
     let conn = server_data.db_connection.lock().await;
-    let list = fancy_list_best_score(&conn).await.unwrap();
+    let limit = extract_url_int_param(&request, "limit")?;
+    let list = match fancy_list_best_score(&conn, limit.unwrap_or(100)).await {
+        Ok(list) => list,
+        Err(e) => {
+            log::error!("{}", e);
+            return Ok(HttpResponse::InternalServerError().finish());
+        }
+    };
 
-    HttpResponse::Ok().json(list)
+    Ok(HttpResponse::Ok().json(list))
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -200,6 +211,7 @@ pub async fn handle_fancy_estimate_total_hash(
     };
 
     let mut total_zeroes = 0;
+    #[allow(clippy::collapsible_if)]
     for fancy in fancies {
         if fancy.category == "leading_zeroes" {
             if fancy.score >= 16.0f64.powf(11f64) {
@@ -558,7 +570,10 @@ async fn main() -> std::io::Result<()> {
                     .route("/fancy/random", web::get().to(handle_random))
                     .route("/fancy/list", web::get().to(handle_list))
                     .route("/fancy/list_newest", web::get().to(handle_list_newest))
-                    .route("/fancy/total_hash", web::get().to(handle_fancy_estimate_total_hash))
+                    .route(
+                        "/fancy/total_hash",
+                        web::get().to(handle_fancy_estimate_total_hash),
+                    )
                     .route(
                         "/fancy/list_best_score",
                         web::get().to(handle_list_best_score),
@@ -569,7 +584,6 @@ async fn main() -> std::io::Result<()> {
                         "/fancy/deploy/{contract_id}",
                         web::post().to(handle_fancy_deploy_start),
                     )
-
                     .route("/contract/compile", web::post().to(handle_compile))
                     .route("/greet", web::get().to(handle_greet))
                     .route(

@@ -49,10 +49,14 @@ pub async fn fancy_list_newest(conn: &SqlitePool) -> Result<Vec<FancyDbObj>, sql
     Ok(res)
 }
 
-pub async fn fancy_list_best_score(conn: &SqlitePool) -> Result<Vec<FancyDbObj>, sqlx::Error> {
+pub async fn fancy_list_best_score(
+    conn: &SqlitePool,
+    limit: i64,
+) -> Result<Vec<FancyDbObj>, sqlx::Error> {
     let res = sqlx::query_as::<_, FancyDbObj>(
-        r"SELECT * FROM fancy WHERE owner is NULL ORDER BY score DESC LIMIT 100;",
+        r"SELECT * FROM fancy WHERE owner is NULL ORDER BY score DESC LIMIT $1;",
     )
+    .bind(limit)
     .fetch_all(conn)
     .await?;
     Ok(res)

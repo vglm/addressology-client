@@ -18,3 +18,21 @@ pub fn extract_url_param(
     }
     Ok(None)
 }
+
+//probably nice to make generic version of this, but for now i64 is enough
+pub fn extract_url_int_param(
+    request: &HttpRequest,
+    param: &str,
+) -> Result<Option<i64>, actix_web::Error> {
+    if let Some(str) = extract_url_param(request, param)? {
+        match str.parse::<i64>() {
+            Ok(val) => Ok(Some(val)),
+            Err(_) => Err(actix_web::error::ErrorBadRequest(format!(
+                "Failed to parse {} as i64",
+                param
+            ))),
+        }
+    } else {
+        Ok(None)
+    }
+}
