@@ -48,6 +48,7 @@ use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
+use serde_json::json;
 use tokio::sync::Mutex;
 
 fn get_allowed_emails() -> Vec<String> {
@@ -182,6 +183,36 @@ pub async fn handle_compile(
             HttpResponse::InternalServerError().finish()
         }
     }
+}
+
+pub async fn handle_fancy_estimate_total_hash(
+    server_data: web::Data<Box<ServerData>>,
+) -> HttpResponse {
+    let fancies = {
+        let conn = server_data.db_connection.lock().await;
+        match fancy_list_all(&conn).await {
+            Ok(fancies) => fancies,
+            Err(e) => {
+                log::error!("{}", e);
+                return HttpResponse::InternalServerError().finish();
+            }
+        }
+    };
+
+    let mut total_zeroes = 0;
+    for fancy in fancies {
+        if fancy.category == "leading_zeroes" {
+            if fancy.score >= 16.0f64.powf(11f64) {
+                total_zeroes += 1;
+            }
+        }
+    }
+    HttpResponse::Ok().json(json!(
+        {
+            "totalZeroes": total_zeroes,
+            "estimatedWorkTH": total_zeroes as f64 * 16.0f64.powf(11f64) / 1_000_000_000_000.0
+        }
+    ))
 }
 
 pub async fn handle_fancy_deploy_start(
@@ -527,6 +558,7 @@ async fn main() -> std::io::Result<()> {
                     .route("/fancy/random", web::get().to(handle_random))
                     .route("/fancy/list", web::get().to(handle_list))
                     .route("/fancy/list_newest", web::get().to(handle_list_newest))
+                    .route("/fancy/total_hash", web::get().to(handle_fancy_estimate_total_hash))
                     .route(
                         "/fancy/list_best_score",
                         web::get().to(handle_list_best_score),
@@ -537,6 +569,7 @@ async fn main() -> std::io::Result<()> {
                         "/fancy/deploy/{contract_id}",
                         web::post().to(handle_fancy_deploy_start),
                     )
+
                     .route("/contract/compile", web::post().to(handle_compile))
                     .route("/greet", web::get().to(handle_greet))
                     .route(
