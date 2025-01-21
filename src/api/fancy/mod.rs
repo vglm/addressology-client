@@ -1,5 +1,5 @@
-pub mod tokens;
 pub mod score;
+pub mod tokens;
 
 use crate::api::utils::extract_url_int_param;
 use crate::db::model::{DeployStatus, UserDbObj};
@@ -8,6 +8,7 @@ use crate::db::ops::{
     fancy_list_newest, fancy_update_owner, get_contract_by_id, get_user, insert_fancy_obj,
     update_contract_data, update_user_tokens,
 };
+use crate::fancy::parse_fancy;
 use crate::{login_check_and_get, normalize_address, ServerData};
 use actix_session::Session;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
@@ -15,7 +16,6 @@ use rand::prelude::SliceRandom;
 use serde::Deserialize;
 use serde_json::json;
 use std::str::FromStr;
-use crate::fancy::parse_fancy;
 
 pub async fn handle_random(server_data: web::Data<Box<ServerData>>) -> impl Responder {
     let conn = server_data.db_connection.lock().await;
@@ -264,4 +264,3 @@ pub async fn handle_fancy_buy_api(
         }
     }
 }
-

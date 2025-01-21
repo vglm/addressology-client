@@ -1,14 +1,14 @@
 mod contract;
 
-use std::collections::BTreeMap;
 pub use contract::*;
+use std::collections::BTreeMap;
 
 use crate::types::DbAddress;
 use chrono::NaiveDateTime;
 
+use crate::fancy::FancyScoreCategory;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use crate::fancy::FancyScoreCategory;
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Eq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]

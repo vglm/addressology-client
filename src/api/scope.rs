@@ -1,4 +1,5 @@
 use crate::api::contract::compile::handle_compile;
+use crate::api::fancy::score::{handle_get_score_categories, handle_score_custom};
 use crate::api::fancy::tokens::handle_get_user_tokens;
 use crate::api::fancy::{
     handle_fancy_buy_api, handle_fancy_deploy_start, handle_fancy_estimate_total_hash,
@@ -9,7 +10,6 @@ use crate::api::user::handle_greet;
 use crate::api::{contract, user};
 use actix_web::web::{get, post};
 use actix_web::Scope;
-use crate::api::fancy::score::{handle_get_score_categories, handle_score_custom};
 
 #[rustfmt::skip]
 pub fn server_api_scope() -> Scope {

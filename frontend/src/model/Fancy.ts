@@ -8,12 +8,12 @@ export interface FancyScore {
                 score: number;
                 difficulty: number;
                 category: string;
-            }
-        }
+            };
+        };
         totalScore: number;
         price: number;
         category: string;
-    },
+    };
     price: number;
     miner: string | null;
     mined: string | null;
@@ -35,7 +35,7 @@ export interface UserTokenResponse {
 }
 
 export interface FancyCategoryInfo {
-    key: string,
-    name: string,
-    description: string,
+    key: string;
+    name: string;
+    description: string;
 }

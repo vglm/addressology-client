@@ -3,16 +3,16 @@ import { backendFetch } from "./common/BackendCall";
 
 import "./BrowseAddresses.css";
 import { ethers } from "ethers";
-import {Fancy, FancyCategoryInfo} from "./model/Fancy";
-import {MenuItem, Select} from "@mui/material";
+import { Fancy, FancyCategoryInfo } from "./model/Fancy";
+import { MenuItem, Select } from "@mui/material";
 
 interface TotalHashInfo {
     estimatedWorkTH: number;
 }
 
 interface SelectCategoryProps {
-    selectedCategory: string,
-    setSelectedCategory: (category: string) => void,
+    selectedCategory: string;
+    setSelectedCategory: (category: string) => void;
 }
 
 const SelectCategory = (props: SelectCategoryProps) => {
@@ -31,14 +31,23 @@ const SelectCategory = (props: SelectCategoryProps) => {
     }, []);
 
     return (
-        <Select variant={"outlined"} defaultValue={props.selectedCategory} onChange={e => props.setSelectedCategory(e.target.value)}>
+        <Select
+            variant={"outlined"}
+            defaultValue={props.selectedCategory}
+            onChange={(e) => props.setSelectedCategory(e.target.value)}
+        >
             <MenuItem value={"all"}>All</MenuItem>
-            {categories && categories.map((category) => {
-                return <MenuItem key={category.key} value={category.key}>{category.name}</MenuItem>;
-            })}
+            {categories &&
+                categories.map((category) => {
+                    return (
+                        <MenuItem key={category.key} value={category.key}>
+                            {category.name}
+                        </MenuItem>
+                    );
+                })}
         </Select>
     );
-}
+};
 
 const BrowseAddresses = () => {
     const [fancies, setFancies] = useState<Fancy[]>([]);
@@ -86,8 +95,10 @@ const BrowseAddresses = () => {
                 <h2>Estimated total work: {totalHash.estimatedWorkTH.toFixed(3)} TH</h2>
             </div>
 
-            <SelectCategory selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory}></SelectCategory>
-
+            <SelectCategory
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+            ></SelectCategory>
 
             <table>
                 <thead>

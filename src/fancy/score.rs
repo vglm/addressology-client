@@ -1,26 +1,21 @@
-use std::fmt::Display;
-use std::str::FromStr;
-use serde::{Deserialize, Serialize};
-use strum::IntoEnumIterator;
-use web3::types::Address;
 use crate::config::get_base_difficulty;
 use crate::db::model::{FancyScore, FancyScoreEntry};
 use crate::fancy::address_to_mixed_case;
-use strum_macros::{EnumIter};
+use serde::{Deserialize, Serialize};
+use std::fmt::Display;
+use std::str::FromStr;
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
+use web3::types::Address;
 
-#[derive(Serialize, Deserialize, EnumIter, PartialEq, Eq, Debug, Clone)]
+#[derive(Serialize, Deserialize, EnumIter, PartialEq, Eq, Debug, Clone, Default)]
 pub enum FancyScoreCategory {
     LeadingZeroes,
     LeadingAny,
     LettersOnly,
     NumbersOnly,
-    Random
-}
-
-impl Default for FancyScoreCategory {
-    fn default() -> Self {
-        FancyScoreCategory::Random
-    }
+    #[default]
+    Random,
 }
 
 impl Display for FancyScoreCategory {
@@ -62,46 +57,37 @@ pub fn list_score_categories() -> Vec<FancyCategoryInfo> {
 
     for category in FancyScoreCategory::iter() {
         match category {
-            FancyScoreCategory::LeadingZeroes => categories.push(
-                FancyCategoryInfo {
-                    key: category.to_string(),
-                    name: "Leading Zeroes".to_string(),
-                    description: "The number of leading zeroes in the address.".to_string(),
-                }
-            ),
-            FancyScoreCategory::LeadingAny => categories.push(
-                FancyCategoryInfo {
-                    key: category.to_string(),
-                    name: "Leading Any".to_string(),
-                    description: "The number of leading characters that are the same.".to_string(),
-                }
-            ),
-            FancyScoreCategory::LettersOnly => categories.push(
-                FancyCategoryInfo {
-                    key: category.to_string(),
-                    name: "Letters Only".to_string(),
-                    description: "The number of letters in the address.".to_string(),
-                }
-            ),
-            FancyScoreCategory::NumbersOnly => categories.push(
-                FancyCategoryInfo {
-                    key: category.to_string(),
-                    name: "Numbers Only".to_string(),
-                    description: "The number of numbers in the address.".to_string(),
-                }
-            ),
-            FancyScoreCategory::Random => categories.push(
-                FancyCategoryInfo {
-                    key: category.to_string(),
-                    name: "Random".to_string(),
-                    description: "Randomness of the address.".to_string(),
-                }
-            ),
+            FancyScoreCategory::LeadingZeroes => categories.push(FancyCategoryInfo {
+                key: category.to_string(),
+                name: "Leading Zeroes".to_string(),
+                description: "The number of leading zeroes in the address.".to_string(),
+            }),
+            FancyScoreCategory::LeadingAny => categories.push(FancyCategoryInfo {
+                key: category.to_string(),
+                name: "Leading Any".to_string(),
+                description: "The number of leading characters that are the same.".to_string(),
+            }),
+            FancyScoreCategory::LettersOnly => categories.push(FancyCategoryInfo {
+                key: category.to_string(),
+                name: "Letters Only".to_string(),
+                description: "The number of letters in the address.".to_string(),
+            }),
+            FancyScoreCategory::NumbersOnly => categories.push(FancyCategoryInfo {
+                key: category.to_string(),
+                name: "Numbers Only".to_string(),
+                description: "The number of numbers in the address.".to_string(),
+            }),
+            FancyScoreCategory::Random => categories.push(FancyCategoryInfo {
+                key: category.to_string(),
+                name: "Random".to_string(),
+                description: "Randomness of the address.".to_string(),
+            }),
         }
     }
     categories
 }
 
+#[allow(clippy::vec_init_then_push)]
 pub fn score_fancy(address: Address) -> FancyScore {
     let mut score = FancyScore::default();
 
@@ -159,7 +145,7 @@ pub fn score_fancy(address: Address) -> FancyScore {
         difficulty: 16.0f64.powf(leading_zeroes as f64),
     });
 
-    score_entries.push( FancyScoreEntry {
+    score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::LeadingAny,
         score: leading_any as f64 - 0.9_f64,
         difficulty: 16.0f64.powf(leading_any as f64 - (15. / 16.)),
@@ -176,7 +162,10 @@ pub fn score_fancy(address: Address) -> FancyScore {
         score: numbers_only as f64,
         difficulty: 16.0f64.powf((numbers_only - 30) as f64),
     });
-    score.scores = score_entries.iter().map(|entry| (entry.category.to_string(), entry.clone())).collect();
+    score.scores = score_entries
+        .iter()
+        .map(|entry| (entry.category.to_string(), entry.clone()))
+        .collect();
 
     let neutral_price_point = get_base_difficulty();
 
@@ -187,7 +176,6 @@ pub fn score_fancy(address: Address) -> FancyScore {
             biggest_score = entry.clone();
         }
     }
-
 
     let biggest_score_difficulty = biggest_score.difficulty;
 

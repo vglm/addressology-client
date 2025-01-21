@@ -4,7 +4,7 @@ import { backendFetch } from "./common/BackendCall";
 import "./AddressCard.css";
 import { ethers } from "ethers";
 import { useParams } from "react-router-dom";
-import {FancyCategoryInfo, FancyScore} from "./model/Fancy";
+import { FancyCategoryInfo, FancyScore } from "./model/Fancy";
 import { Button } from "@mui/material";
 
 interface AddressCardProps {
@@ -48,7 +48,7 @@ const AddressCard = (props: AddressCardProps) => {
     };
 
     useEffect(() => {
-        loadCategories().then()
+        loadCategories().then();
         loadFancy(address).then();
     }, [address]);
 
@@ -91,13 +91,12 @@ const AddressCard = (props: AddressCardProps) => {
             <div>{fancy.mined}</div>
 
             <Button onClick={(_e) => getRandomAddress()}>Next random</Button>
-
         </div>
     );
 };
 
 export const AddressCardForRoute = () => {
-    const {address} = useParams();
+    const { address } = useParams();
 
     if (!address) {
         return <div>No address</div>;

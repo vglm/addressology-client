@@ -5,12 +5,12 @@ mod db;
 mod deploy;
 mod email;
 mod error;
+mod fancy;
 mod hash;
 mod oauth;
 mod solc;
 mod types;
 mod update;
-mod fancy;
 
 use crate::api::scope::server_api_scope;
 use crate::config::get_base_difficulty_price;
@@ -22,6 +22,8 @@ use crate::db::ops::{
     insert_fancy_obj,
 };
 use crate::deploy::handle_fancy_deploy;
+use crate::fancy::parse_fancy;
+use crate::fancy::score_fancy;
 use crate::hash::compute_create3_command;
 use crate::types::DbAddress;
 use actix_multipart::form::MultipartFormConfig;
@@ -42,8 +44,6 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::fancy::parse_fancy;
-use crate::fancy::score_fancy;
 
 fn get_allowed_emails() -> Vec<String> {
     let res = env::var("ALLOWED_EMAILS")

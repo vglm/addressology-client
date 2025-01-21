@@ -1,11 +1,11 @@
 use crate::config::get_base_difficulty_price;
 use crate::db::model::FancyDbObj;
+use crate::err_custom_create;
 use crate::error::AddressologyError;
+use crate::fancy::score_fancy;
 use crate::hash::compute_create3_command;
 use crate::types::DbAddress;
-use crate::err_custom_create;
 use web3::types::Address;
-use crate::fancy::score_fancy;
 
 pub fn parse_fancy(
     salt: String,

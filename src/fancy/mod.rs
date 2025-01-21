@@ -1,6 +1,6 @@
 use web3::signing::keccak256;
 use web3::types::H160;
-
+#[allow(clippy::module_inception)]
 mod fancy;
 mod score;
 pub use fancy::*;
