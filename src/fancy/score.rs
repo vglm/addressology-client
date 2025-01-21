@@ -4,45 +4,102 @@ use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use web3::types::Address;
 use crate::config::get_base_difficulty;
-use crate::db::model::FancyScore;
+use crate::db::model::{FancyScore, FancyScoreEntry};
 use crate::fancy::address_to_mixed_case;
 use strum_macros::{EnumIter};
 
 #[derive(Serialize, Deserialize, EnumIter, PartialEq, Eq, Debug, Clone)]
-pub enum ScoreCategory {
+pub enum FancyScoreCategory {
     LeadingZeroes,
     LeadingAny,
     LettersOnly,
     NumbersOnly,
+    Random
 }
 
-impl Display for ScoreCategory {
+impl Default for FancyScoreCategory {
+    fn default() -> Self {
+        FancyScoreCategory::Random
+    }
+}
+
+impl Display for FancyScoreCategory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ScoreCategory::LeadingZeroes => write!(f, "leading_zeroes"),
-            ScoreCategory::LeadingAny => write!(f, "leading_any"),
-            ScoreCategory::LettersOnly => write!(f, "letters_only"),
-            ScoreCategory::NumbersOnly => write!(f, "numbers_only"),
+            FancyScoreCategory::LeadingZeroes => write!(f, "leading_zeroes"),
+            FancyScoreCategory::LeadingAny => write!(f, "leading_any"),
+            FancyScoreCategory::LettersOnly => write!(f, "letters_only"),
+            FancyScoreCategory::NumbersOnly => write!(f, "numbers_only"),
+            FancyScoreCategory::Random => write!(f, "random"),
         }
     }
 }
 
-impl FromStr for ScoreCategory {
+impl FromStr for FancyScoreCategory {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "leading_zeroes" => Ok(ScoreCategory::LeadingZeroes),
-            "leading_any" => Ok(ScoreCategory::LeadingAny),
-            "letters_only" => Ok(ScoreCategory::LettersOnly),
-            "numbers_only" => Ok(ScoreCategory::NumbersOnly),
+            "leading_zeroes" => Ok(FancyScoreCategory::LeadingZeroes),
+            "leading_any" => Ok(FancyScoreCategory::LeadingAny),
+            "letters_only" => Ok(FancyScoreCategory::LettersOnly),
+            "numbers_only" => Ok(FancyScoreCategory::NumbersOnly),
+            "random" => Ok(FancyScoreCategory::Random),
             _ => Err(()),
         }
     }
 }
 
-pub fn score_categories() -> Vec<String> {
-    ScoreCategory::iter().map(|v| v.to_string()).collect()
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Default)]
+pub struct FancyCategoryInfo {
+    pub key: String,
+    pub name: String,
+    pub description: String,
+}
+
+pub fn list_score_categories() -> Vec<FancyCategoryInfo> {
+    let mut categories = Vec::new();
+
+    for category in FancyScoreCategory::iter() {
+        match category {
+            FancyScoreCategory::LeadingZeroes => categories.push(
+                FancyCategoryInfo {
+                    key: category.to_string(),
+                    name: "Leading Zeroes".to_string(),
+                    description: "The number of leading zeroes in the address.".to_string(),
+                }
+            ),
+            FancyScoreCategory::LeadingAny => categories.push(
+                FancyCategoryInfo {
+                    key: category.to_string(),
+                    name: "Leading Any".to_string(),
+                    description: "The number of leading characters that are the same.".to_string(),
+                }
+            ),
+            FancyScoreCategory::LettersOnly => categories.push(
+                FancyCategoryInfo {
+                    key: category.to_string(),
+                    name: "Letters Only".to_string(),
+                    description: "The number of letters in the address.".to_string(),
+                }
+            ),
+            FancyScoreCategory::NumbersOnly => categories.push(
+                FancyCategoryInfo {
+                    key: category.to_string(),
+                    name: "Numbers Only".to_string(),
+                    description: "The number of numbers in the address.".to_string(),
+                }
+            ),
+            FancyScoreCategory::Random => categories.push(
+                FancyCategoryInfo {
+                    key: category.to_string(),
+                    name: "Random".to_string(),
+                    description: "Randomness of the address.".to_string(),
+                }
+            ),
+        }
+    }
+    categories
 }
 
 pub fn score_fancy(address: Address) -> FancyScore {
@@ -88,57 +145,60 @@ pub fn score_fancy(address: Address) -> FancyScore {
         }
     }
 
-    score.leading_zeroes_score = leading_zeroes as f64;
-    score.leading_any_score = leading_any as f64 - 0.9_f64;
-    score.letters_only_score = letters_only as f64;
+    let mut score_entries = Vec::new();
 
-    let exp_score_leading_zeroes = 16.0f64.powf(leading_zeroes as f64);
-    let exp_score_leading_any = 16.0f64.powf(leading_any as f64 - (15. / 16.));
-    let exp_score_letters_only = 16.0f64.powf((letters_only - 25) as f64);
-    let exp_score_numbers_only = 16.0f64.powf((numbers_only - 30) as f64);
+    score_entries.push(FancyScoreEntry {
+        category: FancyScoreCategory::Random,
+        score: 1.0f64,
+        difficulty: 1000.0f64,
+    });
+
+    score_entries.push(FancyScoreEntry {
+        category: FancyScoreCategory::LeadingZeroes,
+        score: leading_zeroes as f64,
+        difficulty: 16.0f64.powf(leading_zeroes as f64),
+    });
+
+    score_entries.push( FancyScoreEntry {
+        category: FancyScoreCategory::LeadingAny,
+        score: leading_any as f64 - 0.9_f64,
+        difficulty: 16.0f64.powf(leading_any as f64 - (15. / 16.)),
+    });
+
+    score_entries.push(FancyScoreEntry {
+        category: FancyScoreCategory::LettersOnly,
+        score: letters_only as f64,
+        difficulty: 16.0f64.powf((letters_only - 25) as f64),
+    });
+
+    score_entries.push(FancyScoreEntry {
+        category: FancyScoreCategory::NumbersOnly,
+        score: numbers_only as f64,
+        difficulty: 16.0f64.powf((numbers_only - 30) as f64),
+    });
+    score.scores = score_entries.iter().map(|entry| (entry.category.to_string(), entry.clone())).collect();
 
     let neutral_price_point = get_base_difficulty();
 
-    let current_biggest_score = {
-        score.category = "none".to_string();
-        1E6
-    };
+    // This simple method is better than iterator, because of float NaN issues
+    let mut biggest_score = score_entries[0].clone();
+    for entry in score_entries.iter() {
+        if entry.difficulty > biggest_score.difficulty {
+            biggest_score = entry.clone();
+        }
+    }
 
-    let biggest_score = if exp_score_leading_zeroes > current_biggest_score {
-        score.category = "leading_zeroes".to_string();
-        exp_score_leading_zeroes
-    } else {
-        current_biggest_score
-    };
 
-    let biggest_score = if exp_score_leading_any > biggest_score {
-        score.category = "leading_any".to_string();
-        exp_score_leading_any
-    } else {
-        biggest_score
-    };
+    let biggest_score_difficulty = biggest_score.difficulty;
 
-    let biggest_score = if exp_score_letters_only > biggest_score {
-        score.category = "letters_only".to_string();
-        exp_score_letters_only
-    } else {
-        biggest_score
-    };
-
-    let biggest_score = if exp_score_numbers_only > biggest_score {
-        score.category = "numbers_only".to_string();
-        exp_score_numbers_only
-    } else {
-        biggest_score
-    };
-
-    let price_multiplier = if biggest_score <= neutral_price_point {
+    let price_multiplier = if biggest_score_difficulty <= neutral_price_point {
         1.0
     } else {
-        biggest_score / neutral_price_point
+        biggest_score_difficulty / neutral_price_point
     };
 
-    score.total_score = biggest_score;
+    score.total_score = biggest_score_difficulty;
     score.price_multiplier = price_multiplier;
+    score.category = biggest_score.category.to_string();
     score
 }

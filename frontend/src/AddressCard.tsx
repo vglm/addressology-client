@@ -4,7 +4,7 @@ import { backendFetch } from "./common/BackendCall";
 import "./AddressCard.css";
 import { ethers } from "ethers";
 import { useParams } from "react-router-dom";
-import { FancyScore } from "./model/Fancy";
+import {FancyCategoryInfo, FancyScore} from "./model/Fancy";
 import { Button } from "@mui/material";
 
 interface AddressCardProps {
@@ -14,6 +14,16 @@ interface AddressCardProps {
 const AddressCard = (props: AddressCardProps) => {
     const [fancy, setFancy] = useState<FancyScore | null>(null);
     const [address, setAddress] = useState<string>(props.initialAddress);
+    const [categories, setCategories] = useState<FancyCategoryInfo[] | null>(null);
+
+    const loadCategories = async () => {
+        const response = await backendFetch("/api/fancy/categories", {
+            method: "Get",
+        });
+        const addresses = await response.json();
+
+        setCategories(addresses);
+    };
 
     const getRandomAddress = async () => {
         const response = await backendFetch("/api/fancy/random", {
@@ -38,37 +48,56 @@ const AddressCard = (props: AddressCardProps) => {
     };
 
     useEffect(() => {
+        loadCategories().then()
         loadFancy(address).then();
     }, [address]);
 
     if (!fancy) {
         return <div>Loading...</div>;
     }
+    if (!categories) {
+        return <div>Loading...</div>;
+    }
+
+    const addressCategory = categories.find((category) => category.key === fancy.score.category);
+    if (!addressCategory) {
+        return <div>Category not found...</div>;
+    }
+    const scoreInfo = fancy.score.scores[fancy.score.category];
 
     return (
-        <div>
+        <div className={"address-card"}>
             <h1>Address card</h1>
+
+            <div>Full address:</div>
+            <div className={"address-card-address-entry-box"}>
+                <span className={"address-card-address-entry"}>{fancy.score.addressMixedCase}</span>
+            </div>
+            <div>Shortened address:</div>
+            <div className={"address-card-address-entry-box"}>
+                <span className={"address-card-address-entry"}>{fancy.score.addressShortEtherscan}</span>
+            </div>
+            <div>Unique in category</div>
+            <div className={"address-card-address-entry-box"}>
+                <span>{addressCategory.name}</span>: <span>{scoreInfo.score}</span>
+            </div>
+            <div>Unique in category</div>
+            <div>{fancy.score.totalScore}</div>
+            <div>Reservation price</div>
+            <div>{fancy.price}</div>
+            <div>Mined by</div>
+            <div>{fancy.miner}</div>
+            <div>Mined at</div>
+            <div>{fancy.mined}</div>
 
             <Button onClick={(_e) => getRandomAddress()}>Next random</Button>
 
-            <div>
-                <span className={"fancy-address-entry"}>{fancy.addressMixedCase}</span>
-            </div>
-            <div>
-                <span className={"fancy-address-entry"}>{fancy.addressShortEtherscan}</span>
-            </div>
-
-            <div>{fancy.totalScore}</div>
-            <div>{fancy.price}</div>
-            <div>{fancy.category}</div>
-            <div>{fancy.created}</div>
-            <div>{fancy.miner}</div>
         </div>
     );
 };
 
 export const AddressCardForRoute = () => {
-    const { address } = useParams();
+    const {address} = useParams();
 
     if (!address) {
         return <div>No address</div>;

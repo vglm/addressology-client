@@ -1,4 +1,6 @@
 mod contract;
+
+use std::collections::BTreeMap;
 pub use contract::*;
 
 use crate::types::DbAddress;
@@ -6,6 +8,7 @@ use chrono::NaiveDateTime;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use crate::fancy::FancyScoreCategory;
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Eq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -36,8 +39,9 @@ pub struct OauthStageDbObj {
     pub created_at: DateTime<Utc>,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Default)]
 pub struct FancyScoreEntry {
-    pub category: FancyScore,
+    pub category: FancyScoreCategory,
     pub score: f64,
     pub difficulty: f64,
 }
@@ -48,9 +52,7 @@ pub struct FancyScore {
     pub address_mixed_case: String,
     pub address_lower_case: String,
     pub address_short_etherscan: String,
-    pub leading_zeroes_score: f64,
-    pub leading_any_score: f64,
-    pub letters_only_score: f64,
+    pub scores: BTreeMap<String, FancyScoreEntry>,
     pub total_score: f64,
     pub price_multiplier: f64,
     pub category: String,

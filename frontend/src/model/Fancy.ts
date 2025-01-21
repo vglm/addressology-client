@@ -1,12 +1,22 @@
 export interface FancyScore {
-    addressLowerCase: string;
-    addressMixedCase: string;
-    addressShortEtherscan: string;
-    totalScore: number;
+    score: {
+        addressLowerCase: string;
+        addressMixedCase: string;
+        addressShortEtherscan: string;
+        scores: {
+            [key: string]: {
+                score: number;
+                difficulty: number;
+                category: string;
+            }
+        }
+        totalScore: number;
+        price: number;
+        category: string;
+    },
     price: number;
-    category: string;
-    created: string;
-    miner: string;
+    miner: string | null;
+    mined: string | null;
 }
 
 export interface Fancy {
@@ -22,4 +32,10 @@ export interface UserTokenResponse {
     uid: string;
     email: string;
     tokens: number;
+}
+
+export interface FancyCategoryInfo {
+    key: string,
+    name: string,
+    description: string,
 }

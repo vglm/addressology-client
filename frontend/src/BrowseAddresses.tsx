@@ -3,15 +3,47 @@ import { backendFetch } from "./common/BackendCall";
 
 import "./BrowseAddresses.css";
 import { ethers } from "ethers";
-import { Fancy } from "./model/Fancy";
+import {Fancy, FancyCategoryInfo} from "./model/Fancy";
+import {MenuItem, Select} from "@mui/material";
 
 interface TotalHashInfo {
     estimatedWorkTH: number;
 }
 
+interface SelectCategoryProps {
+    selectedCategory: string,
+    setSelectedCategory: (category: string) => void,
+}
+
+const SelectCategory = (props: SelectCategoryProps) => {
+    const [categories, setCategories] = useState<FancyCategoryInfo[] | null>(null);
+    const loadCategories = async () => {
+        const response = await backendFetch("/api/fancy/categories", {
+            method: "Get",
+        });
+        const addresses = await response.json();
+
+        setCategories(addresses);
+    };
+
+    useEffect(() => {
+        loadCategories().then();
+    }, []);
+
+    return (
+        <Select variant={"outlined"} defaultValue={props.selectedCategory} onChange={e => props.setSelectedCategory(e.target.value)}>
+            <MenuItem value={"all"}>All</MenuItem>
+            {categories && categories.map((category) => {
+                return <MenuItem key={category.key} value={category.key}>{category.name}</MenuItem>;
+            })}
+        </Select>
+    );
+}
+
 const BrowseAddresses = () => {
     const [fancies, setFancies] = useState<Fancy[]>([]);
     const [totalHash, setTotalHash] = useState<TotalHashInfo | null>(null);
+    const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
     const loadAddresses = async () => {
         const response = await backendFetch("/api/fancy/list_best_score?limit=1000", {
@@ -42,6 +74,9 @@ const BrowseAddresses = () => {
     if (!totalHash) {
         return <div>Loading...</div>;
     }
+    if (!selectedCategory) {
+        return <div>Loading...</div>;
+    }
 
     return (
         <div>
@@ -50,6 +85,9 @@ const BrowseAddresses = () => {
             <div>
                 <h2>Estimated total work: {totalHash.estimatedWorkTH.toFixed(3)} TH</h2>
             </div>
+
+            <SelectCategory selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory}></SelectCategory>
+
 
             <table>
                 <thead>
