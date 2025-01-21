@@ -3,13 +3,13 @@ use crate::api::fancy::tokens::handle_get_user_tokens;
 use crate::api::fancy::{
     handle_fancy_buy_api, handle_fancy_deploy_start, handle_fancy_estimate_total_hash,
     handle_fancy_new, handle_list, handle_list_best_score, handle_list_newest, handle_random,
-    handle_score_custom,
 };
 use crate::api::oauth::google::{handle_google_callback, handle_login_via_google};
 use crate::api::user::handle_greet;
 use crate::api::{contract, user};
 use actix_web::web::{get, post};
 use actix_web::Scope;
+use crate::api::fancy::score::{handle_get_score_categories, handle_score_custom};
 
 #[rustfmt::skip]
 pub fn server_api_scope() -> Scope {
@@ -26,6 +26,7 @@ pub fn server_api_scope() -> Scope {
     .route("/change_pass",                  post().to(user::handle_password_change))
     .route("/user/tokens",                  get().to(handle_get_user_tokens))
     .route("/fancy/score/{address}",        get().to(handle_score_custom))
+    .route("/fancy/categories",             get().to(handle_get_score_categories))
     .route("/fancy/random",                 get().to(handle_random))
     .route("/fancy/list",                   get().to(handle_list))
     .route("/fancy/list_newest",            get().to(handle_list_newest))

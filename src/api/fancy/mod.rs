@@ -1,4 +1,5 @@
 pub mod tokens;
+pub mod score;
 
 use crate::api::utils::extract_url_int_param;
 use crate::db::model::{DeployStatus, UserDbObj};
@@ -7,14 +8,14 @@ use crate::db::ops::{
     fancy_list_newest, fancy_update_owner, get_contract_by_id, get_user, insert_fancy_obj,
     update_contract_data, update_user_tokens,
 };
-use crate::fancy::score_fancy;
-use crate::{fancy, login_check_and_get, normalize_address, ServerData};
+use crate::{login_check_and_get, normalize_address, ServerData};
 use actix_session::Session;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use rand::prelude::SliceRandom;
 use serde::Deserialize;
 use serde_json::json;
 use std::str::FromStr;
+use crate::fancy::parse_fancy;
 
 pub async fn handle_random(server_data: web::Data<Box<ServerData>>) -> impl Responder {
     let conn = server_data.db_connection.lock().await;
@@ -107,7 +108,7 @@ pub async fn handle_fancy_new(
             return HttpResponse::BadRequest().finish();
         }
     };
-    let result = match fancy::parse_fancy(new_data.salt.clone(), factory, new_data.miner.clone()) {
+    let result = match parse_fancy(new_data.salt.clone(), factory, new_data.miner.clone()) {
         Ok(fancy) => fancy,
         Err(e) => {
             log::error!("{}", e);
@@ -264,11 +265,3 @@ pub async fn handle_fancy_buy_api(
     }
 }
 
-//this request can be public
-pub async fn handle_score_custom(address: web::Path<String>) -> HttpResponse {
-    let address = normalize_address!(address.into_inner());
-
-    let score = score_fancy(address.addr());
-
-    HttpResponse::Ok().json(score)
-}

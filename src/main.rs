@@ -5,12 +5,12 @@ mod db;
 mod deploy;
 mod email;
 mod error;
-mod fancy;
 mod hash;
 mod oauth;
 mod solc;
 mod types;
 mod update;
+mod fancy;
 
 use crate::api::scope::server_api_scope;
 use crate::config::get_base_difficulty_price;
@@ -42,6 +42,8 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use crate::fancy::parse_fancy;
+use crate::fancy::score_fancy;
 
 fn get_allowed_emails() -> Vec<String> {
     let res = env::var("ALLOWED_EMAILS")
@@ -304,7 +306,7 @@ async fn main() -> std::io::Result<()> {
             let fancies = fancy_list_all(&conn).await.unwrap();
 
             for fancy in fancies {
-                let score = fancy::score_fancy(fancy.address.addr());
+                let score = score_fancy(fancy.address.addr());
                 log::info!(
                     "Fancy: {:#x} Score: {}",
                     fancy.address.addr(),
@@ -392,7 +394,7 @@ async fn main() -> std::io::Result<()> {
                 .unwrap();
 
             let factory = web3::types::Address::from_str(&factory).unwrap();
-            let result = match fancy::parse_fancy(salt, factory, miner) {
+            let result = match parse_fancy(salt, factory, miner) {
                 Ok(fancy) => fancy,
                 Err(e) => {
                     log::error!("{}", e);
