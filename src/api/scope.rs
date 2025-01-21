@@ -1,4 +1,5 @@
 use crate::api::contract::compile::handle_compile;
+use crate::api::fancy::tokens::handle_get_user_tokens;
 use crate::api::fancy::{
     handle_fancy_buy_api, handle_fancy_deploy_start, handle_fancy_estimate_total_hash,
     handle_fancy_new, handle_list, handle_list_best_score, handle_list_newest, handle_random,
@@ -22,6 +23,7 @@ pub fn server_api_scope() -> Scope {
     .route("/reset_pass",                   post().to(user::handle_password_reset))
     .route("/set_pass",                     post().to(user::handle_password_set))
     .route("/change_pass",                  post().to(user::handle_password_change))
+    .route("/user/tokens",                  get().to(handle_get_user_tokens))
     .route("/fancy/random",                 get().to(handle_random))
     .route("/fancy/list",                   get().to(handle_list))
     .route("/fancy/list_newest",            get().to(handle_list_newest))

@@ -6,3 +6,9 @@ export interface Fancy {
     created: string;
     miner: string;
 }
+
+export interface UserTokenResponse {
+    uid: string,
+    email: string,
+    tokens: number,
+}

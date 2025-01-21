@@ -1,4 +1,5 @@
 mod api;
+mod config;
 mod cookie;
 mod db;
 mod deploy;
@@ -12,6 +13,7 @@ mod types;
 mod update;
 
 use crate::api::scope::server_api_scope;
+use crate::config::get_base_difficulty_price;
 use crate::cookie::load_key_or_create;
 use crate::db::connection::create_sqlite_connection;
 use crate::db::model::DeployStatus;
@@ -309,7 +311,8 @@ async fn main() -> std::io::Result<()> {
                     score.total_score
                 );
 
-                let new_price = (score.price_multiplier * 1000.0) as i64;
+                let new_price =
+                    (score.price_multiplier * get_base_difficulty_price() as f64) as i64;
                 if fancy.score != score.total_score
                     || fancy.price != new_price
                     || fancy.category != score.category

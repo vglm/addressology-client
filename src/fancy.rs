@@ -1,3 +1,4 @@
+use crate::config::{get_base_difficulty, get_base_difficulty_price};
 use crate::db::model::{FancyDbObj, FancyScore};
 use crate::error::AddressologyError;
 use crate::hash::compute_create3_command;
@@ -52,7 +53,7 @@ pub fn score_fancy(address: Address) -> FancyScore {
     let exp_score_letters_only = 16.0f64.powf((letters_only - 25) as f64);
     let exp_score_numbers_only = 16.0f64.powf((numbers_only - 30) as f64);
 
-    let netural_price_point = 16.0f64.powf(10f64);
+    let neutral_price_point = get_base_difficulty();
 
     let current_biggest_score = {
         score.category = "none".to_string();
@@ -87,10 +88,10 @@ pub fn score_fancy(address: Address) -> FancyScore {
         biggest_score
     };
 
-    let price_multiplier = if biggest_score <= netural_price_point {
+    let price_multiplier = if biggest_score <= neutral_price_point {
         1.0
     } else {
-        biggest_score / netural_price_point
+        biggest_score / neutral_price_point
     };
 
     score.total_score = biggest_score;
@@ -129,7 +130,7 @@ pub fn parse_fancy(
         score: score.total_score,
         miner: miner_censored,
         owner: None,
-        price: (score.price_multiplier * 1000.0) as i64,
+        price: (score.price_multiplier * get_base_difficulty_price() as f64) as i64,
         category: score.category,
     })
 }

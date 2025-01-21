@@ -1,3 +1,5 @@
+pub mod tokens;
+
 use crate::api::utils::extract_url_int_param;
 use crate::db::model::{DeployStatus, UserDbObj};
 use crate::db::ops::{

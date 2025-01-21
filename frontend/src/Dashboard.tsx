@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useEffect, useState} from "react";
 
 import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import LoginScreen from "./LoginScreen";
@@ -12,6 +12,7 @@ import CompiledContract from "./CompiledContract";
 import MyContracts from "./MyContracts";
 import CompiledContractTemplate from "./CompiledContractTemplate";
 import BrowseAddresses from "./BrowseAddresses";
+import {UserTokenResponse} from "./model/Fancy";
 
 const Dashboard = () => {
     const loginInformation = useLoginOrNull();
@@ -24,6 +25,22 @@ const Dashboard = () => {
     const isLoggedIn = loginInformation.loginData != null;
     const [_logoutInProgress, setLogoutInProgress] = React.useState(false);
     const updateLogin = useLoginEvent();
+    const [userTokens, setUserTokens] = useState<UserTokenResponse | null>(null);
+
+    const loadUserTokens = async () => {
+        const response = await backendFetch("/api/user/tokens", {
+            method: "Get",
+        });
+        const userTokenResponse = await response.json();
+        setUserTokens(userTokenResponse);
+        console.log("User token response: ", userTokenResponse);
+    }
+
+    useEffect(() => {
+        if (isLoggedIn) {
+            loadUserTokens().then();
+        }
+    }, [isLoggedIn]);
 
     function getMarginLeft() {
         return Math.max((window.innerWidth - 1500) / 2, 15);
@@ -156,6 +173,9 @@ const Dashboard = () => {
                                 Charts2
                             </Button>
                             <div className="filler"></div>
+                            <div style={{padding: 10}}>
+                                Tokens: {userTokens?.tokens ?? "N/A"}
+                            </div>
 
                             {loginInformation.loginData ? (
                                 <div className={"top-header-navigation-right"}>

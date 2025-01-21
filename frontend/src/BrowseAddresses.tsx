@@ -3,7 +3,7 @@ import { backendFetch } from "./common/BackendCall";
 
 import "./BrowseAddresses.css";
 import { ethers } from "ethers";
-import { Fancy } from "./model/Fancy";
+import {Fancy, UserTokenResponse} from "./model/Fancy";
 
 interface TotalHashInfo {
     estimatedWorkTH: number;
