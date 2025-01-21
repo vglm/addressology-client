@@ -263,13 +263,15 @@ pub async fn handle_fancy_buy_api(
         }
     }
 
-    match update_user_tokens(
-        &mut *trans,
-        &user.uid,
-        user_for_tx.tokens - address_db.price,
-    )
-    .await
-    {
+    let tokens_left = user_for_tx.tokens - address_db.price;
+    log::info!(
+        "User {} bought address {} for {}, tokens left: {}",
+        user.email,
+        address,
+        address_db.price,
+        tokens_left
+    );
+    match update_user_tokens(&mut *trans, &user.email, tokens_left).await {
         Ok(_) => {}
         Err(err) => {
             log::error!("Error updating user tokens: {}", err);

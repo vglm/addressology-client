@@ -17,6 +17,7 @@ const AddressCard = (props: AddressCardProps) => {
     const [address, setAddress] = useState<string>(props.initialAddress);
     const [categories, setCategories] = useState<FancyCategoryInfo[] | null>(null);
     const [randomCategory, setRandomCategory] = useState<string>("all");
+    const [token, setToken] = useState<number>(0);
 
     const loadCategories = async () => {
         const response = await backendFetch("/api/fancy/categories", {
@@ -25,6 +26,17 @@ const AddressCard = (props: AddressCardProps) => {
         const addresses = await response.json();
 
         setCategories(addresses);
+    };
+
+    const reserveAddress = async () => {
+        const response = await backendFetch(`/api/fancy/buy/${address}`, {
+            method: "Post",
+        });
+        const reserve = await response.text();
+
+        console.log(reserve);
+
+        setToken(token + 1);
     };
 
     const getRandomAddress = async () => {
@@ -52,7 +64,7 @@ const AddressCard = (props: AddressCardProps) => {
     useEffect(() => {
         loadCategories().then();
         loadFancy(address).then();
-    }, [address]);
+    }, [address, token]);
 
     if (!fancy) {
         return <div>Loading...</div>;
@@ -94,6 +106,8 @@ const AddressCard = (props: AddressCardProps) => {
 
             <SelectCategory selectedCategory={randomCategory} setSelectedCategory={setRandomCategory}></SelectCategory>
             <Button onClick={(_e) => getRandomAddress()}>Next random</Button>
+
+            <Button onClick={(_e) => reserveAddress()}>Reserve</Button>
         </div>
     );
 };
