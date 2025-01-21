@@ -4,7 +4,7 @@ import { backendFetch } from "./common/BackendCall";
 import "./BrowseAddresses.css";
 import { ethers } from "ethers";
 import { Fancy, FancyCategoryInfo } from "./model/Fancy";
-import { MenuItem, Select } from "@mui/material";
+import { Checkbox, FormControlLabel, MenuItem, Select } from "@mui/material";
 
 interface TotalHashInfo {
     estimatedWorkTH: number;
@@ -15,7 +15,7 @@ interface SelectCategoryProps {
     setSelectedCategory: (category: string) => void;
 }
 
-const SelectCategory = (props: SelectCategoryProps) => {
+export const SelectCategory = (props: SelectCategoryProps) => {
     const [categories, setCategories] = useState<FancyCategoryInfo[] | null>(null);
     const loadCategories = async () => {
         const response = await backendFetch("/api/fancy/categories", {
@@ -53,11 +53,16 @@ const BrowseAddresses = () => {
     const [fancies, setFancies] = useState<Fancy[]>([]);
     const [totalHash, setTotalHash] = useState<TotalHashInfo | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string>("all");
+    const [newest, setNewest] = useState<boolean>(false);
 
     const loadAddresses = async () => {
-        const response = await backendFetch("/api/fancy/list_best_score?limit=1000", {
-            method: "Get",
-        });
+        const order = newest ? "created" : "score";
+        const response = await backendFetch(
+            `/api/fancy/list_best_score?limit=1000&order=${order}&category=${selectedCategory}`,
+            {
+                method: "Get",
+            },
+        );
         const addresses = await response.json();
 
         setFancies(addresses);
@@ -74,8 +79,11 @@ const BrowseAddresses = () => {
 
     useEffect(() => {
         loadTotalHashes().then();
-        loadAddresses().then();
     }, []);
+
+    useEffect(() => {
+        loadAddresses().then();
+    }, [selectedCategory, newest]);
 
     if (!fancies) {
         return <div>Loading...</div>;
@@ -90,6 +98,11 @@ const BrowseAddresses = () => {
     return (
         <div>
             <h1>Browse Addresses</h1>
+
+            <FormControlLabel
+                label="Show newest"
+                control={<Checkbox value={newest} onChange={(e) => setNewest(e.target.checked)}></Checkbox>}
+            ></FormControlLabel>
 
             <div>
                 <h2>Estimated total work: {totalHash.estimatedWorkTH.toFixed(3)} TH</h2>

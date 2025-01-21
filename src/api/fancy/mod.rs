@@ -1,12 +1,12 @@
 pub mod score;
 pub mod tokens;
 
-use crate::api::utils::extract_url_int_param;
+use crate::api::utils::{extract_url_int_param, extract_url_param};
 use crate::db::model::{DeployStatus, UserDbObj};
 use crate::db::ops::{
     fancy_get_by_address, fancy_list_all, fancy_list_all_free, fancy_list_best_score,
     fancy_list_newest, fancy_update_owner, get_contract_by_id, get_user, insert_fancy_obj,
-    update_contract_data, update_user_tokens,
+    update_contract_data, update_user_tokens, FancyOrderBy,
 };
 use crate::fancy::parse_fancy;
 use crate::{login_check_and_get, normalize_address, ServerData};
@@ -17,12 +17,22 @@ use serde::Deserialize;
 use serde_json::json;
 use std::str::FromStr;
 
-pub async fn handle_random(server_data: web::Data<Box<ServerData>>) -> impl Responder {
+pub async fn handle_random(
+    server_data: web::Data<Box<ServerData>>,
+    request: HttpRequest,
+) -> Result<HttpResponse, actix_web::Error> {
     let conn = server_data.db_connection.lock().await;
-    let list = fancy_list_all_free(&conn).await.unwrap();
+
+    let mut category = extract_url_param(&request, "category")?;
+    if category == Some("all".to_string()) {
+        category = None
+    }
+    let list = fancy_list_best_score(&conn, category, FancyOrderBy::Score, 1000)
+        .await
+        .unwrap();
     let random = list.choose(&mut rand::thread_rng()).unwrap();
 
-    HttpResponse::Ok().json(random)
+    Ok(HttpResponse::Ok().json(random))
 }
 
 pub async fn handle_list(server_data: web::Data<Box<ServerData>>) -> impl Responder {
@@ -45,7 +55,18 @@ pub async fn handle_list_best_score(
 ) -> Result<HttpResponse, actix_web::Error> {
     let conn = server_data.db_connection.lock().await;
     let limit = extract_url_int_param(&request, "limit")?;
-    let list = match fancy_list_best_score(&conn, limit.unwrap_or(100)).await {
+    let mut category = extract_url_param(&request, "category")?;
+    if category == Some("all".to_string()) {
+        category = None
+    }
+    let order = extract_url_param(&request, "order")?.unwrap_or("score".to_string());
+
+    let order = match order.as_str() {
+        "score" => FancyOrderBy::Score,
+        "created" => FancyOrderBy::Created,
+        _ => return Ok(HttpResponse::BadRequest().finish()),
+    };
+    let list = match fancy_list_best_score(&conn, category, order, limit.unwrap_or(100)).await {
         Ok(list) => list,
         Err(e) => {
             log::error!("{}", e);

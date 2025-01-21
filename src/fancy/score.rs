@@ -12,7 +12,7 @@ use web3::types::Address;
 pub enum FancyScoreCategory {
     LeadingZeroes,
     LeadingAny,
-    LettersOnly,
+    LettersCount,
     NumbersOnly,
     #[default]
     Random,
@@ -23,7 +23,7 @@ impl Display for FancyScoreCategory {
         match self {
             FancyScoreCategory::LeadingZeroes => write!(f, "leading_zeroes"),
             FancyScoreCategory::LeadingAny => write!(f, "leading_any"),
-            FancyScoreCategory::LettersOnly => write!(f, "letters_only"),
+            FancyScoreCategory::LettersCount => write!(f, "letters_count"),
             FancyScoreCategory::NumbersOnly => write!(f, "numbers_only"),
             FancyScoreCategory::Random => write!(f, "random"),
         }
@@ -37,7 +37,7 @@ impl FromStr for FancyScoreCategory {
         match s {
             "leading_zeroes" => Ok(FancyScoreCategory::LeadingZeroes),
             "leading_any" => Ok(FancyScoreCategory::LeadingAny),
-            "letters_only" => Ok(FancyScoreCategory::LettersOnly),
+            "letters_count" => Ok(FancyScoreCategory::LettersCount),
             "numbers_only" => Ok(FancyScoreCategory::NumbersOnly),
             "random" => Ok(FancyScoreCategory::Random),
             _ => Err(()),
@@ -67,9 +67,9 @@ pub fn list_score_categories() -> Vec<FancyCategoryInfo> {
                 name: "Leading Any".to_string(),
                 description: "The number of leading characters that are the same.".to_string(),
             }),
-            FancyScoreCategory::LettersOnly => categories.push(FancyCategoryInfo {
+            FancyScoreCategory::LettersCount => categories.push(FancyCategoryInfo {
                 key: category.to_string(),
-                name: "Letters Only".to_string(),
+                name: "Letters Count".to_string(),
                 description: "The number of letters in the address.".to_string(),
             }),
             FancyScoreCategory::NumbersOnly => categories.push(FancyCategoryInfo {
@@ -152,7 +152,7 @@ pub fn score_fancy(address: Address) -> FancyScore {
     });
 
     score_entries.push(FancyScoreEntry {
-        category: FancyScoreCategory::LettersOnly,
+        category: FancyScoreCategory::LettersCount,
         score: letters_only as f64,
         difficulty: 16.0f64.powf((letters_only - 25) as f64),
     });

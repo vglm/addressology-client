@@ -49,14 +49,27 @@ pub async fn fancy_list_newest(conn: &SqlitePool) -> Result<Vec<FancyDbObj>, sql
     Ok(res)
 }
 
+pub enum FancyOrderBy {
+    Score,
+    Created,
+}
+
 pub async fn fancy_list_best_score(
     conn: &SqlitePool,
+    category: Option<String>,
+    order_by: FancyOrderBy,
     limit: i64,
 ) -> Result<Vec<FancyDbObj>, sqlx::Error> {
+    let order_by = match order_by {
+        FancyOrderBy::Score => "score",
+        FancyOrderBy::Created => "created",
+    };
     let res = sqlx::query_as::<_, FancyDbObj>(
-        r"SELECT * FROM fancy WHERE owner is NULL ORDER BY score DESC LIMIT $1;",
+        format!(r"SELECT * FROM fancy WHERE owner is NULL and category LIKE $2 ORDER BY {} DESC LIMIT $1;", order_by).as_str(),
     )
     .bind(limit)
+    .bind(category.unwrap_or("%".to_string()))
+    .bind(order_by)
     .fetch_all(conn)
     .await?;
     Ok(res)

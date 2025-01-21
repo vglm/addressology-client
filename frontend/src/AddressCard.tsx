@@ -6,6 +6,7 @@ import { ethers } from "ethers";
 import { useParams } from "react-router-dom";
 import { FancyCategoryInfo, FancyScore } from "./model/Fancy";
 import { Button } from "@mui/material";
+import { SelectCategory } from "./BrowseAddresses";
 
 interface AddressCardProps {
     initialAddress: string;
@@ -15,6 +16,7 @@ const AddressCard = (props: AddressCardProps) => {
     const [fancy, setFancy] = useState<FancyScore | null>(null);
     const [address, setAddress] = useState<string>(props.initialAddress);
     const [categories, setCategories] = useState<FancyCategoryInfo[] | null>(null);
+    const [randomCategory, setRandomCategory] = useState<string>("all");
 
     const loadCategories = async () => {
         const response = await backendFetch("/api/fancy/categories", {
@@ -26,7 +28,7 @@ const AddressCard = (props: AddressCardProps) => {
     };
 
     const getRandomAddress = async () => {
-        const response = await backendFetch("/api/fancy/random", {
+        const response = await backendFetch(`/api/fancy/random?category=${randomCategory}`, {
             method: "Get",
         });
         const address = await response.json();
@@ -81,15 +83,16 @@ const AddressCard = (props: AddressCardProps) => {
             <div className={"address-card-address-entry-box"}>
                 <span>{addressCategory.name}</span>: <span>{scoreInfo.score}</span>
             </div>
-            <div>Unique in category</div>
-            <div>{fancy.score.totalScore}</div>
+            <div>Score</div>
+            <div className={"address-card-address-entry-box"}>{fancy.score.totalScore}</div>
             <div>Reservation price</div>
-            <div>{fancy.price}</div>
+            <div className={"address-card-address-entry-box"}>{fancy.price}</div>
             <div>Mined by</div>
-            <div>{fancy.miner}</div>
+            <div className={"address-card-address-entry-box"}>{fancy.miner}</div>
             <div>Mined at</div>
-            <div>{fancy.mined}</div>
+            <div className={"address-card-address-entry-box"}>{fancy.mined}</div>
 
+            <SelectCategory selectedCategory={randomCategory} setSelectedCategory={setRandomCategory}></SelectCategory>
             <Button onClick={(_e) => getRandomAddress()}>Next random</Button>
         </div>
     );
