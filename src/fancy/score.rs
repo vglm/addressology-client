@@ -14,6 +14,10 @@ pub enum FancyScoreCategory {
     LeadingAny,
     LettersCount,
     NumbersOnly,
+    ShortLeadingZeroes,
+    ShortLeadingAny,
+    SnakeScore,
+    LeadingLetters,
     #[default]
     Random,
 }
@@ -25,6 +29,10 @@ impl Display for FancyScoreCategory {
             FancyScoreCategory::LeadingAny => write!(f, "leading_any"),
             FancyScoreCategory::LettersCount => write!(f, "letters_count"),
             FancyScoreCategory::NumbersOnly => write!(f, "numbers_only"),
+            FancyScoreCategory::ShortLeadingZeroes => write!(f, "short_leading_zeroes"),
+            FancyScoreCategory::ShortLeadingAny => write!(f, "short_leading_any"),
+            FancyScoreCategory::SnakeScore => write!(f, "snake_score"),
+            FancyScoreCategory::LeadingLetters => write!(f, "leading_letters"),
             FancyScoreCategory::Random => write!(f, "random"),
         }
     }
@@ -39,6 +47,10 @@ impl FromStr for FancyScoreCategory {
             "leading_any" => Ok(FancyScoreCategory::LeadingAny),
             "letters_count" => Ok(FancyScoreCategory::LettersCount),
             "numbers_only" => Ok(FancyScoreCategory::NumbersOnly),
+            "short_leading_zeroes" => Ok(FancyScoreCategory::ShortLeadingZeroes),
+            "short_leading_any" => Ok(FancyScoreCategory::ShortLeadingAny),
+            "snake_score" => Ok(FancyScoreCategory::SnakeScore),
+            "leading_letters" => Ok(FancyScoreCategory::LeadingLetters),
             "random" => Ok(FancyScoreCategory::Random),
             _ => Err(()),
         }
@@ -67,6 +79,16 @@ pub fn list_score_categories() -> Vec<FancyCategoryInfo> {
                 name: "Leading Any".to_string(),
                 description: "The number of leading characters that are the same.".to_string(),
             }),
+            FancyScoreCategory::ShortLeadingZeroes => categories.push(FancyCategoryInfo {
+                key: category.to_string(),
+                name: "Short Leading Zeroes".to_string(),
+                description: "The number of leading zeroes in the address.".to_string(),
+            }),
+            FancyScoreCategory::ShortLeadingAny => categories.push(FancyCategoryInfo {
+                key: category.to_string(),
+                name: "Short Leading Any".to_string(),
+                description: "The number of leading characters that are the same.".to_string(),
+            }),
             FancyScoreCategory::LettersCount => categories.push(FancyCategoryInfo {
                 key: category.to_string(),
                 name: "Letters Count".to_string(),
@@ -82,6 +104,17 @@ pub fn list_score_categories() -> Vec<FancyCategoryInfo> {
                 name: "Random".to_string(),
                 description: "Randomness of the address.".to_string(),
             }),
+            FancyScoreCategory::SnakeScore => categories.push(FancyCategoryInfo {
+                key: category.to_string(),
+                name: "Snake Score".to_string(),
+                description: "The number of repeating characters in the address.".to_string(),
+            }),
+            FancyScoreCategory::LeadingLetters => categories.push(FancyCategoryInfo {
+                key: category.to_string(),
+                name: "Leading Letters".to_string(),
+                description: "The number of leading letters case sensitive in the address."
+                    .to_string(),
+            }),
         }
     }
     categories
@@ -96,8 +129,13 @@ pub fn score_fancy(address: Address) -> FancyScore {
     score.address_short_etherscan =
         score.address_mixed_case[0..10].to_string() + "..." + &score.address_mixed_case[33..42];
 
+    let mixed_address_str = score.address_mixed_case.trim_start_matches("0x");
     let address_str = format!("{:#x}", address);
     let address_str = address_str.trim_start_matches("0x");
+    let short_address_str = score
+        .address_short_etherscan
+        .trim_start_matches("0x")
+        .replace("...", "");
     let mut leading_zeroes = 0;
     for c in address_str.chars() {
         if c == '0' {
@@ -117,6 +155,18 @@ pub fn score_fancy(address: Address) -> FancyScore {
         }
     }
 
+    let mut leading_letters = 0;
+    let mixed_char_start = mixed_address_str.chars().next().unwrap();
+    if mixed_char_start.is_alphabetic() {
+        for c in mixed_address_str.chars() {
+            if c == mixed_char_start {
+                leading_letters += 1;
+            } else {
+                break;
+            }
+        }
+    }
+
     let mut letters_only = 0;
     for c in address_str.chars() {
         if c.is_alphabetic() {
@@ -128,6 +178,35 @@ pub fn score_fancy(address: Address) -> FancyScore {
     for c in address_str.chars() {
         if c.is_numeric() {
             numbers_only += 1;
+        }
+    }
+
+    let mut short_leading_zeroes = 0;
+    for c in short_address_str.chars() {
+        if c == '0' {
+            short_leading_zeroes += 1;
+        } else {
+            break;
+        }
+    }
+
+    let mut short_leading_any = 0;
+    let char_start = short_address_str.chars().next().unwrap();
+    for c in short_address_str.chars() {
+        if c == char_start {
+            short_leading_any += 1;
+        } else {
+            break;
+        }
+    }
+
+    let mut snake_score = 0.0f64;
+    let mut prev_char = address_str.chars().next().unwrap();
+    for c in address_str.chars() {
+        if c == prev_char {
+            snake_score += 1.0;
+        } else {
+            prev_char = c;
         }
     }
 
@@ -147,7 +226,7 @@ pub fn score_fancy(address: Address) -> FancyScore {
 
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::LeadingAny,
-        score: leading_any as f64 - 0.9_f64,
+        score: leading_any as f64 - 1.0_f64,
         difficulty: 16.0f64.powf(leading_any as f64 - (15. / 16.)),
     });
 
@@ -162,6 +241,31 @@ pub fn score_fancy(address: Address) -> FancyScore {
         score: numbers_only as f64,
         difficulty: 16.0f64.powf((numbers_only - 30) as f64),
     });
+
+    score_entries.push(FancyScoreEntry {
+        category: FancyScoreCategory::ShortLeadingZeroes,
+        score: short_leading_zeroes as f64,
+        difficulty: 16.0f64.powf(short_leading_zeroes as f64),
+    });
+
+    score_entries.push(FancyScoreEntry {
+        category: FancyScoreCategory::ShortLeadingAny,
+        score: short_leading_any as f64,
+        difficulty: 16.0f64.powf(short_leading_any as f64 - (15. / 16.)),
+    });
+
+    score_entries.push(FancyScoreEntry {
+        category: FancyScoreCategory::SnakeScore,
+        score: snake_score,
+        difficulty: 16.0f64.powf(snake_score - 9.0),
+    });
+
+    score_entries.push(FancyScoreEntry {
+        category: FancyScoreCategory::LeadingLetters,
+        score: leading_letters as f64,
+        difficulty: 32.0f64.powf(leading_letters as f64 - (15. / 16.)),
+    });
+
     score.scores = score_entries
         .iter()
         .map(|entry| (entry.category.to_string(), entry.clone()))
