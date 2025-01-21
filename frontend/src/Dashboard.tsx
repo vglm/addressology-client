@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, { useEffect, useState } from "react";
 
 import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import LoginScreen from "./LoginScreen";
@@ -12,7 +12,8 @@ import CompiledContract from "./CompiledContract";
 import MyContracts from "./MyContracts";
 import CompiledContractTemplate from "./CompiledContractTemplate";
 import BrowseAddresses from "./BrowseAddresses";
-import {UserTokenResponse} from "./model/Fancy";
+import { UserTokenResponse } from "./model/Fancy";
+import { AddressCardForRoute } from "./AddressCard";
 
 const Dashboard = () => {
     const loginInformation = useLoginOrNull();
@@ -34,7 +35,7 @@ const Dashboard = () => {
         const userTokenResponse = await response.json();
         setUserTokens(userTokenResponse);
         console.log("User token response: ", userTokenResponse);
-    }
+    };
 
     useEffect(() => {
         if (isLoggedIn) {
@@ -173,9 +174,7 @@ const Dashboard = () => {
                                 Charts2
                             </Button>
                             <div className="filler"></div>
-                            <div style={{padding: 10}}>
-                                Tokens: {userTokens?.tokens ?? "N/A"}
-                            </div>
+                            <div style={{ padding: 10 }}>Tokens: {userTokens?.tokens ?? "N/A"}</div>
 
                             {loginInformation.loginData ? (
                                 <div className={"top-header-navigation-right"}>
@@ -236,6 +235,7 @@ const Dashboard = () => {
                     />
                     <Route path="/contracts" element={<div>{isLoggedIn && <MyContracts></MyContracts>}</div>} />
                     <Route path="/contract/:contractId" element={<div>{isLoggedIn && <CompiledContract />}</div>} />
+                    <Route path="/address/:address" element={<div>{isLoggedIn && <AddressCardForRoute />}</div>} />
                     <Route path="/addresses" element={<div>{isLoggedIn && <BrowseAddresses></BrowseAddresses>}</div>} />
                 </Routes>
             </div>

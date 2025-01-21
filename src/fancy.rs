@@ -4,10 +4,42 @@ use crate::error::AddressologyError;
 use crate::hash::compute_create3_command;
 use crate::types::DbAddress;
 use crate::{err_custom_create, fancy};
-use web3::types::Address;
+use web3::signing::keccak256;
+use web3::types::{Address, H160};
+
+fn to_checksum(address: &H160) -> String {
+    let address_str = format!("{:x}", address);
+    let hash = keccak256(address_str.as_bytes());
+    let mut result = "0x".to_string();
+
+    for (i, char) in address_str.chars().enumerate() {
+        if char.is_ascii_hexdigit() {
+            let hash_byte = hash[i / 2];
+            let is_uppercase = if i % 2 == 0 {
+                hash_byte >> 4 > 7
+            } else {
+                (hash_byte & 0x0f) > 7
+            };
+            if is_uppercase {
+                result.push(char.to_ascii_uppercase());
+            } else {
+                result.push(char);
+            }
+        } else {
+            result.push(char);
+        }
+    }
+
+    result
+}
 
 pub fn score_fancy(address: Address) -> FancyScore {
     let mut score = FancyScore::default();
+
+    score.address_lower_case = format!("{:#x}", address).to_lowercase();
+    score.address_mixed_case = to_checksum(&address);
+    score.address_short_etherscan =
+        score.address_mixed_case[0..10].to_string() + "..." + &score.address_mixed_case[33..42];
 
     let address_str = format!("{:#x}", address);
     let address_str = address_str.trim_start_matches("0x");

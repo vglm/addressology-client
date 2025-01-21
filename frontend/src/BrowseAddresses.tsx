@@ -3,7 +3,7 @@ import { backendFetch } from "./common/BackendCall";
 
 import "./BrowseAddresses.css";
 import { ethers } from "ethers";
-import {Fancy, UserTokenResponse} from "./model/Fancy";
+import { Fancy } from "./model/Fancy";
 
 interface TotalHashInfo {
     estimatedWorkTH: number;
@@ -76,7 +76,9 @@ const BrowseAddresses = () => {
                         return (
                             <tr key={fancy.address}>
                                 <td>
-                                    <span className={"fancy-address-entry"}>{mixedCaseForm}</span>
+                                    <a className={"fancy-address-entry"} href={`/dashboard/address/${mixedCaseForm}`}>
+                                        {mixedCaseForm}
+                                    </a>
                                 </td>
                                 <td>
                                     <span className={"fancy-address-entry"}>{etherscanForm}</span>

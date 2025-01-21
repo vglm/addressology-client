@@ -39,6 +39,9 @@ pub struct OauthStageDbObj {
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct FancyScore {
+    pub address_mixed_case: String,
+    pub address_lower_case: String,
+    pub address_short_etherscan: String,
     pub leading_zeroes_score: f64,
     pub leading_any_score: f64,
     pub letters_only_score: f64,

@@ -7,6 +7,7 @@ use crate::db::ops::{
     fancy_list_newest, fancy_update_owner, get_contract_by_id, get_user, insert_fancy_obj,
     update_contract_data, update_user_tokens,
 };
+use crate::fancy::score_fancy;
 use crate::{fancy, login_check_and_get, normalize_address, ServerData};
 use actix_session::Session;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
@@ -261,4 +262,13 @@ pub async fn handle_fancy_buy_api(
             HttpResponse::InternalServerError().finish()
         }
     }
+}
+
+//this request can be public
+pub async fn handle_score_custom(address: web::Path<String>) -> HttpResponse {
+    let address = normalize_address!(address.into_inner());
+
+    let score = score_fancy(address.addr());
+
+    HttpResponse::Ok().json(score)
 }
