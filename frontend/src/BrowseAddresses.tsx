@@ -55,6 +55,7 @@ const BrowseAddresses = () => {
                 <thead>
                     <tr>
                         <th>Address</th>
+                        <th>Short Etherscan</th>
                         <th>Score</th>
                         <th>Price</th>
                         <th>Category</th>
