@@ -120,6 +120,62 @@ pub fn list_score_categories() -> Vec<FancyCategoryInfo> {
     categories
 }
 
+pub fn total_combinations(n: f64) -> f64 {
+    16.0f64.powf(n)
+}
+
+// n choose k symbol combinations
+pub fn combinations(n: f64, k: f64) -> f64 {
+    let mut result = 1.0;
+    for i in 0..k as i64 {
+        result *= (n - i as f64) / (i as f64 + 1.0);
+    }
+    result
+}
+
+//one number is accepted
+pub fn exactly_letters_combinations(letters: f64, total: f64) -> f64 {
+    if letters == total {
+        return 6.0f64.powf(letters);
+    }
+    6.0f64.powf(letters) * combinations(total, total - letters) * 10f64
+}
+
+pub fn exactly_letters_combinations_difficulty(letters: f64, total: f64) -> f64 {
+    if letters < 30.0 {
+        return 1.0f64;
+    }
+    total_combinations(total) / exactly_letters_combinations(letters, total)
+}
+
+#[tokio::test]
+async fn tx_test() {
+    assert_eq!(combinations(40.0, 1.0), 40.0);
+    assert_eq!(combinations(40.0, 2.0), 780.0);
+    //all letters probability
+
+    let all_combinations = 16.0f64.powf(40.0);
+    assert_eq!(all_combinations, 1.461501637330903e48);
+
+    let only_letters_combinations = 6.0f64.powf(40.0);
+    assert_eq!(only_letters_combinations, 1.3367494538843734e31);
+
+    let one_number_combinations = 6.0f64.powf(39.0) * combinations(40.0, 1.0) * 10f64.powf(1.0);
+    assert_eq!(one_number_combinations, 8.911663025895824e32);
+
+    assert_eq!(
+        exactly_letters_combinations(39.0, 40.0),
+        8.911663025895824e32
+    );
+    assert_eq!(
+        exactly_letters_combinations(38.0, 40.0),
+        2.896290483416142e34
+    );
+
+    assert_eq!((6.0f64 / 16.0).powf(40.0), 9.14641092243755e-18);
+    //39 letters probability
+}
+
 #[allow(clippy::vec_init_then_push)]
 pub fn score_fancy(address: Address) -> FancyScore {
     let mut score = FancyScore::default();
@@ -167,10 +223,19 @@ pub fn score_fancy(address: Address) -> FancyScore {
         }
     }
 
+    let mut allowed_cipher = 'a';
     let mut letters_only = 0;
     for c in address_str.chars() {
         if c.is_alphabetic() {
             letters_only += 1;
+        } else if allowed_cipher == 'a' {
+            allowed_cipher = c;
+        } else {
+            //cipher have to be the same
+            if c != allowed_cipher {
+                letters_only = 0;
+                break;
+            }
         }
     }
 
@@ -233,7 +298,7 @@ pub fn score_fancy(address: Address) -> FancyScore {
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::LettersCount,
         score: letters_only as f64,
-        difficulty: 16.0f64.powf((letters_only - 25) as f64),
+        difficulty: exactly_letters_combinations_difficulty(letters_only as f64, 40.0),
     });
 
     score_entries.push(FancyScoreEntry {
