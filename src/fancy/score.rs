@@ -96,8 +96,8 @@ pub fn list_score_categories() -> Vec<FancyCategoryInfo> {
             }),
             FancyScoreCategory::NumbersOnly => categories.push(FancyCategoryInfo {
                 key: category.to_string(),
-                name: "Numbers Only".to_string(),
-                description: "The number of numbers in the address.".to_string(),
+                name: "Smallest decimal".to_string(),
+                description: "Only cyphers, score determine by smallest decimal".to_string(),
             }),
             FancyScoreCategory::Random => categories.push(FancyCategoryInfo {
                 key: category.to_string(),
@@ -134,18 +134,22 @@ pub fn combinations(n: f64, k: f64) -> f64 {
 }
 
 //one number is accepted
-pub fn exactly_letters_combinations(letters: f64, total: f64) -> f64 {
+pub fn exactly_letters_combinations(letters: u64, total: u64) -> f64 {
     if letters == total {
-        return 6.0f64.powf(letters);
+        return 6.0f64.powf(letters as f64);
     }
-    6.0f64.powf(letters) * combinations(total, total - letters) * 10f64
+    6.0f64.powf(letters as f64) * combinations(total as f64, (total - letters) as f64) * 10f64
 }
 
-pub fn exactly_letters_combinations_difficulty(letters: f64, total: f64) -> f64 {
-    if letters < 30.0 {
+pub fn exactly_letters_combinations_difficulty(letters: u64, total: u64) -> f64 {
+    if letters < 30 {
         return 1.0f64;
     }
-    total_combinations(total) / exactly_letters_combinations(letters, total)
+    let mut combinations_total = 0.0f64;
+    for i in letters..=total {
+        combinations_total += exactly_letters_combinations(i, total);
+    }
+    total_combinations(total as f64) / combinations_total
 }
 
 #[tokio::test]
@@ -162,15 +166,6 @@ async fn tx_test() {
 
     let one_number_combinations = 6.0f64.powf(39.0) * combinations(40.0, 1.0) * 10f64.powf(1.0);
     assert_eq!(one_number_combinations, 8.911663025895824e32);
-
-    assert_eq!(
-        exactly_letters_combinations(39.0, 40.0),
-        8.911663025895824e32
-    );
-    assert_eq!(
-        exactly_letters_combinations(38.0, 40.0),
-        2.896290483416142e34
-    );
 
     assert_eq!((6.0f64 / 16.0).powf(40.0), 9.14641092243755e-18);
     //39 letters probability
@@ -298,14 +293,29 @@ pub fn score_fancy(address: Address) -> FancyScore {
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::LettersCount,
         score: letters_only as f64,
-        difficulty: exactly_letters_combinations_difficulty(letters_only as f64, 40.0),
+        difficulty: exactly_letters_combinations_difficulty(letters_only, 40),
     });
 
-    score_entries.push(FancyScoreEntry {
-        category: FancyScoreCategory::NumbersOnly,
-        score: numbers_only as f64,
-        difficulty: 16.0f64.powf((numbers_only - 30) as f64),
-    });
+    if numbers_only == 40 {
+        let number = address_str.parse::<f64>().unwrap();
+        let max_number = 9999999999999999999999999999999999999999f64;
+        let difficulty1 =
+            total_combinations(40.0) / 10.0f64.powf(numbers_only as f64) / (number / max_number);
+        let difficulty2 = total_combinations(40.0)
+            / 10.0f64.powf(numbers_only as f64)
+            / ((max_number - number) / max_number);
+        score_entries.push(FancyScoreEntry {
+            category: FancyScoreCategory::NumbersOnly,
+            score: numbers_only as f64,
+            difficulty: difficulty1.max(difficulty2),
+        });
+    } else {
+        score_entries.push(FancyScoreEntry {
+            category: FancyScoreCategory::NumbersOnly,
+            score: numbers_only as f64,
+            difficulty: 1.0f64,
+        });
+    }
 
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::ShortLeadingZeroes,
