@@ -13,6 +13,7 @@ pub enum FancyScoreCategory {
     LeadingZeroes,
     LeadingAny,
     LettersCount,
+    LettersHeavy,
     NumbersOnly,
     ShortLeadingZeroes,
     ShortLeadingAny,
@@ -28,6 +29,7 @@ impl Display for FancyScoreCategory {
             FancyScoreCategory::LeadingZeroes => write!(f, "leading_zeroes"),
             FancyScoreCategory::LeadingAny => write!(f, "leading_any"),
             FancyScoreCategory::LettersCount => write!(f, "letters_count"),
+            FancyScoreCategory::LettersHeavy => write!(f, "letters_heavy"),
             FancyScoreCategory::NumbersOnly => write!(f, "numbers_only"),
             FancyScoreCategory::ShortLeadingZeroes => write!(f, "short_leading_zeroes"),
             FancyScoreCategory::ShortLeadingAny => write!(f, "short_leading_any"),
@@ -46,6 +48,7 @@ impl FromStr for FancyScoreCategory {
             "leading_zeroes" => Ok(FancyScoreCategory::LeadingZeroes),
             "leading_any" => Ok(FancyScoreCategory::LeadingAny),
             "letters_count" => Ok(FancyScoreCategory::LettersCount),
+            "letters_heavy" => Ok(FancyScoreCategory::LettersHeavy),
             "numbers_only" => Ok(FancyScoreCategory::NumbersOnly),
             "short_leading_zeroes" => Ok(FancyScoreCategory::ShortLeadingZeroes),
             "short_leading_any" => Ok(FancyScoreCategory::ShortLeadingAny),
@@ -92,7 +95,15 @@ pub fn list_score_categories() -> Vec<FancyCategoryInfo> {
             FancyScoreCategory::LettersCount => categories.push(FancyCategoryInfo {
                 key: category.to_string(),
                 name: "Letters Count".to_string(),
-                description: "The number of letters in the address.".to_string(),
+                description:
+                    "The number of letters in the address (only one type of cipher allowed)."
+                        .to_string(),
+            }),
+            FancyScoreCategory::LettersHeavy => categories.push(FancyCategoryInfo {
+                key: category.to_string(),
+                name: "Letters Heavy".to_string(),
+                description: "The number of letters in the address (ciphers can be different)."
+                    .to_string(),
             }),
             FancyScoreCategory::NumbersOnly => categories.push(FancyCategoryInfo {
                 key: category.to_string(),
@@ -148,6 +159,26 @@ pub fn exactly_letters_combinations_difficulty(letters: u64, total: u64) -> f64 
     let mut combinations_total = 0.0f64;
     for i in letters..=total {
         combinations_total += exactly_letters_combinations(i, total);
+    }
+    total_combinations(total as f64) / combinations_total
+}
+
+pub fn exactly_letters_combinations_multiple_ciphers(letters: u64, total: u64) -> f64 {
+    if letters == total {
+        return 6.0f64.powf(letters as f64);
+    }
+    6.0f64.powf(letters as f64)
+        * combinations(total as f64, (total - letters) as f64)
+        * 10f64.powf((total - letters) as f64)
+}
+
+pub fn exactly_letters_combinations_multiple_ciphers_difficulty(letters: u64, total: u64) -> f64 {
+    if letters < 30 {
+        return 1.0f64;
+    }
+    let mut combinations_total = 0.0f64;
+    for i in letters..=total {
+        combinations_total += crate::fancy::exactly_letters_combinations_multiple_ciphers(i, total);
     }
     total_combinations(total as f64) / combinations_total
 }
@@ -233,6 +264,12 @@ pub fn score_fancy(address: Address) -> FancyScore {
             }
         }
     }
+    let mut letters_heavy = 0;
+    for c in address_str.chars() {
+        if c.is_alphabetic() {
+            letters_heavy += 1;
+        }
+    }
 
     let mut numbers_only = 0;
     for c in address_str.chars() {
@@ -294,6 +331,12 @@ pub fn score_fancy(address: Address) -> FancyScore {
         category: FancyScoreCategory::LettersCount,
         score: letters_only as f64,
         difficulty: exactly_letters_combinations_difficulty(letters_only, 40),
+    });
+
+    score_entries.push(FancyScoreEntry {
+        category: FancyScoreCategory::LettersHeavy,
+        score: letters_heavy as f64,
+        difficulty: exactly_letters_combinations_multiple_ciphers_difficulty(letters_heavy, 40),
     });
 
     if numbers_only == 40 {
