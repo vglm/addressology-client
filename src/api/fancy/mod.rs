@@ -137,6 +137,11 @@ pub async fn handle_fancy_new(
         }
     };
 
+    if result.score < 1E10 {
+        log::error!("Score too low: {}", result.score);
+        return HttpResponse::Ok().body("Score too low");
+    }
+
     if format!("{:#x}", result.address.addr()) != new_data.address.to_lowercase() {
         log::error!(
             "Address mismatch expected: {}, got: {}",
