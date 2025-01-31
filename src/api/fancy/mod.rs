@@ -116,12 +116,22 @@ pub struct AddNewData {
     pub factory: String,
     pub address: String,
 }
-
+pub async fn handle_fancy_new_many(
+    server_data: web::Data<Box<ServerData>>,
+    new_data: web::Json<Vec<AddNewData>>,
+) -> HttpResponse {
+    for data in new_data.iter() {
+        let resp = handle_fancy_new(server_data.clone(), web::Json(data.clone())).await;
+        if !resp.status().is_success() {
+            return resp;
+        }
+    }
+    HttpResponse::Ok().finish()
+}
 pub async fn handle_fancy_new(
     server_data: web::Data<Box<ServerData>>,
     new_data: web::Json<AddNewData>,
 ) -> HttpResponse {
-    let conn = server_data.db_connection.lock().await;
     let factory = match web3::types::Address::from_str(&new_data.factory) {
         Ok(factory) => factory,
         Err(e) => {
@@ -151,7 +161,7 @@ pub async fn handle_fancy_new(
         return HttpResponse::BadRequest().body("Address mismatch");
     }
 
-    println!("{:?}", result);
+    let conn = server_data.db_connection.lock().await;
     match insert_fancy_obj(&conn, result).await {
         Ok(_) => HttpResponse::Ok().body("Entry accepted"),
         Err(e) => {
