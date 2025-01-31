@@ -123,16 +123,19 @@ pub async fn handle_fancy_estimate_total_hash(
         }
     };
 
-    let mut total_score = 0f64;
+    let mut total_zeroes = 0;
     #[allow(clippy::collapsible_if)]
     for fancy in fancies {
         if fancy.category == "leading_zeroes" {
-            total_score += fancy.score;
+            if fancy.score > 1E11 && fancy.score < 1E12 {
+                total_zeroes += fancy.score as i64;
+            }
         }
     }
     Ok(HttpResponse::Ok().json(json!(
         {
-            "estimatedWorkTH": total_score / 1_000_000_000_000.0
+            "totalZeroes": total_zeroes,
+            "estimatedWorkTH": total_zeroes as f64 * 16.0f64.powf(11f64) / 1_000_000_000_000.0
         }
     )))
 }
