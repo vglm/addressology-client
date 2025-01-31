@@ -127,7 +127,7 @@ pub async fn handle_fancy_estimate_total_hash(
     #[allow(clippy::collapsible_if)]
     for fancy in fancies {
         if fancy.category == "leading_zeroes" {
-            if fancy.score > 1E10 {
+            if fancy.score > 1E11 {
                 number_of_events += 1;
             }
         }
@@ -136,7 +136,7 @@ pub async fn handle_fancy_estimate_total_hash(
         {
             "eventDifficulty": 1.0E10f64,
             "numberOfEvents": number_of_events,
-            "estimatedWorkTH": number_of_events as f64 * 1E10 / 1_000_000_000_000.0
+            "estimatedWorkTH": number_of_events as f64 * 1E11 / 1_000_000_000_000.0
         }
     )))
 }
