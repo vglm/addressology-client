@@ -128,7 +128,7 @@ pub async fn handle_fancy_estimate_total_hash(
     for fancy in fancies {
         if fancy.category == "leading_zeroes" {
             if fancy.score > 1E10 {
-                number_of_events += fancy.score as i64;
+                number_of_events += 1;
             }
         }
     }
