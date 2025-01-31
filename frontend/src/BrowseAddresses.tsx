@@ -79,7 +79,13 @@ const BrowseAddresses = () => {
     };
 
     const loadTotalHashes = async () => {
-        const response = await backendFetch("/api/fancy/total_hash", {
+        let since = "2021-01-01T00:00:00";
+        if (showToday) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            since = today.toISOString().substring(0, 10) + "T00:00:00";
+        }
+        const response = await backendFetch(`/api/fancy/total_hash?since=${since}`, {
             method: "Get",
         });
         const totalHash = await response.json();
@@ -144,7 +150,7 @@ const BrowseAddresses = () => {
 
     useEffect(() => {
         loadTotalHashes().then();
-    }, []);
+    }, [showToday]);
 
     useEffect(() => {
         loadAddresses().then();

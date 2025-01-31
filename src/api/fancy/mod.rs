@@ -4,9 +4,9 @@ pub mod tokens;
 use crate::api::utils::{extract_url_int_param, extract_url_param};
 use crate::db::model::{DeployStatus, UserDbObj};
 use crate::db::ops::{
-    fancy_get_by_address, fancy_list_all, fancy_list_all_free, fancy_list_best_score,
-    fancy_list_newest, fancy_update_owner, get_contract_by_id, get_user, insert_fancy_obj,
-    update_contract_data, update_user_tokens, FancyOrderBy,
+    fancy_get_by_address, fancy_list_all_free, fancy_list_best_score, fancy_list_newest,
+    fancy_update_owner, get_contract_by_id, get_user, insert_fancy_obj, update_contract_data,
+    update_user_tokens, FancyOrderBy,
 };
 use crate::fancy::parse_fancy;
 use crate::{login_check_and_get, normalize_address, ServerData};
@@ -95,33 +95,46 @@ pub async fn handle_list_best_score(
 
 pub async fn handle_fancy_estimate_total_hash(
     server_data: web::Data<Box<ServerData>>,
-) -> HttpResponse {
+    request: HttpRequest,
+) -> Result<HttpResponse, actix_web::Error> {
+    let since = extract_url_param(&request, "since")?;
+    let since = since
+        .map(|s| {
+            chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S")
+                .unwrap_or_else(|_| NaiveDateTime::default())
+        })
+        .unwrap_or(NaiveDateTime::default());
     let fancies = {
         let conn = server_data.db_connection.lock().await;
-        match fancy_list_all(&conn).await {
+        match fancy_list_best_score(
+            &conn,
+            Some("leading_zeroes".to_string()),
+            FancyOrderBy::Score,
+            Some(since),
+            100000000,
+        )
+        .await
+        {
             Ok(fancies) => fancies,
             Err(e) => {
                 log::error!("{}", e);
-                return HttpResponse::InternalServerError().finish();
+                return Ok(HttpResponse::InternalServerError().finish());
             }
         }
     };
 
-    let mut total_zeroes = 0;
+    let mut total_score = 0f64;
     #[allow(clippy::collapsible_if)]
     for fancy in fancies {
         if fancy.category == "leading_zeroes" {
-            if fancy.score >= 16.0f64.powf(11f64) {
-                total_zeroes += 1;
-            }
+            total_score += fancy.score;
         }
     }
-    HttpResponse::Ok().json(json!(
+    Ok(HttpResponse::Ok().json(json!(
         {
-            "totalZeroes": total_zeroes,
-            "estimatedWorkTH": total_zeroes as f64 * 16.0f64.powf(11f64) / 1_000_000_000_000.0
+            "estimatedWorkTH": total_score / 1_000_000_000_000.0
         }
-    ))
+    )))
 }
 
 #[derive(Deserialize, Debug, Clone)]
