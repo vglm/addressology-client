@@ -12,6 +12,7 @@ use crate::fancy::parse_fancy;
 use crate::{login_check_and_get, normalize_address, ServerData};
 use actix_session::Session;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use chrono::NaiveDateTime;
 use rand::prelude::SliceRandom;
 use serde::Deserialize;
 use serde_json::json;
@@ -27,7 +28,7 @@ pub async fn handle_random(
     if category == Some("all".to_string()) {
         category = None
     }
-    let list = fancy_list_best_score(&conn, category, FancyOrderBy::Score, 1000)
+    let list = fancy_list_best_score(&conn, category, FancyOrderBy::Score, None, 1000)
         .await
         .unwrap();
     let random = list.choose(&mut rand::thread_rng()).unwrap();
@@ -60,13 +61,28 @@ pub async fn handle_list_best_score(
         category = None
     }
     let order = extract_url_param(&request, "order")?.unwrap_or("score".to_string());
-
+    let since = extract_url_param(&request, "since")?;
     let order = match order.as_str() {
         "score" => FancyOrderBy::Score,
         "created" => FancyOrderBy::Created,
         _ => return Ok(HttpResponse::BadRequest().finish()),
     };
-    let list = match fancy_list_best_score(&conn, category, order, limit.unwrap_or(100)).await {
+    let since = since
+        .map(|s| {
+            chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S")
+                .unwrap_or_else(|_| NaiveDateTime::default())
+        })
+        .unwrap_or(NaiveDateTime::default());
+
+    let list = match fancy_list_best_score(
+        &conn,
+        category,
+        order,
+        Some(since),
+        limit.unwrap_or(100),
+    )
+    .await
+    {
         Ok(list) => list,
         Err(e) => {
             log::error!("{}", e);

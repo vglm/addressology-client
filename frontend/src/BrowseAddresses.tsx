@@ -57,10 +57,18 @@ const BrowseAddresses = () => {
 
     const [gpu, setGpu] = useState<string>("RTX 3060");
 
+    const [showToday, setShowToday] = useState<boolean>(true);
+
     const loadAddresses = async () => {
         const order = newest ? "created" : "score";
+        let since = "2021-01-01T00:00:00";
+        if (showToday) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            since = today.toISOString().substring(0, 10) + "T00:00:00";
+        }
         const response = await backendFetch(
-            `/api/fancy/list_best_score?limit=1000&order=${order}&category=${selectedCategory}`,
+            `/api/fancy/list_best_score?limit=1000&order=${order}&category=${selectedCategory}&since=${since}`,
             {
                 method: "Get",
             },
@@ -140,7 +148,7 @@ const BrowseAddresses = () => {
 
     useEffect(() => {
         loadAddresses().then();
-    }, [selectedCategory, newest]);
+    }, [selectedCategory, newest, showToday]);
 
     if (!fancies) {
         return <div>Loading...</div>;
@@ -155,6 +163,17 @@ const BrowseAddresses = () => {
     return (
         <div>
             <h1>Browse Addresses</h1>
+
+            <FormControlLabel
+                label="Show today"
+                control={
+                    <Checkbox
+                        value={showToday}
+                        defaultChecked={true}
+                        onChange={(e) => setShowToday(e.target.checked)}
+                    ></Checkbox>
+                }
+            ></FormControlLabel>
 
             <FormControlLabel
                 label="Show newest"

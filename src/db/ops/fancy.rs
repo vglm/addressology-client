@@ -1,5 +1,6 @@
 use crate::db::model::FancyDbObj;
 use crate::types::DbAddress;
+use chrono::NaiveDateTime;
 use sqlx::{Executor, Sqlite, SqlitePool};
 
 pub async fn insert_fancy_obj(
@@ -58,17 +59,33 @@ pub async fn fancy_list_best_score(
     conn: &SqlitePool,
     category: Option<String>,
     order_by: FancyOrderBy,
+    since: Option<NaiveDateTime>,
     limit: i64,
 ) -> Result<Vec<FancyDbObj>, sqlx::Error> {
     let order_by = match order_by {
         FancyOrderBy::Score => "score",
         FancyOrderBy::Created => "created",
     };
+
     let res = sqlx::query_as::<_, FancyDbObj>(
-        format!(r"SELECT * FROM fancy WHERE owner is NULL and category LIKE $2 ORDER BY {} DESC LIMIT $1;", order_by).as_str(),
+        format!(
+            r"SELECT *
+            FROM fancy WHERE
+                owner is NULL
+                and category LIKE $2
+                and created > $3
+            ORDER BY {} DESC LIMIT $1;",
+            order_by
+        )
+        .as_str(),
     )
     .bind(limit)
     .bind(category.unwrap_or("%".to_string()))
+    .bind(
+        since
+            .map(|s| s.and_utc().to_rfc3339().to_string())
+            .unwrap_or("1970".to_string()),
+    )
     .bind(order_by)
     .fetch_all(conn)
     .await?;
