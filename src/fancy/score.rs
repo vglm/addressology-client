@@ -3,7 +3,6 @@ use crate::db::model::{FancyScore, FancyScoreEntry};
 use crate::fancy::address_to_mixed_case;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-use std::ops::Add;
 use std::str::FromStr;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -317,9 +316,10 @@ pub fn score_fancy(address: Address) -> FancyScore {
     });
 
     //for leading zeroes difficulty is a chance to get the smallest number interpreted as hex number
-    let difficulty_leading_zeroes =  {
-        let number = U256::from_str_radix(&address_str, 16).unwrap() + U256::from(1);
-        let max_number = U256::from_str_radix("0xffffffffffffffffffffffffffffffffffffffff", 16).unwrap();
+    let difficulty_leading_zeroes = {
+        let number = U256::from_str_radix(address_str, 16).unwrap() + U256::from(1);
+        let max_number =
+            U256::from_str_radix("0xffffffffffffffffffffffffffffffffffffffff", 16).unwrap();
 
         let u256_to_float = |u256: U256| -> f64 {
             let u256_str = u256.to_string();
@@ -328,6 +328,35 @@ pub fn score_fancy(address: Address) -> FancyScore {
         let float_number = u256_to_float(number);
         let float_max_number = u256_to_float(max_number);
         float_max_number / float_number
+    };
+    let u256_to_float = |u256: U256| -> f64 {
+        let u256_str = u256.to_string();
+        u256_str.parse::<f64>().unwrap()
+    };
+    let difficulty_leading_any = {
+        let max_number =
+            U256::from_str_radix("0xffffffffffffffffffffffffffffffffffffffff", 16).unwrap();
+        let mut min_difference = max_number;
+        for i in [
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
+        ]
+        .iter()
+        {
+            let full_str = i.to_string().repeat(40);
+            let ideal_number = U256::from_str_radix(&full_str, 16).unwrap();
+
+            let current_number = U256::from_str_radix(address_str, 16).unwrap();
+
+            let difference = if ideal_number >= current_number {
+                ideal_number - current_number
+            } else {
+                current_number - ideal_number
+            };
+            if difference < min_difference {
+                min_difference = difference;
+            }
+        }
+        u256_to_float(max_number) / u256_to_float(min_difference + U256::from(1)) / 15.0
     };
 
     score_entries.push(FancyScoreEntry {
@@ -339,7 +368,7 @@ pub fn score_fancy(address: Address) -> FancyScore {
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::LeadingAny,
         score: leading_any as f64 - 1.0_f64,
-        difficulty: 16.0f64.powf(leading_any as f64 - (15. / 16.)),
+        difficulty: difficulty_leading_any,
     });
 
     score_entries.push(FancyScoreEntry {
@@ -374,16 +403,12 @@ pub fn score_fancy(address: Address) -> FancyScore {
             difficulty: 1.0f64,
         });
     }
-    let difficulty_short_leading_zeroes =  {
+    let difficulty_short_leading_zeroes = {
         //important to add 1 to avoid division by zero and get proper result when address is exactly zero
-        let mut number = U256::from_str_radix(&short_address_str, 16).unwrap() + U256::from(1);
+        let number = U256::from_str_radix(&short_address_str, 16).unwrap() + U256::from(1);
 
         let max_number = U256::from_str_radix("0xfffffffffffffffff", 16).unwrap();
 
-        let u256_to_float = |u256: U256| -> f64 {
-            let u256_str = u256.to_string();
-            u256_str.parse::<f64>().unwrap()
-        };
         let float_number = u256_to_float(number);
         let float_max_number = u256_to_float(max_number);
         float_max_number / float_number
@@ -392,13 +417,35 @@ pub fn score_fancy(address: Address) -> FancyScore {
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::ShortLeadingZeroes,
         score: short_leading_zeroes as f64,
-        difficulty: 16.0f64.powf(short_leading_zeroes as f64),
+        difficulty: difficulty_short_leading_zeroes,
     });
+    let short_difficulty_leading_any = {
+        let max_number = U256::from_str_radix("0xfffffffffffffffff", 16).unwrap();
+        let mut min_difference = max_number;
+        let current_number = U256::from_str_radix(&short_address_str, 16).unwrap() + U256::from(1);
+        for i in [
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
+        ]
+        .iter()
+        {
+            let full_str = i.to_string().repeat(17);
+            let ideal_number = U256::from_str_radix(&full_str, 16).unwrap();
 
+            let difference = if ideal_number >= current_number {
+                ideal_number - current_number
+            } else {
+                current_number - ideal_number
+            };
+            if difference < min_difference {
+                min_difference = difference;
+            }
+        }
+        u256_to_float(max_number) / u256_to_float(min_difference + U256::from(1)) / 15.0
+    };
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::ShortLeadingAny,
         score: short_leading_any as f64,
-        difficulty: 16.0f64.powf(short_leading_any as f64 - (15. / 16.)),
+        difficulty: short_difficulty_leading_any,
     });
 
     score_entries.push(FancyScoreEntry {
