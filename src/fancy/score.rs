@@ -421,7 +421,7 @@ pub fn score_fancy(address: Address) -> FancyScore {
         difficulty: difficulty_short_leading_zeroes,
     });
     let short_difficulty_leading_any = {
-        let max_number = U256::from_str_radix("0xfffffffffffffffff", 16).unwrap();
+        let max_number = U256::from_str_radix("0x11111111111111111", 16).unwrap() / U256::from(2);
         let mut min_difference = max_number;
         let current_number = U256::from_str_radix(&short_address_str, 16).unwrap() + U256::from(1);
         for i in [
