@@ -3,10 +3,11 @@ use crate::db::model::{FancyScore, FancyScoreEntry};
 use crate::fancy::address_to_mixed_case;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+use std::ops::Add;
 use std::str::FromStr;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
-use web3::types::Address;
+use web3::types::{Address, U256};
 
 #[derive(Serialize, Deserialize, EnumIter, PartialEq, Eq, Debug, Clone, Default)]
 pub enum FancyScoreCategory {
@@ -315,10 +316,24 @@ pub fn score_fancy(address: Address) -> FancyScore {
         difficulty: 1000.0f64,
     });
 
+    //for leading zeroes difficulty is a chance to get the smallest number interpreted as hex number
+    let difficulty_leading_zeroes =  {
+        let number = U256::from_str_radix(&address_str, 16).unwrap() + U256::from(1);
+        let max_number = U256::from_str_radix("0xffffffffffffffffffffffffffffffffffffffff", 16).unwrap();
+
+        let u256_to_float = |u256: U256| -> f64 {
+            let u256_str = u256.to_string();
+            u256_str.parse::<f64>().unwrap()
+        };
+        let float_number = u256_to_float(number);
+        let float_max_number = u256_to_float(max_number);
+        float_max_number / float_number
+    };
+
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::LeadingZeroes,
         score: leading_zeroes as f64,
-        difficulty: 16.0f64.powf(leading_zeroes as f64),
+        difficulty: difficulty_leading_zeroes,
     });
 
     score_entries.push(FancyScoreEntry {
@@ -359,6 +374,20 @@ pub fn score_fancy(address: Address) -> FancyScore {
             difficulty: 1.0f64,
         });
     }
+    let difficulty_short_leading_zeroes =  {
+        //important to add 1 to avoid division by zero and get proper result when address is exactly zero
+        let mut number = U256::from_str_radix(&short_address_str, 16).unwrap() + U256::from(1);
+
+        let max_number = U256::from_str_radix("0xfffffffffffffffff", 16).unwrap();
+
+        let u256_to_float = |u256: U256| -> f64 {
+            let u256_str = u256.to_string();
+            u256_str.parse::<f64>().unwrap()
+        };
+        let float_number = u256_to_float(number);
+        let float_max_number = u256_to_float(max_number);
+        float_max_number / float_number
+    };
 
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::ShortLeadingZeroes,
