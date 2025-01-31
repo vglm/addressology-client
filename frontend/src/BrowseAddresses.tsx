@@ -55,6 +55,8 @@ const BrowseAddresses = () => {
     const [selectedCategory, setSelectedCategory] = useState<string>("all");
     const [newest, setNewest] = useState<boolean>(false);
 
+    const [gpu, setGpu] = useState<string>("RTX 3060");
+
     const loadAddresses = async () => {
         const order = newest ? "created" : "score";
         const response = await backendFetch(
@@ -75,6 +77,61 @@ const BrowseAddresses = () => {
         const totalHash = await response.json();
         console.log("Total hashes: ", totalHash);
         setTotalHash(totalHash);
+    };
+
+    const displayDifficulty = (difficulty: number): string => {
+        const units = ["", "kH", "MH", "GH", "TH", "PH", "EH", "ZH", "YH"];
+        let unitIndex = 0;
+
+        while (difficulty >= 1000 && unitIndex < units.length - 1) {
+            difficulty /= 1000;
+            unitIndex++;
+        }
+
+        const precision = difficulty < 10 ? 3 : difficulty < 100 ? 2 : 1;
+        return difficulty.toFixed(precision) + units[unitIndex];
+    };
+
+    const displayTime = (extraLabel: string, seconds: number): string => {
+        const units = [
+            { label: "month", seconds: 2_592_000, cutoff: 604_800 * 9.9 }, // 30 days
+            { label: "week", seconds: 604_800, cutoff: 86_400 * 9.9 }, // 7 days
+            { label: "day", seconds: 86_400, cutoff: 3600 * 48 }, // 24 hours
+            { label: "hour", seconds: 3_600, cutoff: 60 * 99 }, // 60 minutes
+            { label: "minute", seconds: 60, cutoff: 99 }, // 60 seconds
+            { label: "second", seconds: 1, cutoff: 0 },
+        ];
+
+        for (const unit of units) {
+            if (seconds >= unit.cutoff) {
+                const value = seconds / unit.seconds;
+                const precision = value < 10 ? 2 : value < 100 ? 1 : 0;
+                return `${value.toFixed(precision)} ${extraLabel}${unit.label}${value >= 2 ? "s" : ""}`;
+            }
+        }
+
+        return "0 seconds"; // Edge case for 0 input
+    };
+
+    const displayDifficultyAndGpuTime = (score: number): string => {
+        const difficulty = score;
+        const gpuTime = score / 1_000_000;
+        let mhs = 1;
+        const extraLabel = "GPU ";
+        if (gpu === "RTX 3060") {
+            mhs = 350;
+        } else if (gpu === "RTX 3090") {
+            mhs = 990;
+        } else if (gpu === "RTX 4090") {
+            mhs = 2300;
+        }
+        return `${displayDifficulty(difficulty)} (${displayTime(extraLabel, gpuTime / mhs)})`;
+    };
+    const displayEstimatedCost = (score: number): string => {
+        const gpuTime = score / 1_000_000 / 350;
+
+        const cost = (gpuTime / 3600) * 0.1;
+        return `$${cost.toFixed(2)}`;
     };
 
     useEffect(() => {
@@ -105,8 +162,14 @@ const BrowseAddresses = () => {
             ></FormControlLabel>
 
             <div>
-                <h2>Estimated total work: {totalHash.estimatedWorkTH.toFixed(3)} TH</h2>
+                <h2>Estimated total work: {displayDifficultyAndGpuTime(totalHash.estimatedWorkTH * 1e12)}</h2>
             </div>
+
+            <Select variant={"outlined"} defaultValue={gpu} onChange={(e) => setGpu(e.target.value)}>
+                <MenuItem value={"RTX 3060"}>RTX 3060</MenuItem>
+                <MenuItem value={"RTX 3090"}>RTX 3090</MenuItem>
+                <MenuItem value={"RTX 4090"}>RTX 4090</MenuItem>
+            </Select>
 
             <SelectCategory
                 selectedCategory={selectedCategory}
@@ -120,6 +183,7 @@ const BrowseAddresses = () => {
                         <th>Short Etherscan</th>
                         <th>Difficulty</th>
                         <th>Price</th>
+                        <th>Est. cost</th>
                         <th>Category</th>
                         <th>Created</th>
                         <th>Miner</th>
@@ -146,8 +210,9 @@ const BrowseAddresses = () => {
                                     <span className={"fancy-address-entry"}>{etherscanForm}</span>
                                 </td>
 
-                                <td>{fancy.score}</td>
+                                <td>{displayDifficultyAndGpuTime(fancy.score)}</td>
                                 <td>{fancy.price}</td>
+                                <td>{displayEstimatedCost(fancy.score)}</td>
                                 <td>{fancy.category}</td>
                                 <td>{fancy.created}</td>
                                 <td>{fancy.miner}</td>
