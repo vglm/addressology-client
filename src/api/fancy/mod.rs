@@ -120,17 +120,26 @@ pub async fn handle_fancy_new_many(
     server_data: web::Data<Box<ServerData>>,
     new_data: web::Json<Vec<AddNewData>>,
 ) -> HttpResponse {
+    let mut total_score = 0.0;
     for data in new_data.iter() {
-        let resp = handle_fancy_new(server_data.clone(), web::Json(data.clone())).await;
+        let resp = _handle_fancy_new(
+            server_data.clone(),
+            web::Json(data.clone()),
+            &mut total_score,
+        )
+        .await;
         if !resp.status().is_success() {
             return resp;
         }
     }
-    HttpResponse::Ok().finish()
+    HttpResponse::Ok().json(json!({
+        "totalScore": total_score
+    }))
 }
-pub async fn handle_fancy_new(
+async fn _handle_fancy_new(
     server_data: web::Data<Box<ServerData>>,
     new_data: web::Json<AddNewData>,
+    total_score: &mut f64,
 ) -> HttpResponse {
     let factory = match web3::types::Address::from_str(&new_data.factory) {
         Ok(factory) => factory,
@@ -160,10 +169,15 @@ pub async fn handle_fancy_new(
         );
         return HttpResponse::BadRequest().body("Address mismatch");
     }
-
+    let score = result.score;
     let conn = server_data.db_connection.lock().await;
     match insert_fancy_obj(&conn, result).await {
-        Ok(_) => HttpResponse::Ok().body("Entry accepted"),
+        Ok(_) => {
+            *total_score += score;
+            HttpResponse::Ok().json(json!({
+                "totalSore": score
+            }))
+        }
         Err(e) => {
             if e.to_string().contains("UNIQUE constraint failed") {
                 HttpResponse::Ok().body("Already exists")
@@ -173,6 +187,13 @@ pub async fn handle_fancy_new(
             }
         }
     }
+}
+pub async fn handle_fancy_new(
+    server_data: web::Data<Box<ServerData>>,
+    new_data: web::Json<AddNewData>,
+) -> HttpResponse {
+    let mut total_score = 0.0;
+    _handle_fancy_new(server_data, new_data, &mut total_score).await
 }
 
 pub async fn handle_fancy_deploy_start(
