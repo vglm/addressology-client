@@ -334,8 +334,9 @@ pub fn score_fancy(address: Address) -> FancyScore {
         u256_str.parse::<f64>().unwrap()
     };
     let difficulty_leading_any = {
-        let max_number =
-            U256::from_str_radix("0xffffffffffffffffffffffffffffffffffffffff", 16).unwrap();
+        let max_number = U256::from_str_radix("0x1111111111111111111111111111111111111111", 16)
+            .unwrap()
+            / U256::from(2);
         let mut min_difference = max_number;
         for i in [
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
