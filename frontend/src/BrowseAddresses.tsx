@@ -65,7 +65,7 @@ const BrowseAddresses = () => {
         if (showToday) {
             const today = new Date();
             today.setUTCHours(0, 0, 0, 0);
-            since = today.toISOString().substring(0, 10) + "T00:00:00";
+            since = today.toISOString().substring(0, 10) + "T00:00:00Z";
         }
         const response = await backendFetch(
             `/api/fancy/list_best_score?limit=1000&order=${order}&category=${selectedCategory}&since=${since}`,
