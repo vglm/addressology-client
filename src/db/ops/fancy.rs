@@ -50,6 +50,7 @@ pub async fn fancy_list_newest(conn: &SqlitePool) -> Result<Vec<FancyDbObj>, sql
     Ok(res)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FancyOrderBy {
     Score,
     Created,

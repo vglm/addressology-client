@@ -74,6 +74,13 @@ pub async fn handle_list_best_score(
         })
         .unwrap_or(NaiveDateTime::default());
 
+    log::info!(
+        "category: {:?}, order: {:?}, since: {:?}",
+        category,
+        order,
+        since
+    );
+
     let list = match fancy_list_best_score(
         &conn,
         category,
