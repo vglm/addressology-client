@@ -449,12 +449,16 @@ pub fn score_fancy(address: Address) -> FancyScore {
         difficulty: short_difficulty_leading_any,
     });
 
+    let snake_score_difficulty = if snake_score > 15 {
+        total_combinations(39.0) / combinations(39, snake_score)
+    } else {
+        1.0
+    };
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::SnakeScore,
         score: (snake_score - 1) as f64,
-        difficulty: total_combinations(39.0) / combinations(39, snake_score),
+        difficulty: snake_score_difficulty,
     });
-
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::LeadingLetters,
         score: leading_letters as f64,
