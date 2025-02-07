@@ -183,6 +183,17 @@ pub fn exactly_letters_combinations_multiple_ciphers_difficulty(letters: u64, to
     total_combinations(total as f64) / combinations_total
 }
 
+pub fn snake_combinations(snake: i64, total: u64) -> f64 {
+    if snake < 10 {
+        return 1.0f64;
+    }
+    let mut combinations_total = 0.0f64;
+    for i in (snake as u64)..=total {
+        combinations_total += combinations(total as i64, i as i64);
+    }
+    total_combinations(total as f64) / combinations_total
+}
+
 #[tokio::test]
 async fn tx_test() {
     assert_eq!(combinations(40.0, 1.0), 40.0);
@@ -297,7 +308,7 @@ pub fn score_fancy(address: Address) -> FancyScore {
         }
     }
 
-    let mut snake_score = 0;
+    let mut snake_score: i64 = 0;
     let mut prev_char = address_str.chars().next().unwrap();
     for c in address_str.chars() {
         if c == prev_char {
@@ -449,15 +460,10 @@ pub fn score_fancy(address: Address) -> FancyScore {
         difficulty: short_difficulty_leading_any,
     });
 
-    let snake_score_difficulty = if snake_score > 15 {
-        total_combinations(39.0) / combinations(39, snake_score)
-    } else {
-        1.0
-    };
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::SnakeScore,
         score: (snake_score - 1) as f64,
-        difficulty: snake_score_difficulty,
+        difficulty: snake_combinations(snake_score - 1, 40),
     });
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::LeadingLetters,
