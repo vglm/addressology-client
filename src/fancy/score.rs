@@ -188,16 +188,19 @@ pub fn snake_combinations(snake: i64, total: u64) -> f64 {
         return 1.0f64;
     }
     let mut combinations_total = 0.0f64;
-    for i in (snake as u64)..=total {
-        combinations_total += combinations(total as i64, i as i64);
+    for i in ((snake as u64)..=total).rev() {
+        let curr_comb = 16.0 * combinations(total as i64, i as i64) * 15.0f64.powf(total as f64 - i as f64);
+        combinations_total += curr_comb;
+        //println!("combinations_total: {} {} {} {}", i, curr_comb, combinations_total, total_combinations(total as f64) / combinations_total);
     }
+
     total_combinations(total as f64) / combinations_total
 }
 
 #[tokio::test]
 async fn tx_test() {
-    assert_eq!(combinations(40.0, 1.0), 40.0);
-    assert_eq!(combinations(40.0, 2.0), 780.0);
+    assert_eq!(combinations(40, 1), 40.0);
+    assert_eq!(combinations(40, 2), 780.0);
     //all letters probability
 
     let all_combinations = 16.0f64.powf(40.0);
@@ -206,7 +209,7 @@ async fn tx_test() {
     let only_letters_combinations = 6.0f64.powf(40.0);
     assert_eq!(only_letters_combinations, 1.3367494538843734e31);
 
-    let one_number_combinations = 6.0f64.powf(39.0) * combinations(40.0, 1.0) * 10f64.powf(1.0);
+    let one_number_combinations = 6.0f64.powf(39.0) * combinations(40, 1) * 10f64.powf(1.0);
     assert_eq!(one_number_combinations, 8.911663025895824e32);
 
     assert_eq!((6.0f64 / 16.0).powf(40.0), 9.14641092243755e-18);
@@ -463,7 +466,7 @@ pub fn score_fancy(address: Address) -> FancyScore {
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::SnakeScore,
         score: (snake_score - 1) as f64,
-        difficulty: snake_combinations(snake_score - 1, 40),
+        difficulty: snake_combinations(snake_score - 1, 39),
     });
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::LeadingLetters,
@@ -498,4 +501,20 @@ pub fn score_fancy(address: Address) -> FancyScore {
     score.price_multiplier = price_multiplier;
     score.category = biggest_score.category.to_string();
     score
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use web3::types::Address;
+
+    #[test]
+    fn test_score_fancy() {
+        let address = Address::from_str("0x99927777d11dDdFfFfF79b93bB00BBbB5fff5553").unwrap();
+        let score = score_fancy(address);
+        println!("{:?}", score);
+        assert_eq!(score.total_score, 1.0);
+        assert_eq!(score.price_multiplier, 1.0);
+        assert_eq!(score.category, "random");
+    }
 }
