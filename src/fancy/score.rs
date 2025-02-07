@@ -136,10 +136,10 @@ pub fn total_combinations(n: f64) -> f64 {
 }
 
 // n choose k symbol combinations
-pub fn combinations(n: f64, k: f64) -> f64 {
+pub fn combinations(n: i64, k: i64) -> f64 {
     let mut result = 1.0;
-    for i in 0..k as i64 {
-        result *= (n - i as f64) / (i as f64 + 1.0);
+    for i in 0..k {
+        result *= (n - i) as f64 / (i + 1) as f64;
     }
     result
 }
@@ -149,7 +149,7 @@ pub fn exactly_letters_combinations(letters: u64, total: u64) -> f64 {
     if letters == total {
         return 6.0f64.powf(letters as f64);
     }
-    6.0f64.powf(letters as f64) * combinations(total as f64, (total - letters) as f64) * 10f64
+    6.0f64.powf(letters as f64) * combinations(total as i64, (total as i64 - letters as i64) * 10)
 }
 
 pub fn exactly_letters_combinations_difficulty(letters: u64, total: u64) -> f64 {
@@ -168,7 +168,7 @@ pub fn exactly_letters_combinations_multiple_ciphers(letters: u64, total: u64) -
         return 6.0f64.powf(letters as f64);
     }
     6.0f64.powf(letters as f64)
-        * combinations(total as f64, (total - letters) as f64)
+        * combinations(total as i64, total as i64 - letters as i64)
         * 10f64.powf((total - letters) as f64)
 }
 
@@ -297,11 +297,11 @@ pub fn score_fancy(address: Address) -> FancyScore {
         }
     }
 
-    let mut snake_score = 0.0f64;
+    let mut snake_score = 0;
     let mut prev_char = address_str.chars().next().unwrap();
     for c in address_str.chars() {
         if c == prev_char {
-            snake_score += 1.0;
+            snake_score += 1;
         } else {
             prev_char = c;
         }
@@ -451,8 +451,8 @@ pub fn score_fancy(address: Address) -> FancyScore {
 
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::SnakeScore,
-        score: snake_score,
-        difficulty: 16.0f64.powf(snake_score - 9.0),
+        score: (snake_score - 1) as f64,
+        difficulty: total_combinations(39.0) / combinations(39, snake_score),
     });
 
     score_entries.push(FancyScoreEntry {
