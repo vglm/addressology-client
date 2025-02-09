@@ -61,7 +61,7 @@ const BrowseAddresses = () => {
 
     const loadAddresses = async () => {
         const order = newest ? "created" : "score";
-        let since = "2021-01-01T00:00:00";
+        let since = "2021-01-01T00:00:00Z";
         if (showToday) {
             const today = new Date();
             today.setUTCHours(0, 0, 0, 0);
@@ -79,11 +79,11 @@ const BrowseAddresses = () => {
     };
 
     const loadTotalHashes = async () => {
-        let since = "2021-01-01T00:00:00";
+        let since = "2021-01-01T00:00:00Z";
         if (showToday) {
             const today = new Date();
             today.setUTCHours(0, 0, 0, 0);
-            since = today.toISOString().substring(0, 10) + "T00:00:00";
+            since = today.toISOString().substring(0, 10) + "T00:00:00Z";
         }
         const response = await backendFetch(`/api/fancy/total_hash?since=${since}`, {
             method: "Get",
