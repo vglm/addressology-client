@@ -67,7 +67,6 @@ pub async fn fancy_list_best_score(
         FancyOrderBy::Score => "score",
         FancyOrderBy::Created => "created",
     };
-
     let res = sqlx::query_as::<_, FancyDbObj>(
         format!(
             r"SELECT *
@@ -84,8 +83,8 @@ pub async fn fancy_list_best_score(
     .bind(category.unwrap_or("%".to_string()))
     .bind(
         since
-            .map(|s| s.to_rfc3339().to_string())
-            .unwrap_or("1970".to_string()),
+            .map(|s| s.format("%Y-%m-%d %H:%M:%S").to_string())
+            .unwrap_or("2000-01-01 00:00:00".to_string()),
     )
     .bind(order_by)
     .fetch_all(conn)
