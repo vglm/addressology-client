@@ -1,4 +1,5 @@
 use actix_web::HttpRequest;
+use chrono::{DateTime, Utc};
 use percent_encoding::percent_decode_str;
 
 pub fn extract_url_param(
@@ -29,6 +30,23 @@ pub fn extract_url_int_param(
             Ok(val) => Ok(Some(val)),
             Err(_) => Err(actix_web::error::ErrorBadRequest(format!(
                 "Failed to parse {} as i64",
+                param
+            ))),
+        }
+    } else {
+        Ok(None)
+    }
+}
+
+pub fn extract_url_date_param(
+    request: &HttpRequest,
+    param: &str,
+) -> Result<Option<chrono::DateTime<Utc>>, actix_web::Error> {
+    if let Some(str) = extract_url_param(request, param)? {
+        match str.parse::<DateTime<Utc>>() {
+            Ok(val) => Ok(Some(val)),
+            Err(_) => Err(actix_web::error::ErrorBadRequest(format!(
+                "Failed to parse {} as date",
                 param
             ))),
         }

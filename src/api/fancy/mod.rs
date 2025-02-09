@@ -1,7 +1,7 @@
 pub mod score;
 pub mod tokens;
 
-use crate::api::utils::{extract_url_int_param, extract_url_param};
+use crate::api::utils::{extract_url_date_param, extract_url_int_param, extract_url_param};
 use crate::db::model::{DeployStatus, UserDbObj};
 use crate::db::ops::{
     fancy_get_by_address, fancy_list_all_free, fancy_list_best_score, fancy_list_newest,
@@ -12,7 +12,6 @@ use crate::fancy::parse_fancy;
 use crate::{login_check_and_get, normalize_address, ServerData};
 use actix_session::Session;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
-use chrono::NaiveDateTime;
 use rand::prelude::SliceRandom;
 use serde::Deserialize;
 use serde_json::json;
@@ -61,18 +60,12 @@ pub async fn handle_list_best_score(
         category = None
     }
     let order = extract_url_param(&request, "order")?.unwrap_or("score".to_string());
-    let since = extract_url_param(&request, "since")?;
+    let since = extract_url_date_param(&request, "since")?;
     let order = match order.as_str() {
         "score" => FancyOrderBy::Score,
         "created" => FancyOrderBy::Created,
         _ => return Ok(HttpResponse::BadRequest().finish()),
     };
-    let since = since
-        .map(|s| {
-            chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S")
-                .unwrap_or_else(|_| NaiveDateTime::default())
-        })
-        .unwrap_or(NaiveDateTime::default());
 
     log::info!(
         "category: {:?}, order: {:?}, since: {:?}",
@@ -81,21 +74,14 @@ pub async fn handle_list_best_score(
         since
     );
 
-    let list = match fancy_list_best_score(
-        &conn,
-        category,
-        order,
-        Some(since),
-        limit.unwrap_or(100),
-    )
-    .await
-    {
-        Ok(list) => list,
-        Err(e) => {
-            log::error!("{}", e);
-            return Ok(HttpResponse::InternalServerError().finish());
-        }
-    };
+    let list =
+        match fancy_list_best_score(&conn, category, order, since, limit.unwrap_or(100)).await {
+            Ok(list) => list,
+            Err(e) => {
+                log::error!("{}", e);
+                return Ok(HttpResponse::InternalServerError().finish());
+            }
+        };
 
     Ok(HttpResponse::Ok().json(list))
 }
@@ -104,20 +90,14 @@ pub async fn handle_fancy_estimate_total_hash(
     server_data: web::Data<Box<ServerData>>,
     request: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let since = extract_url_param(&request, "since")?;
-    let since = since
-        .map(|s| {
-            chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S")
-                .unwrap_or_else(|_| NaiveDateTime::default())
-        })
-        .unwrap_or(NaiveDateTime::default());
+    let since = extract_url_date_param(&request, "since")?;
     let fancies = {
         let conn = server_data.db_connection.lock().await;
         match fancy_list_best_score(
             &conn,
             Some("leading_zeroes".to_string()),
             FancyOrderBy::Score,
-            Some(since),
+            since,
             100000000,
         )
         .await

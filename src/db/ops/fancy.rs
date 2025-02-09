@@ -1,6 +1,6 @@
 use crate::db::model::FancyDbObj;
 use crate::types::DbAddress;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use sqlx::{Executor, Sqlite, SqlitePool};
 
 pub async fn insert_fancy_obj(
@@ -60,7 +60,7 @@ pub async fn fancy_list_best_score(
     conn: &SqlitePool,
     category: Option<String>,
     order_by: FancyOrderBy,
-    since: Option<NaiveDateTime>,
+    since: Option<DateTime<Utc>>,
     limit: i64,
 ) -> Result<Vec<FancyDbObj>, sqlx::Error> {
     let order_by = match order_by {
@@ -84,7 +84,7 @@ pub async fn fancy_list_best_score(
     .bind(category.unwrap_or("%".to_string()))
     .bind(
         since
-            .map(|s| s.and_utc().to_rfc3339().to_string())
+            .map(|s| s.to_rfc3339().to_string())
             .unwrap_or("1970".to_string()),
     )
     .bind(order_by)
