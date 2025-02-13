@@ -213,8 +213,6 @@ enum Commands {
         factory: String,
         #[arg(short, long)]
         salt: String,
-        #[arg(short, long)]
-        miner: String,
     },
     /// Start web server
     Server {
@@ -384,26 +382,36 @@ async fn main() -> std::io::Result<()> {
             }
             Ok(())
         }
-        Commands::AddFancyAddress {
-            factory,
-            salt,
-            miner,
-        } => {
+        Commands::AddFancyAddress { factory, salt } => {
             let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
                 .await
                 .unwrap();
 
             let factory = web3::types::Address::from_str(&factory).unwrap();
-            let result = match parse_fancy(salt, factory, miner) {
+            let result = match parse_fancy(salt, factory) {
                 Ok(fancy) => fancy,
                 Err(e) => {
                     log::error!("{}", e);
                     std::process::exit(1);
                 }
             };
+            let mut db_trans = match conn.begin().await {
+                Ok(db) => db,
+                Err(e) => {
+                    log::error!("{}", e);
+                    std::process::exit(1);
+                }
+            };
 
-            println!("{:?}", result);
-            match insert_fancy_obj(&conn, result).await {
+            match insert_fancy_obj(&mut *db_trans, result).await {
+                Ok(_) => (),
+                Err(e) => {
+                    log::error!("{}", e);
+                    std::process::exit(1);
+                }
+            }
+
+            match db_trans.commit().await {
                 Ok(_) => (),
                 Err(e) => {
                     log::error!("{}", e);
