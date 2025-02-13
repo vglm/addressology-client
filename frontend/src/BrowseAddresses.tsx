@@ -57,16 +57,25 @@ const BrowseAddresses = () => {
 
     const [gpu, setGpu] = useState<string>("RTX 3060");
 
-    const [showToday, setShowToday] = useState<boolean>(true);
+    const [showType, setShowType] = useState<string>("today");
+
+    const showTypeToSince = (showType: string): string => {
+        if (showType == "today") {
+            const today = new Date();
+            today.setUTCHours(0, 0, 0, 0);
+            return today.toISOString().substring(0, 10) + "T00:00:00Z";
+        }
+        if (showType == "last hour") {
+            const today = new Date();
+            today.setUTCHours(today.getUTCHours() - 1, 0, 0, 0);
+            return today.toISOString().substring(0, 10) + "T00:00:00Z";
+        }
+        return "2021-01-01T00:00:00Z";
+    };
 
     const loadAddresses = async () => {
         const order = newest ? "created" : "score";
-        let since = "2021-01-01T00:00:00Z";
-        if (showToday) {
-            const today = new Date();
-            today.setUTCHours(0, 0, 0, 0);
-            since = today.toISOString().substring(0, 10) + "T00:00:00Z";
-        }
+        const since = showTypeToSince(showType);
         const response = await backendFetch(
             `/api/fancy/list_best_score?limit=1000&order=${order}&category=${selectedCategory}&since=${since}`,
             {
@@ -79,12 +88,8 @@ const BrowseAddresses = () => {
     };
 
     const loadTotalHashes = async () => {
-        let since = "2021-01-01T00:00:00Z";
-        if (showToday) {
-            const today = new Date();
-            today.setUTCHours(0, 0, 0, 0);
-            since = today.toISOString().substring(0, 10) + "T00:00:00Z";
-        }
+        const since = showTypeToSince(showType);
+
         const response = await backendFetch(`/api/fancy/total_hash?since=${since}`, {
             method: "Get",
         });
@@ -150,11 +155,11 @@ const BrowseAddresses = () => {
 
     useEffect(() => {
         loadTotalHashes().then();
-    }, [showToday]);
+    }, [showType]);
 
     useEffect(() => {
         loadAddresses().then();
-    }, [selectedCategory, newest, showToday]);
+    }, [selectedCategory, newest, showType]);
 
     if (!fancies) {
         return <div>Loading...</div>;
@@ -169,17 +174,11 @@ const BrowseAddresses = () => {
     return (
         <div>
             <h1>Browse Addresses</h1>
-
-            <FormControlLabel
-                label="Show today"
-                control={
-                    <Checkbox
-                        value={showToday}
-                        defaultChecked={true}
-                        onChange={(e) => setShowToday(e.target.checked)}
-                    ></Checkbox>
-                }
-            ></FormControlLabel>
+            <Select variant={"outlined"} defaultValue={showType} onChange={(e) => setShowType(e.target.value)}>
+                <MenuItem value={"today"}>Today</MenuItem>
+                <MenuItem value={"last hour"}>Last hour</MenuItem>
+                <MenuItem value={"all"}>All</MenuItem>
+            </Select>
 
             <FormControlLabel
                 label="Show newest"
