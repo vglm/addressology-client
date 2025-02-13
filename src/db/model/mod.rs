@@ -72,6 +72,21 @@ pub struct FancyDbObj {
     pub job: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FancyProviderDbObj {
+    pub address: DbAddress,
+    pub salt: String,
+    pub factory: DbAddress,
+    pub created: NaiveDateTime,
+    pub score: f64,
+    pub owner: Option<String>,
+    pub price: i64,
+    pub category: String,
+    pub job: Option<String>,
+    pub prov_name: String,
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ContractCreateFromApi {

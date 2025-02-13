@@ -25,7 +25,8 @@ export interface Fancy {
     price: number;
     category: string;
     created: string;
-    miner: string;
+    job: string | null;
+    provName: string;
 }
 
 export interface UserTokenResponse {

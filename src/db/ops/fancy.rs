@@ -1,4 +1,4 @@
-use crate::db::model::{FancyDbObj, JobDbObj, MinerDbObj};
+use crate::db::model::{FancyDbObj, FancyProviderDbObj, JobDbObj, MinerDbObj};
 use crate::types::DbAddress;
 use chrono::{DateTime, Utc};
 use sqlx::{Executor, Sqlite, SqlitePool};
@@ -65,18 +65,19 @@ pub async fn fancy_list_best_score(
     order_by: FancyOrderBy,
     since: Option<DateTime<Utc>>,
     limit: i64,
-) -> Result<Vec<FancyDbObj>, sqlx::Error> {
+) -> Result<Vec<FancyProviderDbObj>, sqlx::Error> {
     let order_by = match order_by {
         FancyOrderBy::Score => "score",
         FancyOrderBy::Created => "created",
     };
-    let res = sqlx::query_as::<_, FancyDbObj>(
+    let res = sqlx::query_as::<_, FancyProviderDbObj>(
         format!(
-            r"SELECT *
-            FROM fancy WHERE
-                owner is NULL
-                and category LIKE $2
-                and created > $3
+            r"SELECT f.*, mi.prov_name
+            FROM fancy as f LEFT JOIN job_info as ji ON f.job=ji.uid LEFT JOIN miner_info as mi ON mi.uid=ji.miner
+            WHERE
+                f.owner is NULL
+                and f.category LIKE $2
+                and f.created > $3
             ORDER BY {} DESC LIMIT $1;",
             order_by
         )

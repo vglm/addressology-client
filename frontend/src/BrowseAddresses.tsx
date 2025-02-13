@@ -240,7 +240,7 @@ const BrowseAddresses = () => {
                                 <td>{displayEstimatedCost(fancy.score)}</td>
                                 <td>{fancy.category}</td>
                                 <td>{fancy.created}</td>
-                                <td>{fancy.miner}</td>
+                                <td>{fancy.provName}</td>
                             </tr>
                         );
                     })}
