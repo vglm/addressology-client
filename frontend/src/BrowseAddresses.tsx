@@ -63,12 +63,12 @@ const BrowseAddresses = () => {
         if (showType == "today") {
             const today = new Date();
             today.setUTCHours(0, 0, 0, 0);
-            return today.toISOString().substring(0, 10) + "T00:00:00Z";
+            return today.toISOString().replace(/\.\d{3}Z$/, "Z");
         }
         if (showType == "last hour") {
             const today = new Date();
             today.setUTCHours(today.getUTCHours() - 1, 0, 0, 0);
-            return today.toISOString().substring(0, 10) + "T00:00:00Z";
+            return today.toISOString().replace(/\.\d{3}Z$/, "Z");
         }
         return "2021-01-01T00:00:00Z";
     };
