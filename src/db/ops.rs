@@ -9,7 +9,7 @@ pub use user::*;
 use std::future::Future;
 use std::time::Duration;
 
-const LOCKED_TIMEOUT: Duration = std::time::Duration::from_secs(300);
+const LOCKED_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[allow(dead_code)]
 ///Usage example:
@@ -36,7 +36,7 @@ where
                         "Database is locked for {:.1} seconds. Trying again...",
                         instant.elapsed().as_secs_f64()
                     );
-                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    tokio::time::sleep(Duration::from_millis(100)).await;
                     continue;
                 }
             }

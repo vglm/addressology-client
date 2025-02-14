@@ -34,17 +34,17 @@ impl DbBigInt {
     }
 }
 
-impl std::convert::From<i128> for DbBigInt {
+impl From<i128> for DbBigInt {
     fn from(val: i128) -> Self {
         Self::new(val)
     }
 }
-impl std::convert::From<u128> for DbBigInt {
+impl From<u128> for DbBigInt {
     fn from(val: u128) -> Self {
         Self::from_u128(val)
     }
 }
-impl std::convert::From<U256> for DbBigInt {
+impl From<U256> for DbBigInt {
     fn from(val: U256) -> Self {
         Self::from_u256(val)
     }
@@ -56,11 +56,11 @@ impl Display for DbBigInt {
     }
 }
 
-impl sqlx::Type<sqlx::Sqlite> for DbBigInt {
-    fn type_info() -> <Sqlite as sqlx::Database>::TypeInfo {
+impl sqlx::Type<Sqlite> for DbBigInt {
+    fn type_info() -> <Sqlite as Database>::TypeInfo {
         <String as sqlx::Type<Sqlite>>::type_info()
     }
-    fn compatible(ty: &<Sqlite as sqlx::Database>::TypeInfo) -> bool {
+    fn compatible(ty: &<Sqlite as Database>::TypeInfo) -> bool {
         <String as sqlx::Type<Sqlite>>::compatible(ty)
     }
 }
@@ -133,11 +133,11 @@ impl Display for DbAddress {
     }
 }
 
-impl sqlx::Type<sqlx::Sqlite> for DbAddress {
-    fn type_info() -> <Sqlite as sqlx::Database>::TypeInfo {
+impl sqlx::Type<Sqlite> for DbAddress {
+    fn type_info() -> <Sqlite as Database>::TypeInfo {
         <String as sqlx::Type<Sqlite>>::type_info()
     }
-    fn compatible(ty: &<Sqlite as sqlx::Database>::TypeInfo) -> bool {
+    fn compatible(ty: &<Sqlite as Database>::TypeInfo) -> bool {
         <String as sqlx::Type<Sqlite>>::compatible(ty)
     }
 }

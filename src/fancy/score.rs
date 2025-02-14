@@ -178,7 +178,7 @@ pub fn exactly_letters_combinations_multiple_ciphers_difficulty(letters: u64, to
     }
     let mut combinations_total = 0.0f64;
     for i in letters..=total {
-        combinations_total += crate::fancy::exactly_letters_combinations_multiple_ciphers(i, total);
+        combinations_total += exactly_letters_combinations_multiple_ciphers(i, total);
     }
     total_combinations(total as f64) / combinations_total
 }

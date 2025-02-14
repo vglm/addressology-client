@@ -76,8 +76,8 @@ pub fn compute_create3_command(factory: &str, salt: &str) -> Result<String, Addr
     };
     mem.extend_from_slice(&const_bytes);
 
-    assert!(mem.len() == 96);
-    assert!(mem.len() == 0xb + 0x55);
+    assert_eq!(mem.len(), 96);
+    assert_eq!(mem.len(), 0xb + 0x55);
 
     // keccak last 0x55 bytes
 

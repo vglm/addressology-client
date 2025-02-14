@@ -23,6 +23,7 @@ const CompiledContract = () => {
     const [metadata, setMetadata] = useState<any | null>(null);
     const [sourceCode, setSourceCode] = useState<string | null>(null);
     const { contractId } = useParams();
+    const [updateToken, setUpdateToken] = useState(0);
 
     const [constructorBinary, setConstructorBinary] = useState<string>("");
 
@@ -71,7 +72,7 @@ const CompiledContract = () => {
         getContractDetails().then();
 
         getNetworks().then(setNetworks);
-    }, []);
+    }, [updateToken]);
 
     const deploySourceCode = async () => {
         const response = await backendFetch(`/api/fancy/deploy/${contractId}`, {
@@ -116,6 +117,7 @@ const CompiledContract = () => {
         });
         const deploy = await response.json();
         console.log(deploy);
+        setUpdateToken(updateToken + 1);
     };
 
     const saveChanges = async () => {
@@ -134,6 +136,7 @@ const CompiledContract = () => {
         });
         const deploy = await response.json();
         console.log(deploy);
+        setUpdateToken(updateToken + 1);
     };
 
     /*

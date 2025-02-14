@@ -18,7 +18,7 @@ pub enum ErrorBag {
     Web3Error(web3::Error),
     FromHexError(FromHexError),
     FromDecStrErr(FromDecStrErr),
-    TimeLimitReached(std::time::Duration),
+    TimeLimitReached(Duration),
 }
 
 impl Display for ErrorBag {
