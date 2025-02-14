@@ -22,12 +22,70 @@ function decodeConstructorParameters(abiStr: string) {
     return contractInterface.deploy;
 }
 
+export function encodeConstructorParameters(abiStr: string, argStr: string) {
+    const args = argStr.split(",");
+    const fragment = decodeConstructorParameters(abiStr);
+    if (args.length !== fragment.inputs.length) {
+        throw new Error("Invalid number of arguments");
+    }
+
+    const binary = [];
+    for (let idx = 0; idx < args.length; idx++) {
+        const param = fragment.inputs[idx];
+        if (param.type === "uint256") {
+            binary.push(BigInt(args[idx]).toString(16).padStart(64, "0"));
+        } else if (param.type === "address") {
+            binary.push(BigInt(args[idx]).toString(16).padStart(64, "0"));
+        } else {
+            throw new Error(`Unsupported type ${param.type}`);
+        }
+    }
+    return binary.join("");
+}
+
 const InputParameters = (props: InputParametersProps) => {
     const [constructorArgs, setConstructorArgs] = useState<ConstructorFragment | null>(null);
 
     useEffect(() => {
         setConstructorArgs(decodeConstructorParameters(props.abi));
+        updateConstructorArgs();
     }, []);
+
+    const updateConstructorArgs = () => {
+        const newArgs = [];
+        for (const _input of constructorArgs?.inputs ?? []) {
+            newArgs.push(props.constructorArgs);
+        }
+        const binary = [];
+        for (const arg of newArgs) {
+            binary.push(ethers.hexlify(ethers.toUtf8Bytes(arg)));
+        }
+    };
+
+    const updateInput = (name: string, value: string) => {
+        const newArgs = [];
+        const params = [];
+        for (const input of constructorArgs?.inputs ?? []) {
+            params.push(input);
+            if (input.name === name) {
+                newArgs.push(value);
+            } else {
+                newArgs.push("");
+            }
+        }
+
+        const binary = [];
+        for (let idx = 0; idx < newArgs.length; idx++) {
+            const param = params[idx];
+            if (param.type === "uint256") {
+                binary.push(BigInt(newArgs[idx]).toString(16).padStart(64, "0"));
+            }
+            if (param.type === "address") {
+                binary.push(BigInt(newArgs[idx]).toString(16).padStart(64, "0"));
+            }
+        }
+        props.setConstructorArgs(newArgs.join(","));
+    };
 
     return (
         <div>
@@ -48,6 +106,7 @@ const InputParameters = (props: InputParametersProps) => {
                                 name={input.name}
                                 type={input.type}
                                 value={props.constructorArgs}
+                                setValue={(value) => updateInput(input.name, value)}
                             />
                         );
                     })}

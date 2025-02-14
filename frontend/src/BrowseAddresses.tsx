@@ -184,7 +184,7 @@ const BrowseAddresses = () => {
                 <MenuItem value={"free"}>Free</MenuItem>
                 <MenuItem value={"reserved"}>Reserved</MenuItem>
                 <MenuItem value={"all"}>All</MenuItem>
-                <MenuItem value={"my"}>My</MenuItem>
+                <MenuItem value={"mine"}>Mine</MenuItem>
             </Select>
             <FormControlLabel
                 label="Show newest"

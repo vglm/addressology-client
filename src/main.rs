@@ -78,10 +78,31 @@ pub struct ServerData {
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct DeployDataContractEvmBytecode {
+    pub object: String,
+    pub opcodes: String,
+    pub source_map: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DeployDataContractEvm {
+    pub bytecode: DeployDataContractEvmBytecode,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DeployDataContract {
+    pub evm: DeployDataContractEvm,
+    pub metadata: String,
+    pub single_file_code: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct DeployData {
-    pub address: DbAddress,
-    pub network: String,
-    pub bytecode: String,
+    pub name: String,
+    pub contract: DeployDataContract,
     pub constructor_args: String,
 }
 

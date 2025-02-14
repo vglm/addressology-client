@@ -45,7 +45,8 @@ pub async fn handle_fancy_deploy(
     let bytes = hex::decode(deploy_data.constructor_args.replace("0x", "").clone())
         .map_err(|e| err_custom_create!("Failed to decode constructor args: {}", e))?;
 
-    let total_bytes = deploy_data.bytecode.clone() + &hex::encode(bytes);
+    let total_bytes =
+        "0x".to_string() + &deploy_data.contract.evm.bytecode.object + &hex::encode(bytes);
 
     let env_vars = vec![
         ("ADDRESS", format!("{:#x}", fancy.address.addr())),
@@ -53,6 +54,8 @@ pub async fn handle_fancy_deploy(
         ("SALT", fancy.salt.clone()),
         ("BYTECODE", total_bytes.clone()),
     ];
+
+    log::info!("{:?}", env_vars);
 
     log::info!("Running command: {:#?}", args);
     let cmd = tokio::process::Command::new(args[0])

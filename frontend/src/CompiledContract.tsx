@@ -8,21 +8,34 @@ import { Button, MenuItem, Select } from "@mui/material";
 import { ContractCompiled, ContractSaved } from "./model/Contract";
 import "./CompiledContract.css";
 import { useParams } from "react-router-dom";
-import InputParameters from "./InputParameters";
+import InputParameters, { encodeConstructorParameters } from "./InputParameters";
+import { Fancy } from "./model/Fancy";
 
 const CompiledContract = () => {
     const [contractDetails, setContractDetails] = useState<ContractSaved | null>(null);
     const [contractName, setContractName] = useState("");
-    const [network, setNetwork] = useState("holesky");
     const [networkCopyTo, setNetworkCopyTo] = useState("holesky");
 
-    const [address, setAddress] = useState<string | null>(null);
+    const [availableAddresses, setAvailableAddresses] = useState<Fancy[]>([]);
     const [constructorArgs, setConstructorArgs] = useState("");
     const [networks, setNetworks] = useState<string[]>([]);
     const [bytecode, setBytecode] = useState<string | null>(null);
     const [metadata, setMetadata] = useState<any | null>(null);
     const [sourceCode, setSourceCode] = useState<string | null>(null);
     const { contractId } = useParams();
+
+    const [constructorBinary, setConstructorBinary] = useState<string>("");
+
+    const setConstructorArgs2 = (args: string) => {
+        let binaryFromArgs = "";
+        setConstructorArgs(args);
+        try {
+            binaryFromArgs = encodeConstructorParameters(JSON.stringify(metadata.output.abi), args);
+            setConstructorBinary(binaryFromArgs);
+        } catch (e) {
+            console.error(e);
+        }
+    };
 
     const getContractDetails = async () => {
         const response = await backendFetch(`/api/contract/${contractId}`, {
@@ -33,10 +46,9 @@ const CompiledContract = () => {
 
         const data: ContractCompiled = JSON.parse(contract.data);
 
-        setNetwork(contract.network);
         setBytecode(data.contract.evm.bytecode.object);
         setContractName(data.name);
-        setConstructorArgs(data.constructorArgs);
+        setConstructorBinary(data.constructorArgs);
         setMetadata(JSON.parse(data.contract.metadata));
         setSourceCode(data.contract.singleFileCode);
 
@@ -47,12 +59,12 @@ const CompiledContract = () => {
         return ["holesky", "amoy"];
     };
 
-    const getAddress = async () => {
-        const response = await backendFetch("/api/fancy/random", {
+    const searchAddresses = async () => {
+        const response = await backendFetch("/api/fancy/list?free=mine", {
             method: "Get",
         });
-        const address = await response.json();
-        setAddress(address.address);
+        const addresses = await response.json();
+        setAvailableAddresses(addresses);
     };
 
     useEffect(() => {
@@ -81,20 +93,21 @@ const CompiledContract = () => {
             body: JSON.stringify({
                 data: JSON.stringify(data),
                 network: networkCopyTo,
-                address: address,
+                address: contractDetails.address,
             }),
         });
         const deploy = await response.json();
         console.log(deploy);
     };
 
-    const saveChanges = async () => {
+    const assignAddress = async (address: string) => {
+        console.log("Assigning address", address);
         const data: ContractCompiled = JSON.parse(contractDetails.data);
         const newContract: ContractSaved = {
             ...contractDetails,
             data: JSON.stringify(data),
             network: networkCopyTo,
-            address: address,
+            address: contractDetails.address,
         };
 
         const response = await backendFetch("/api/contract/update", {
@@ -104,6 +117,25 @@ const CompiledContract = () => {
         const deploy = await response.json();
         console.log(deploy);
     };
+
+    const saveChanges = async () => {
+        const data: ContractCompiled = JSON.parse(contractDetails.data);
+        data.constructorArgs = constructorBinary;
+        const newContract: ContractSaved = {
+            ...contractDetails,
+            data: JSON.stringify(data),
+            network: networkCopyTo,
+            address: contractDetails.address,
+        };
+
+        const response = await backendFetch("/api/contract/update", {
+            method: "Post",
+            body: JSON.stringify(newContract),
+        });
+        const deploy = await response.json();
+        console.log(deploy);
+    };
+
     /*
     const metadata = JSON.parse(props.contract.metadata) as CompilerMetadata;
 
@@ -115,8 +147,17 @@ const CompiledContract = () => {
     return (
         <div>
             <h3>Contract {contractName}</h3>
-            <div>Address {address}</div>
-            <Button onClick={(_e) => getAddress()}>Get Random Address</Button>
+            <div>Address {contractDetails?.address ?? "Unassigned"}</div>
+            <Button onClick={(_e) => searchAddresses()}>Assign address...</Button>
+            <div>
+                Addresses:
+                {availableAddresses.map((fancy) => (
+                    <div key={fancy.address}>
+                        <div>{fancy.address}</div>
+                        <button onClick={(_e) => assignAddress(fancy.address)}>Choose</button>
+                    </div>
+                ))}
+            </div>
             <div>
                 Compiler version: {metadata.language} - {metadata.compiler.version}
             </div>
@@ -160,8 +201,8 @@ const CompiledContract = () => {
             />
             Constructor binary data
             <textarea
-                value={constructorArgs}
-                onChange={(e) => setConstructorArgs(e.target.value)}
+                value={constructorBinary}
+                onChange={(e) => setConstructorBinary(e.target.value)}
                 style={{
                     backgroundColor: "#f5f5f5",
                     border: "1px solid #ddd",
@@ -203,22 +244,10 @@ const CompiledContract = () => {
                 <Button onClick={(_e) => copyContract()}>Copy to</Button>
                 <Button onClick={(_e) => saveChanges()}>Save changes</Button>
             </div>
-            <Select
-                variant={"filled"}
-                value={network}
-                onChange={(e) => setNetwork(e.target.value)}
-                style={{ width: "100px" }}
-            >
-                {networks.map((network) => (
-                    <MenuItem key={network} value={network}>
-                        {network}
-                    </MenuItem>
-                ))}
-            </Select>
             <InputParameters
                 abi={JSON.stringify(metadata.output.abi)}
                 constructorArgs={constructorArgs}
-                setConstructorArgs={setConstructorArgs}
+                setConstructorArgs={setConstructorArgs2}
             ></InputParameters>
             <Button onClick={(_e) => deploySourceCode()}>Deploy</Button>
             <div style={{ height: 300 }}>Empty</div>

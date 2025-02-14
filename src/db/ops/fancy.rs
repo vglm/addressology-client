@@ -43,10 +43,18 @@ pub enum FancyOrderBy {
     Created,
 }
 
+pub enum ReservedStatus {
+    All,
+    Reserved,
+    NotReserved,
+    User(String),
+}
+
 pub async fn fancy_list(
     conn: &SqlitePool,
     category: Option<String>,
     order_by: FancyOrderBy,
+    reserved: ReservedStatus,
     since: Option<DateTime<Utc>>,
     limit: i64,
 ) -> Result<Vec<FancyProviderDbObj>, sqlx::Error> {
@@ -54,16 +62,23 @@ pub async fn fancy_list(
         FancyOrderBy::Score => "score",
         FancyOrderBy::Created => "created",
     };
+
+    let owner_condition = match reserved {
+        ReservedStatus::All => "1=1".to_string(),
+        ReservedStatus::Reserved => "f.owner is NOT NULL".to_string(),
+        ReservedStatus::NotReserved => "f.owner is NULL".to_string(),
+        ReservedStatus::User(user) => format!("f.owner = '{}'", user).to_string(),
+    };
+
     let res = sqlx::query_as::<_, FancyProviderDbObj>(
         format!(
             r"SELECT f.*, mi.prov_name, mi.prov_node_id, mi.prov_reward_addr
             FROM fancy as f LEFT JOIN job_info as ji ON f.job=ji.uid LEFT JOIN miner_info as mi ON mi.uid=ji.miner
             WHERE
-                f.owner is NULL
-                and f.category LIKE $2
-                and f.created > $3
-            ORDER BY {} DESC LIMIT $1;",
-            order_by
+                {owner_condition}
+                AND f.category LIKE $2
+                AND f.created > $3
+            ORDER BY {order_by} DESC LIMIT $1;"
         )
         .as_str(),
     )

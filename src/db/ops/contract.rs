@@ -107,7 +107,8 @@ where
     deploy_status = $6,
     deploy_requested = $7,
     deploy_sent = $8,
-    deployed = $9
+    deployed = $9,
+    address = $10
     WHERE contract_id = $3 AND user_id = $4 RETURNING *;",
     )
     .bind(contract.data)
@@ -119,6 +120,7 @@ where
     .bind(contract.deploy_requested)
     .bind(contract.deploy_sent)
     .bind(contract.deployed)
+    .bind(contract.address)
     .fetch_one(conn)
     .await?;
     Ok(obj)

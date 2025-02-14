@@ -3,10 +3,15 @@ pub mod tokens;
 
 use crate::api::utils::{extract_url_date_param, extract_url_int_param, extract_url_param};
 use crate::db::model::{DeployStatus, JobDbObj, MinerDbObj, UserDbObj};
-use crate::db::ops::{fancy_finish_job, fancy_get_by_address, fancy_get_job_info, fancy_get_miner_info, fancy_insert_job_info, fancy_insert_miner_info, fancy_list, fancy_update_job, fancy_update_owner, get_contract_by_id, get_user, insert_fancy_obj, update_contract_data, update_user_tokens, FancyOrderBy};
+use crate::db::ops::{
+    fancy_finish_job, fancy_get_by_address, fancy_get_job_info, fancy_get_miner_info,
+    fancy_insert_job_info, fancy_insert_miner_info, fancy_list, fancy_update_job,
+    fancy_update_owner, get_contract_by_id, get_user, insert_fancy_obj, update_contract_data,
+    update_user_tokens, FancyOrderBy, ReservedStatus,
+};
 use crate::fancy::parse_fancy;
 use crate::types::DbAddress;
-use crate::{login_check_and_get, normalize_address, ServerData};
+use crate::{get_logged_user_or_null, login_check_and_get, normalize_address, ServerData};
 use actix_session::Session;
 use actix_web::{web, HttpRequest, HttpResponse};
 use chrono::NaiveDateTime;
@@ -29,25 +34,47 @@ pub async fn handle_random(
     if category == Some("all".to_string()) {
         category = None
     }
-    let list = fancy_list(&conn, category, FancyOrderBy::Score, None, 1000)
-        .await
-        .unwrap();
+    let list = fancy_list(
+        &conn,
+        category,
+        FancyOrderBy::Score,
+        ReservedStatus::NotReserved,
+        None,
+        1000,
+    )
+    .await
+    .unwrap();
     let random = list.choose(&mut rand::thread_rng()).unwrap();
 
     Ok(HttpResponse::Ok().json(random))
 }
 
-
 pub async fn handle_list(
     server_data: web::Data<Box<ServerData>>,
     request: HttpRequest,
+    session: Session,
 ) -> Result<HttpResponse, actix_web::Error> {
+    let user = get_logged_user_or_null!(session);
     let conn = server_data.db_connection.lock().await;
     let limit = extract_url_int_param(&request, "limit")?;
     let mut category = extract_url_param(&request, "category")?;
     if category == Some("all".to_string()) {
         category = None
     }
+    let free = extract_url_param(&request, "free")?;
+    let reserved_status = match free.unwrap_or("free".to_string()).as_str() {
+        "mine" => {
+            if let Some(user) = user {
+                ReservedStatus::User(user.uid)
+            } else {
+                return Ok(HttpResponse::Unauthorized().finish());
+            }
+        }
+        "reserved" => ReservedStatus::Reserved,
+        "all" => ReservedStatus::All,
+        "free" => ReservedStatus::NotReserved,
+        _ => ReservedStatus::NotReserved,
+    };
     let order = extract_url_param(&request, "order")?.unwrap_or("score".to_string());
     let since = extract_url_date_param(&request, "since")?;
     let order = match order.as_str() {
@@ -63,14 +90,22 @@ pub async fn handle_list(
         since
     );
 
-    let list =
-        match fancy_list(&conn, category, order, since, limit.unwrap_or(100)).await {
-            Ok(list) => list,
-            Err(e) => {
-                log::error!("{}", e);
-                return Ok(HttpResponse::InternalServerError().finish());
-            }
-        };
+    let list = match fancy_list(
+        &conn,
+        category,
+        order,
+        reserved_status,
+        since,
+        limit.unwrap_or(100),
+    )
+    .await
+    {
+        Ok(list) => list,
+        Err(e) => {
+            log::error!("{}", e);
+            return Ok(HttpResponse::InternalServerError().finish());
+        }
+    };
 
     Ok(HttpResponse::Ok().json(list))
 }
@@ -86,6 +121,7 @@ pub async fn handle_fancy_estimate_total_hash(
             &conn,
             Some("leading_zeroes".to_string()),
             FancyOrderBy::Score,
+            ReservedStatus::All,
             since,
             100000000,
         )

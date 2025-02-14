@@ -117,6 +117,7 @@ impl DbAddress {
         Ok(Self(Address::from_str(addr)?))
     }
 
+    #[allow(dead_code)]
     pub fn from_h160(h160: H160) -> Self {
         Self(Address::from(h160))
     }

@@ -37,6 +37,19 @@ macro_rules! login_check_and_get {
     };
 }
 
+//macro login check
+// Define the macro for login check
+#[macro_export]
+macro_rules! get_logged_user_or_null {
+    ($session:expr) => {
+        if let Some(usr_db_obj) = $session.get::<UserDbObj>("user").unwrap_or(None) {
+            Some(usr_db_obj)
+        } else {
+            None
+        }
+    };
+}
+
 #[macro_export]
 macro_rules! normalize_address {
     ($address:expr) => {{
