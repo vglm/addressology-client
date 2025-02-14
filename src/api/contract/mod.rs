@@ -96,7 +96,9 @@ pub async fn update_contract_info_api(
             }
         };
 
-    if new_contract_version.deploy_status != DeployStatus::None {
+    if new_contract_version.address.is_some()
+        && new_contract_version.deploy_status != DeployStatus::None
+    {
         log::error!("Contract is not in None state");
         return HttpResponse::BadRequest()
             .body("Contract is already sent for deployment and cannot be updated");

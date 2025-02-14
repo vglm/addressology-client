@@ -77,12 +77,18 @@ pub async fn compile_solc(
         Ok(cmd) => cmd,
         Err(err) => return Err(err_custom_create!("Error starting solc: {} {}", bin, err)),
     };
+    let optimized_str = "true";
+    let optimizer_runs_str = "2000";
     let sol_input_json = r#"
 {
     "language": "Solidity",
     "sources": {
     },
     "settings": {
+        "optimizer": {
+            "enabled": %ENABLED%,
+            "runs": %RUNS%
+        },
         "outputSelection": {
             "*": {
                 "*": [
@@ -93,9 +99,11 @@ pub async fn compile_solc(
         }
     }
 }
-"#;
+"#
+    .replace("%ENABLED%", optimized_str)
+    .replace("%RUNS%", optimizer_runs_str);
 
-    let mut sol_input_json = serde_json::from_str::<serde_json::Value>(sol_input_json)
+    let mut sol_input_json = serde_json::from_str::<serde_json::Value>(&sol_input_json)
         .map_err(|err| err_custom_create!("Error parsing solc input json: {}", err))?;
 
     for (source_name, source_code) in sources {

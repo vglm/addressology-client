@@ -1,5 +1,5 @@
 use crate::db::model::ContractDbObj;
-use crate::db::ops::fancy_get_by_address;
+use crate::db::ops::{fancy_get_by_address, update_contract_data};
 use crate::error::AddressologyError;
 use crate::types::DbAddress;
 use crate::{err_custom_create, DeployData};
@@ -11,6 +11,7 @@ pub async fn handle_fancy_deploy(
 ) -> Result<(), AddressologyError> {
     let address = contract
         .address
+        .clone()
         .ok_or_else(|| err_custom_create!("Address not found on db obj"))?;
 
     let address = DbAddress::from_str(&address)
@@ -57,6 +58,15 @@ pub async fn handle_fancy_deploy(
 
     log::info!("{:?}", env_vars);
 
+    {
+        let mut new_contract = contract.clone();
+        new_contract.deploy_sent = Some(chrono::Utc::now().naive_utc());
+        new_contract.deploy_status = crate::db::model::DeployStatus::TxSent;
+        update_contract_data(conn, new_contract)
+            .await
+            .map_err(|e| err_custom_create!("Failed to update contract: {}", e))?;
+    }
+
     log::info!("Running command: {:#?}", args);
     let cmd = tokio::process::Command::new(args[0])
         .stdout(std::process::Stdio::piped())
@@ -74,6 +84,13 @@ pub async fn handle_fancy_deploy(
     let output_str = String::from_utf8_lossy(&output.stdout);
     log::info!("Command output: {}", output_str.to_string());
     if output.status.success() {
+        let mut new_contract = contract.clone();
+        new_contract.deployed = Some(chrono::Utc::now().naive_utc());
+        new_contract.deploy_status = crate::db::model::DeployStatus::Succeeded;
+        update_contract_data(conn, new_contract)
+            .await
+            .map_err(|e| err_custom_create!("Failed to update contract: {}", e))?;
+
         Ok(())
     } else {
         log::error!(
