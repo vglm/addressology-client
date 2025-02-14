@@ -37,29 +37,13 @@ pub async fn fancy_list_all(conn: &SqlitePool) -> Result<Vec<FancyDbObj>, sqlx::
     Ok(res)
 }
 
-pub async fn fancy_list_all_free(conn: &SqlitePool) -> Result<Vec<FancyDbObj>, sqlx::Error> {
-    let res = sqlx::query_as::<_, FancyDbObj>(r"SELECT * FROM fancy WHERE owner is NULL;")
-        .fetch_all(conn)
-        .await?;
-    Ok(res)
-}
-
-pub async fn fancy_list_newest(conn: &SqlitePool) -> Result<Vec<FancyDbObj>, sqlx::Error> {
-    let res = sqlx::query_as::<_, FancyDbObj>(
-        r"SELECT * FROM fancy WHERE owner is NULL ORDER BY created DESC LIMIT 100;",
-    )
-    .fetch_all(conn)
-    .await?;
-    Ok(res)
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FancyOrderBy {
     Score,
     Created,
 }
 
-pub async fn fancy_list_best_score(
+pub async fn fancy_list(
     conn: &SqlitePool,
     category: Option<String>,
     order_by: FancyOrderBy,
@@ -72,7 +56,7 @@ pub async fn fancy_list_best_score(
     };
     let res = sqlx::query_as::<_, FancyProviderDbObj>(
         format!(
-            r"SELECT f.*, mi.prov_name
+            r"SELECT f.*, mi.prov_name, mi.prov_node_id, mi.prov_reward_addr
             FROM fancy as f LEFT JOIN job_info as ji ON f.job=ji.uid LEFT JOIN miner_info as mi ON mi.uid=ji.miner
             WHERE
                 f.owner is NULL

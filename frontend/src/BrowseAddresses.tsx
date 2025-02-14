@@ -58,6 +58,7 @@ const BrowseAddresses = () => {
     const [gpu, setGpu] = useState<string>("RTX 3060");
 
     const [showType, setShowType] = useState<string>("today");
+    const [showFree, setShowFree] = useState<string>("free");
 
     const showTypeToSince = (showType: string): string => {
         if (showType == "today") {
@@ -77,7 +78,7 @@ const BrowseAddresses = () => {
         const order = newest ? "created" : "score";
         const since = showTypeToSince(showType);
         const response = await backendFetch(
-            `/api/fancy/list_best_score?limit=1000&order=${order}&category=${selectedCategory}&since=${since}`,
+            `/api/fancy/list?limit=1000&order=${order}&category=${selectedCategory}&since=${since}&free=${showFree}`,
             {
                 method: "Get",
             },
@@ -179,7 +180,12 @@ const BrowseAddresses = () => {
                 <MenuItem value={"last hour"}>Last hour</MenuItem>
                 <MenuItem value={"all"}>All</MenuItem>
             </Select>
-
+            <Select variant={"outlined"} defaultValue={showFree} onChange={(e) => setShowFree(e.target.value)}>
+                <MenuItem value={"free"}>Free</MenuItem>
+                <MenuItem value={"reserved"}>Reserved</MenuItem>
+                <MenuItem value={"all"}>All</MenuItem>
+                <MenuItem value={"my"}>My</MenuItem>
+            </Select>
             <FormControlLabel
                 label="Show newest"
                 control={<Checkbox value={newest} onChange={(e) => setNewest(e.target.checked)}></Checkbox>}
@@ -211,6 +217,7 @@ const BrowseAddresses = () => {
                         <th>Category</th>
                         <th>Created</th>
                         <th>Miner</th>
+                        <th>Provider</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -240,6 +247,13 @@ const BrowseAddresses = () => {
                                 <td>{fancy.category}</td>
                                 <td>{fancy.created}</td>
                                 <td>{fancy.provName}</td>
+                                <td>
+                                    <a
+                                        href={`https://stats.golem.network/network/provider/${fancy.provNodeId}?node_id=${fancy.provRewardAddr}`}
+                                    >
+                                        Golem Stats: {fancy.provName}
+                                    </a>
+                                </td>
                             </tr>
                         );
                     })}

@@ -27,6 +27,8 @@ export interface Fancy {
     created: string;
     job: string | null;
     provName: string;
+    provNodeId: string;
+    provRewardAddr: string;
 }
 
 export interface UserTokenResponse {

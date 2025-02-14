@@ -3,17 +3,12 @@ pub mod tokens;
 
 use crate::api::utils::{extract_url_date_param, extract_url_int_param, extract_url_param};
 use crate::db::model::{DeployStatus, JobDbObj, MinerDbObj, UserDbObj};
-use crate::db::ops::{
-    fancy_finish_job, fancy_get_by_address, fancy_get_job_info, fancy_get_miner_info,
-    fancy_insert_job_info, fancy_insert_miner_info, fancy_list_all_free, fancy_list_best_score,
-    fancy_list_newest, fancy_update_job, fancy_update_owner, get_contract_by_id, get_user,
-    insert_fancy_obj, update_contract_data, update_user_tokens, FancyOrderBy,
-};
+use crate::db::ops::{fancy_finish_job, fancy_get_by_address, fancy_get_job_info, fancy_get_miner_info, fancy_insert_job_info, fancy_insert_miner_info, fancy_list, fancy_update_job, fancy_update_owner, get_contract_by_id, get_user, insert_fancy_obj, update_contract_data, update_user_tokens, FancyOrderBy};
 use crate::fancy::parse_fancy;
 use crate::types::DbAddress;
 use crate::{login_check_and_get, normalize_address, ServerData};
 use actix_session::Session;
-use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use actix_web::{web, HttpRequest, HttpResponse};
 use chrono::NaiveDateTime;
 use pbkdf2::password_hash::rand_core::RngCore;
 use rand::prelude::SliceRandom;
@@ -34,7 +29,7 @@ pub async fn handle_random(
     if category == Some("all".to_string()) {
         category = None
     }
-    let list = fancy_list_best_score(&conn, category, FancyOrderBy::Score, None, 1000)
+    let list = fancy_list(&conn, category, FancyOrderBy::Score, None, 1000)
         .await
         .unwrap();
     let random = list.choose(&mut rand::thread_rng()).unwrap();
@@ -42,21 +37,8 @@ pub async fn handle_random(
     Ok(HttpResponse::Ok().json(random))
 }
 
-pub async fn handle_list(server_data: web::Data<Box<ServerData>>) -> impl Responder {
-    let conn = server_data.db_connection.lock().await;
-    let list = fancy_list_all_free(&conn).await.unwrap();
 
-    HttpResponse::Ok().json(list)
-}
-
-pub async fn handle_list_newest(server_data: web::Data<Box<ServerData>>) -> impl Responder {
-    let conn = server_data.db_connection.lock().await;
-    let list = fancy_list_newest(&conn).await.unwrap();
-
-    HttpResponse::Ok().json(list)
-}
-
-pub async fn handle_list_best_score(
+pub async fn handle_list(
     server_data: web::Data<Box<ServerData>>,
     request: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
@@ -82,7 +64,7 @@ pub async fn handle_list_best_score(
     );
 
     let list =
-        match fancy_list_best_score(&conn, category, order, since, limit.unwrap_or(100)).await {
+        match fancy_list(&conn, category, order, since, limit.unwrap_or(100)).await {
             Ok(list) => list,
             Err(e) => {
                 log::error!("{}", e);
@@ -100,7 +82,7 @@ pub async fn handle_fancy_estimate_total_hash(
     let since = extract_url_date_param(&request, "since")?;
     let fancies = {
         let conn = server_data.db_connection.lock().await;
-        match fancy_list_best_score(
+        match fancy_list(
             &conn,
             Some("leading_zeroes".to_string()),
             FancyOrderBy::Score,
