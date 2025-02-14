@@ -108,7 +108,7 @@ const CompiledContract = () => {
             ...contractDetails,
             data: JSON.stringify(data),
             network: networkCopyTo,
-            address: contractDetails.address,
+            address,
         };
 
         const response = await backendFetch("/api/contract/update", {
