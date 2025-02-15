@@ -43,8 +43,14 @@ pub async fn handle_fancy_deploy(
         vec!["/bin/bash", "-c", &command]
     };
 
-    let bytes = hex::decode(deploy_data.constructor_args.replace("0x", "").clone())
-        .map_err(|e| err_custom_create!("Failed to decode constructor args: {}", e))?;
+    let bytes =
+        hex::decode(deploy_data.constructor_args.replace("0x", "").clone()).map_err(|e| {
+            err_custom_create!(
+                "Failed to decode constructor args: {}. Args provided: {}",
+                e,
+                deploy_data.constructor_args
+            )
+        })?;
 
     let total_bytes =
         "0x".to_string() + &deploy_data.contract.evm.bytecode.object + &hex::encode(bytes);
