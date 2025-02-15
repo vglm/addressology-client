@@ -44,7 +44,7 @@ pub async fn handle_fancy_deploy(
     };
 
     let bytes =
-        hex::decode(deploy_data.constructor_args.replace("0x", "").clone()).map_err(|e| {
+        hex::decode(deploy_data.constructor_args.replace("0x", "").trim_ascii()).map_err(|e| {
             err_custom_create!(
                 "Failed to decode constructor args: {}. Args provided: {}",
                 e,
