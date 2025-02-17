@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from "react";
-import { ConstructorFragment, ethers } from "ethers";
+import React, { useMemo } from "react";
+import { BytesLike, ethers } from "ethers";
 import InputParameter from "./InputParameter";
 
 interface InputParametersProps {
     abi: string;
-    constructorArgs: string;
-    setConstructorArgs: (args: string) => void;
+    constructorBinary: string;
+    setConstructorBinary: (binary: string) => void;
 }
 
-function decodeConstructorParameters(abiStr: string) {
+function extractConstructorDefinitionFromAbi(abiStr: string) {
     // Create an Interface from the ABI
     const abi = JSON.parse(abiStr);
     const contractInterface = new ethers.Interface(abi);
@@ -22,9 +22,33 @@ function decodeConstructorParameters(abiStr: string) {
     return contractInterface.deploy;
 }
 
+export function decodeConstructorParameters(abiStr: string, binary: BytesLike) {
+    const fragment = extractConstructorDefinitionFromAbi(abiStr);
+    const decoded = ethers.AbiCoder.defaultAbiCoder().decode(fragment.inputs, binary);
+    for (let idx = 0; idx < fragment.inputs.length; idx++) {
+        console.log(fragment.inputs[idx].name, decoded[idx]);
+    }
+    return decoded;
+}
+
+export function encodeConstructorDefaults(abiStr: string) {
+    const fragment = extractConstructorDefinitionFromAbi(abiStr);
+    const binary = [];
+    for (const input of fragment.inputs) {
+        if (input.type === "uint256") {
+            binary.push("0".repeat(64));
+        } else if (input.type === "address") {
+            binary.push("0".repeat(64));
+        } else {
+            throw new Error(`Unsupported type ${input.type}`);
+        }
+    }
+    return binary.join("");
+}
+
 export function encodeConstructorParameters(abiStr: string, argStr: string) {
     const args = argStr.split(",");
-    const fragment = decodeConstructorParameters(abiStr);
+    const fragment = extractConstructorDefinitionFromAbi(abiStr);
     if (args.length !== fragment.inputs.length) {
         throw new Error("Invalid number of arguments");
     }
@@ -44,34 +68,25 @@ export function encodeConstructorParameters(abiStr: string, argStr: string) {
 }
 
 const InputParameters = (props: InputParametersProps) => {
-    const [constructorArgs, setConstructorArgs] = useState<ConstructorFragment | null>(null);
+    const constructorAbi = useMemo(() => {
+        return extractConstructorDefinitionFromAbi(props.abi);
+    }, [props.abi]);
 
-    useEffect(() => {
-        setConstructorArgs(decodeConstructorParameters(props.abi));
-        updateConstructorArgs();
-    }, []);
-
-    const updateConstructorArgs = () => {
-        const newArgs = [];
-        for (const _input of constructorArgs?.inputs ?? []) {
-            newArgs.push(props.constructorArgs);
-        }
-        const binary = [];
-        for (const arg of newArgs) {
-            binary.push(ethers.hexlify(ethers.toUtf8Bytes(arg)));
-        }
-    };
+    const constrBinary = props.constructorBinary;
 
     const updateInput = (name: string, value: string) => {
         const newArgs = [];
         const params = [];
-        for (const input of constructorArgs?.inputs ?? []) {
+        decodedData = decodeConstructorParameters(props.abi, "0x" + constrBinary);
+        let idx = 0;
+        for (const input of constructorAbi.inputs ?? []) {
             params.push(input);
             if (input.name === name) {
                 newArgs.push(value);
             } else {
-                newArgs.push("");
+                newArgs.push(decodedData[idx]);
             }
+            idx += 1;
         }
 
         const binary = [];
@@ -84,8 +99,26 @@ const InputParameters = (props: InputParametersProps) => {
                 binary.push(BigInt(newArgs[idx]).toString(16).padStart(64, "0"));
             }
         }
-        props.setConstructorArgs(newArgs.join(","));
+        try {
+            decodeConstructorParameters(props.abi, "0x" + binary.join(""));
+            //if decoding succeeded, update the binary
+            props.setConstructorBinary(binary.join(""));
+        } catch (e) {
+            return;
+        }
     };
+
+    let decodedData: null | ethers.Result = null;
+    try {
+        decodedData = decodeConstructorParameters(props.abi, "0x" + constrBinary);
+    } catch (e) {
+        if (!decodedData) {
+            return <div>Failed to decode data</div>;
+        }
+    }
+    if (decodedData.length != constructorAbi.inputs.length) {
+        return <div>Invalid number of arguments</div>;
+    }
 
     return (
         <div>
@@ -93,23 +126,29 @@ const InputParameters = (props: InputParametersProps) => {
 
             <div>
                 <h2>Constructor Arguments</h2>
+                <div>{constrBinary}</div>
                 <table>
-                    <tr>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>Value</th>
-                    </tr>
-                    {constructorArgs?.inputs.map((input) => {
-                        return (
-                            <InputParameter
-                                key={input.name}
-                                name={input.name}
-                                type={input.type}
-                                value={props.constructorArgs}
-                                setValue={(value) => updateInput(input.name, value)}
-                            />
-                        );
-                    })}
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {constructorAbi.inputs.map((input, idx) => {
+                            const val = decodedData ? decodedData[idx] : "";
+                            return (
+                                <InputParameter
+                                    key={input.name}
+                                    name={input.name}
+                                    type={input.type}
+                                    value={val}
+                                    setValue={(value) => updateInput(input.name, value)}
+                                />
+                            );
+                        })}
+                    </tbody>
                 </table>
             </div>
         </div>
