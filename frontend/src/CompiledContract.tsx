@@ -48,7 +48,7 @@ const CompiledContract = () => {
     };
 
     const searchAddresses = async () => {
-        const response = await backendFetch("/api/fancy/mylist?unassigned_only=true", {
+        const response = await backendFetch("/api/fancy/mylist", {
             method: "Get",
         });
         const addresses = await response.json();
@@ -164,9 +164,16 @@ const CompiledContract = () => {
             <div>
                 Addresses:
                 {availableAddresses.map((fancy) => {
+                    if (fancy.assignedContracts.find((c) => c.network === contractDetails?.network)) {
+                        return <div key={fancy.address}>{fancy.address} (assigned)</div>;
+                    }
+                    let alreadyAssigned = "";
+                    if (fancy.assignedContracts.length > 0) {
+                        alreadyAssigned = " (already assigned to other networks)";
+                    }
                     return (
                         <div key={fancy.address}>
-                            <div>{fancy.address}</div>
+                            <div>{fancy.address} {alreadyAssigned}</div>
                             <button onClick={(_e) => assignAddress(fancy.address)}>Choose</button>
                         </div>
                     );
