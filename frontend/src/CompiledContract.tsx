@@ -44,7 +44,7 @@ const CompiledContract = () => {
     };
 
     const getNetworks = async () => {
-        return ["holesky", "amoy"];
+        return ["holesky", "amoy", "polygon"];
     };
 
     const searchAddresses = async () => {

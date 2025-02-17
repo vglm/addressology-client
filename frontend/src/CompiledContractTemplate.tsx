@@ -21,7 +21,7 @@ const CompiledContractTemplate = (props: CompiledContractProps) => {
     const [networks, setNetworks] = useState<string[]>([]);
 
     const getNetworks = async () => {
-        return ["holesky", "amoy"];
+        return ["holesky", "amoy", "polygon"];
     };
 
     useEffect(() => {
