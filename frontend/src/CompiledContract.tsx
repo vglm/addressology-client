@@ -8,10 +8,7 @@ import { Button, MenuItem, Select } from "@mui/material";
 import { ContractCompiled, ContractSaved } from "./model/Contract";
 import "./CompiledContract.css";
 import { useParams } from "react-router-dom";
-import InputParameters, {
-    decodeConstructorParameters,
-    encodeConstructorDefaults,
-} from "./InputParameters";
+import InputParameters, { decodeConstructorParameters, encodeConstructorDefaults } from "./InputParameters";
 import { Fancy } from "./model/Fancy";
 
 const CompiledContract = () => {
