@@ -1,10 +1,10 @@
-mod api;
+pub mod api;
 pub mod compile;
 
 use crate::db::model::{ContractCreateFromApi, ContractDbObj, DeployStatus, UserDbObj};
 use crate::db::ops::{
-    delete_contract_by_id, get_all_contracts_by_user, get_contract_by_id, insert_contract_obj,
-    update_contract_data,
+    delete_contract_by_id, get_all_contracts_by_user, get_contract_address_list,
+    get_contract_by_id, insert_contract_obj, update_contract_data,
 };
 use crate::{login_check_and_get, ServerData};
 use actix_session::Session;
@@ -130,6 +130,23 @@ pub async fn get_contracts_api(data: Data<Box<ServerData>>, session: Session) ->
     let db = data.db_connection.lock().await;
 
     match get_all_contracts_by_user(&db, user.uid).await {
+        Ok(contracts) => HttpResponse::Ok().json(contracts),
+        Err(e) => {
+            log::error!("Error getting scan info: {}", e);
+            HttpResponse::InternalServerError().finish()
+        }
+    }
+}
+
+pub async fn get_all_contract_assignments(
+    data: Data<Box<ServerData>>,
+    session: Session,
+) -> HttpResponse {
+    let user: UserDbObj = login_check_and_get!(session);
+
+    let db = data.db_connection.lock().await;
+
+    match get_contract_address_list(&*db, &user.uid).await {
         Ok(contracts) => HttpResponse::Ok().json(contracts),
         Err(e) => {
             log::error!("Error getting scan info: {}", e);

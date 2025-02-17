@@ -1,3 +1,5 @@
+use crate::db::model::UserDbObj;
+use actix_session::Session;
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -5,6 +7,15 @@ lazy_static! {
         let val = std::env::var("IGNORE_SCAN_API_LOGIN").unwrap_or_default();
         val == "1" || val.to_lowercase() == "true"
     };
+}
+
+pub fn login_check_fn(session: Session) -> Result<UserDbObj, actix_web::Error> {
+    if let Some(user) = session.get::<UserDbObj>("user").unwrap_or(None) {
+        Ok(user)
+    } else {
+        // User is not logged in, return an unauthorized error
+        Err(actix_web::error::ErrorUnauthorized("Not logged in"))
+    }
 }
 
 //macro login check

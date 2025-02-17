@@ -57,3 +57,31 @@ export interface ContractSaved {
     deploySent: string | null;
     deployed: string | null;
 }
+
+export interface ContractAssigned {
+    contractId: string;
+    userId: string;
+    created: string;
+    address: string;
+    network: string;
+    tx: string | null;
+    deployStatus: string;
+    deployRequested: string | null;
+    deploySent: string | null;
+    deployed: string | null;
+}
+export interface FancyAssignedAddress {
+    address: string;
+    salt: string;
+    factory: string;
+    created: string;
+    score: number;
+    owner: string;
+    price: number;
+    category: string;
+    job: string;
+    provName: string;
+    provNodeId: string;
+    provRewardAddr: string;
+    assignedContracts: ContractAssigned[];
+}

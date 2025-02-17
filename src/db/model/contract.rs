@@ -85,3 +85,18 @@ pub struct ContractDbObj {
     pub deploy_sent: Option<NaiveDateTime>,
     pub deployed: Option<NaiveDateTime>,
 }
+
+#[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ContractAddressDbObj {
+    pub contract_id: String,
+    pub user_id: String,
+    pub created: NaiveDateTime,
+    pub address: String,
+    pub network: String,
+    pub tx: Option<String>,
+    pub deploy_status: DeployStatus,
+    pub deploy_requested: Option<NaiveDateTime>,
+    pub deploy_sent: Option<NaiveDateTime>,
+    pub deployed: Option<NaiveDateTime>,
+}

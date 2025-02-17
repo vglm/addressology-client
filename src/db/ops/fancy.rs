@@ -50,14 +50,17 @@ pub enum ReservedStatus {
     User(String),
 }
 
-pub async fn fancy_list(
-    conn: &SqlitePool,
+pub async fn fancy_list<'c, E>(
+    conn: E,
     category: Option<String>,
     order_by: FancyOrderBy,
     reserved: ReservedStatus,
     since: Option<DateTime<Utc>>,
     limit: i64,
-) -> Result<Vec<FancyProviderDbObj>, sqlx::Error> {
+) -> Result<Vec<FancyProviderDbObj>, sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
     let order_by = match order_by {
         FancyOrderBy::Score => "score",
         FancyOrderBy::Created => "created",

@@ -5,18 +5,17 @@ import "prismjs/components/prism-solidity";
 import "prismjs/themes/prism.css";
 import { backendFetch } from "./common/BackendCall";
 import { Button, MenuItem, Select } from "@mui/material";
-import { ContractCompiled, ContractSaved } from "./model/Contract";
+import { ContractCompiled, ContractSaved, FancyAssignedAddress } from "./model/Contract";
 import "./CompiledContract.css";
 import { useParams } from "react-router-dom";
 import InputParameters, { decodeConstructorParameters, encodeConstructorDefaults } from "./InputParameters";
-import { Fancy } from "./model/Fancy";
 
 const CompiledContract = () => {
     const [contractDetails, setContractDetails] = useState<ContractSaved | null>(null);
     const [contractName, setContractName] = useState("");
     const [networkCopyTo, setNetworkCopyTo] = useState("holesky");
 
-    const [availableAddresses, setAvailableAddresses] = useState<Fancy[]>([]);
+    const [availableAddresses, setAvailableAddresses] = useState<FancyAssignedAddress[]>([]);
     const [networks, setNetworks] = useState<string[]>([]);
     const [bytecode, setBytecode] = useState<string | null>(null);
     const [metadata, setMetadata] = useState<any | null>(null);
@@ -49,7 +48,7 @@ const CompiledContract = () => {
     };
 
     const searchAddresses = async () => {
-        const response = await backendFetch("/api/fancy/list?free=mine", {
+        const response = await backendFetch("/api/fancy/mylist?unassigned_only=true", {
             method: "Get",
         });
         const addresses = await response.json();
@@ -81,6 +80,7 @@ const CompiledContract = () => {
         getContractDetails().then();
 
         getNetworks().then(setNetworks);
+        searchAddresses().then();
     }, [updateToken]);
 
     const deploySourceCode = async () => {
@@ -163,12 +163,14 @@ const CompiledContract = () => {
             <Button onClick={(_e) => searchAddresses()}>Assign address...</Button>
             <div>
                 Addresses:
-                {availableAddresses.map((fancy) => (
-                    <div key={fancy.address}>
-                        <div>{fancy.address}</div>
-                        <button onClick={(_e) => assignAddress(fancy.address)}>Choose</button>
-                    </div>
-                ))}
+                {availableAddresses.map((fancy) => {
+                    return (
+                        <div key={fancy.address}>
+                            <div>{fancy.address}</div>
+                            <button onClick={(_e) => assignAddress(fancy.address)}>Choose</button>
+                        </div>
+                    );
+                })}
             </div>
             <div>
                 Compiler version: {metadata.language} - {metadata.compiler.version}

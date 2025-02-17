@@ -1,13 +1,16 @@
 pub mod score;
 pub mod tokens;
 
-use crate::api::utils::{extract_url_date_param, extract_url_int_param, extract_url_param};
-use crate::db::model::{DeployStatus, JobDbObj, MinerDbObj, UserDbObj};
+use crate::api::contract::api::login_check_fn;
+use crate::api::utils::{
+    extract_url_bool_param, extract_url_date_param, extract_url_int_param, extract_url_param,
+};
+use crate::db::model::{ContractAddressDbObj, DeployStatus, JobDbObj, MinerDbObj, UserDbObj};
 use crate::db::ops::{
     fancy_finish_job, fancy_get_by_address, fancy_get_job_info, fancy_get_miner_info,
     fancy_insert_job_info, fancy_insert_miner_info, fancy_list, fancy_update_job,
-    fancy_update_owner, get_contract_by_id, get_user, insert_fancy_obj, update_contract_data,
-    update_user_tokens, FancyOrderBy, ReservedStatus,
+    fancy_update_owner, get_contract_address_list, get_contract_by_id, get_user, insert_fancy_obj,
+    update_contract_data, update_user_tokens, FancyOrderBy, ReservedStatus,
 };
 use crate::fancy::parse_fancy;
 use crate::types::DbAddress;
@@ -21,6 +24,7 @@ use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::{Executor, Sqlite};
+use std::cmp::PartialEq;
 use std::str::FromStr;
 use web3::signing::keccak256;
 
@@ -35,7 +39,7 @@ pub async fn handle_random(
         category = None
     }
     let list = fancy_list(
-        &conn,
+        &*conn,
         category,
         FancyOrderBy::Score,
         ReservedStatus::NotReserved,
@@ -47,6 +51,105 @@ pub async fn handle_random(
     let random = list.choose(&mut rand::thread_rng()).unwrap();
 
     Ok(HttpResponse::Ok().json(random))
+}
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FancyProviderContractApi {
+    pub address: DbAddress,
+    pub salt: String,
+    pub factory: DbAddress,
+    pub created: NaiveDateTime,
+    pub score: f64,
+    pub owner: Option<String>,
+    pub price: i64,
+    pub category: String,
+    pub job: Option<String>,
+    pub prov_name: String,
+    pub prov_node_id: String,
+    pub prov_reward_addr: String,
+    pub assigned_contracts: Vec<ContractAddressDbObj>,
+}
+
+impl PartialEq<DbAddress> for String {
+    fn eq(&self, other: &DbAddress) -> bool {
+        self == &other.to_string()
+    }
+}
+
+pub async fn handle_my_list(
+    server_data: web::Data<Box<ServerData>>,
+    request: HttpRequest,
+    session: Session,
+) -> Result<HttpResponse, actix_web::Error> {
+    let user = login_check_fn(session)?;
+
+    let conn = server_data.db_connection.lock().await;
+    let unassigned_only = extract_url_bool_param(&request, "unassigned_only")?.unwrap_or(false);
+    let mut db_trans = conn.begin().await.map_err(|e| {
+        log::error!("{}", e);
+        actix_web::error::ErrorInternalServerError("Error starting transaction")
+    })?;
+    let assignments = match get_contract_address_list(&mut *db_trans, &user.uid).await {
+        Ok(assignments) => assignments,
+        Err(e) => {
+            log::error!("{}", e);
+            return Ok(HttpResponse::InternalServerError().finish());
+        }
+    };
+    let fancies = match fancy_list(
+        &mut *db_trans,
+        None,
+        FancyOrderBy::Score,
+        ReservedStatus::User(user.uid.clone()),
+        None,
+        100000000,
+    )
+    .await
+    {
+        Ok(fancies) => fancies,
+        Err(e) => {
+            log::error!("{}", e);
+            return Ok(HttpResponse::InternalServerError().finish());
+        }
+    };
+
+    let mut res: Vec<FancyProviderContractApi> = Vec::with_capacity(fancies.len());
+
+    for fancy in fancies {
+        let assigned_contracts: Vec<ContractAddressDbObj> = assignments
+            .iter()
+            .filter(|x| x.address == fancy.address)
+            .cloned()
+            .collect();
+        if unassigned_only && !assigned_contracts.is_empty() {
+            continue;
+        }
+        res.push(FancyProviderContractApi {
+            address: fancy.address,
+            salt: fancy.salt,
+            factory: fancy.factory,
+            created: fancy.created,
+            score: fancy.score,
+            owner: fancy.owner,
+            price: fancy.price,
+            category: fancy.category,
+            job: fancy.job,
+            prov_name: fancy.prov_name,
+            prov_node_id: fancy.prov_node_id,
+            prov_reward_addr: fancy.prov_reward_addr,
+            assigned_contracts,
+        })
+    }
+
+    match db_trans.rollback().await {
+        Ok(_) => {}
+        Err(e) => {
+            log::error!("{}", e);
+            return Ok(HttpResponse::InternalServerError().finish());
+        }
+    }
+
+    Ok(HttpResponse::Ok().json(res))
 }
 
 pub async fn handle_list(
@@ -91,7 +194,7 @@ pub async fn handle_list(
     );
 
     let list = match fancy_list(
-        &conn,
+        &*conn,
         category,
         order,
         reserved_status,
@@ -118,7 +221,7 @@ pub async fn handle_fancy_estimate_total_hash(
     let fancies = {
         let conn = server_data.db_connection.lock().await;
         match fancy_list(
-            &conn,
+            &*conn,
             Some("leading_zeroes".to_string()),
             FancyOrderBy::Score,
             ReservedStatus::All,

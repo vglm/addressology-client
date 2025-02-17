@@ -1,4 +1,4 @@
-use crate::db::model::{ContractDbObj, DeployStatus};
+use crate::db::model::{ContractAddressDbObj, ContractDbObj, DeployStatus};
 use sqlx::{Executor, Sqlite, SqlitePool};
 
 pub async fn insert_contract_obj(
@@ -40,6 +40,35 @@ where
     .bind(contract_id)
     .bind(user_id)
     .fetch_optional(conn)
+    .await?;
+    Ok(res)
+}
+
+pub async fn get_contract_address_list<'c, E>(
+    conn: E,
+    user_id: &str,
+) -> Result<Vec<ContractAddressDbObj>, sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
+    let res = sqlx::query_as::<_, ContractAddressDbObj>(
+        r"SELECT
+                    contract_id,
+                    user_id,
+                    created,
+                    address,
+                    network,
+                    tx,
+                    deploy_status,
+                    deploy_requested,
+                    deploy_sent,
+                    deployed
+                FROM contract WHERE address is not null
+                AND user_id = $1
+                ORDER BY created DESC;",
+    )
+    .bind(user_id)
+    .fetch_all(conn)
     .await?;
     Ok(res)
 }
