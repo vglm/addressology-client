@@ -116,7 +116,6 @@ const CompiledContract = () => {
         const newContract: ContractSaved = {
             ...contractDetails,
             data: JSON.stringify(data),
-            network: networkCopyTo,
             address,
         };
 
