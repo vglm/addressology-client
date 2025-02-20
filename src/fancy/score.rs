@@ -276,23 +276,16 @@ pub fn score_fancy(address: Address) -> FancyScore {
         }
     }
 
+    let mut extra_letter_bonus = 1;
     let mut snake_score_mixed = 0;
     let first_char = mixed_address_str.chars().next().unwrap();
     let mut prev_char = first_char;
     for c in mixed_address_str.chars() {
         if c == prev_char {
             snake_score_mixed += 1;
-        } else {
-            prev_char = c;
-        }
-    }
-
-    let mut snake_score_letters = 0;
-    let first_char = mixed_address_str.chars().next().unwrap();
-    let mut prev_char = first_char;
-    for c in mixed_address_str.chars() {
-        if c == prev_char && c.is_alphabetic() {
-            snake_score_letters += 1;
+            if c.is_alphabetic() {
+                extra_letter_bonus += 1;
+            }
         } else {
             prev_char = c;
         }
@@ -491,8 +484,8 @@ pub fn score_fancy(address: Address) -> FancyScore {
 
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::SnakeScoreNeedLetters,
-        score: (snake_score_letters - 1) as f64,
-        difficulty: 1000.0f64 * snake_difficulty(snake_score_letters - 1, 40),
+        score: (snake_score_no_case - 1) as f64,
+        difficulty: (extra_letter_bonus as f64) * snake_difficulty(snake_score_no_case - 1, 40),
     });
 
     score_entries.push(FancyScoreEntry {
