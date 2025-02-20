@@ -17,6 +17,7 @@ pub enum FancyScoreCategory {
     ShortLeadingZeroes,
     ShortLeadingAny,
     SnakeScoreNoCase,
+    SnakeScoreNeedCase,
     LeadingLetters,
     #[default]
     Random,
@@ -32,6 +33,7 @@ impl Display for FancyScoreCategory {
             FancyScoreCategory::ShortLeadingZeroes => write!(f, "short_leading_zeroes"),
             FancyScoreCategory::ShortLeadingAny => write!(f, "short_leading_any"),
             FancyScoreCategory::SnakeScoreNoCase => write!(f, "snake_score_no_case"),
+            FancyScoreCategory::SnakeScoreNeedCase => write!(f, "snake_score_need_case"),
             FancyScoreCategory::LeadingLetters => write!(f, "leading_letters"),
             FancyScoreCategory::Random => write!(f, "random"),
         }
@@ -108,7 +110,14 @@ pub fn list_score_categories() -> Vec<FancyCategoryInfo> {
             FancyScoreCategory::SnakeScoreNoCase => categories.push(FancyCategoryInfo {
                 key: category.to_string(),
                 name: "Snake Score".to_string(),
-                description: "The number of repeating characters in the address. Case insensitive".to_string(),
+                description: "The number of repeating characters in the address. Case insensitive"
+                    .to_string(),
+            }),
+            FancyScoreCategory::SnakeScoreNeedCase => categories.push(FancyCategoryInfo {
+                key: category.to_string(),
+                name: "Snake Score".to_string(),
+                description: "The number of repeating characters in the address. Case sensitive"
+                    .to_string(),
             }),
             FancyScoreCategory::LeadingLetters => categories.push(FancyCategoryInfo {
                 key: category.to_string(),
@@ -255,6 +264,17 @@ pub fn score_fancy(address: Address) -> FancyScore {
             } else {
                 break;
             }
+        }
+    }
+
+    let mut snake_score_mixed = 0;
+    let first_char = mixed_address_str.chars().next().unwrap();
+    let mut prev_char = first_char;
+    for c in mixed_address_str.chars() {
+        if c == prev_char {
+            snake_score_mixed += 1;
+        } else {
+            prev_char = c;
         }
     }
 
@@ -441,6 +461,12 @@ pub fn score_fancy(address: Address) -> FancyScore {
         category: FancyScoreCategory::SnakeScoreNoCase,
         score: (snake_score_no_case - 1) as f64,
         difficulty: snake_difficulty(snake_score_no_case - 1, 40),
+    });
+
+    score_entries.push(FancyScoreEntry {
+        category: FancyScoreCategory::SnakeScoreNeedCase,
+        score: (snake_score_no_case - 1) as f64,
+        difficulty: 5.0f64 * snake_difficulty(snake_score_mixed - 1, 40),
     });
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::LeadingLetters,
