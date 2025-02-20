@@ -25,7 +25,10 @@ pub async fn handle_fancy_deploy(
     let deploy_data = serde_json::from_str::<DeployData>(&contract.data)
         .map_err(|e| err_custom_create!("Failed to parse deploy data: {}", e))?;
 
-    let command = format!("npx hardhat run deploy3Universal.ts --network {}", contract.network);
+    let command = format!(
+        "npx hardhat run deploy3Universal.ts --network {}",
+        contract.network
+    );
     let command = if cfg!(windows) {
         format!("cmd /C {}", command)
     } else {

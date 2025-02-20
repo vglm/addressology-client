@@ -12,7 +12,6 @@ use web3::types::{Address, U256};
 pub enum FancyScoreCategory {
     LeadingZeroes,
     LeadingAny,
-    LettersCount,
     LettersHeavy,
     NumbersOnly,
     ShortLeadingZeroes,
@@ -28,7 +27,6 @@ impl Display for FancyScoreCategory {
         match self {
             FancyScoreCategory::LeadingZeroes => write!(f, "leading_zeroes"),
             FancyScoreCategory::LeadingAny => write!(f, "leading_any"),
-            FancyScoreCategory::LettersCount => write!(f, "letters_count"),
             FancyScoreCategory::LettersHeavy => write!(f, "letters_heavy"),
             FancyScoreCategory::NumbersOnly => write!(f, "numbers_only"),
             FancyScoreCategory::ShortLeadingZeroes => write!(f, "short_leading_zeroes"),
@@ -47,7 +45,6 @@ impl FromStr for FancyScoreCategory {
         match s {
             "leading_zeroes" => Ok(FancyScoreCategory::LeadingZeroes),
             "leading_any" => Ok(FancyScoreCategory::LeadingAny),
-            "letters_count" => Ok(FancyScoreCategory::LettersCount),
             "letters_heavy" => Ok(FancyScoreCategory::LettersHeavy),
             "numbers_only" => Ok(FancyScoreCategory::NumbersOnly),
             "short_leading_zeroes" => Ok(FancyScoreCategory::ShortLeadingZeroes),
@@ -91,13 +88,6 @@ pub fn list_score_categories() -> Vec<FancyCategoryInfo> {
                 key: category.to_string(),
                 name: "Short Leading Any".to_string(),
                 description: "The number of leading characters that are the same.".to_string(),
-            }),
-            FancyScoreCategory::LettersCount => categories.push(FancyCategoryInfo {
-                key: category.to_string(),
-                name: "Letters Count".to_string(),
-                description:
-                    "The number of letters in the address (only one type of cipher allowed)."
-                        .to_string(),
             }),
             FancyScoreCategory::LettersHeavy => categories.push(FancyCategoryInfo {
                 key: category.to_string(),
@@ -144,12 +134,13 @@ pub fn combinations(n: i64, k: i64) -> f64 {
     result
 }
 
-//one number is accepted
 pub fn exactly_letters_combinations(letters: u64, total: u64) -> f64 {
     if letters == total {
         return 6.0f64.powf(letters as f64);
     }
-    6.0f64.powf(letters as f64) * combinations(total as i64, (total as i64 - letters as i64) * 10)
+    6.0f64.powf(letters as f64)
+        * combinations(total as i64, total as i64 - letters as i64)
+        * 10f64.powf((total - letters) as f64)
 }
 
 pub fn exactly_letters_combinations_difficulty(letters: u64, total: u64) -> f64 {
@@ -163,44 +154,25 @@ pub fn exactly_letters_combinations_difficulty(letters: u64, total: u64) -> f64 
     total_combinations(total as f64) / combinations_total
 }
 
-pub fn exactly_letters_combinations_multiple_ciphers(letters: u64, total: u64) -> f64 {
-    if letters == total {
-        return 6.0f64.powf(letters as f64);
-    }
-    6.0f64.powf(letters as f64)
-        * combinations(total as i64, total as i64 - letters as i64)
-        * 10f64.powf((total - letters) as f64)
-}
-
-pub fn exactly_letters_combinations_multiple_ciphers_difficulty(letters: u64, total: u64) -> f64 {
-    if letters < 30 {
-        return 1.0f64;
-    }
-    let mut combinations_total = 0.0f64;
-    for i in letters..=total {
-        combinations_total += exactly_letters_combinations_multiple_ciphers(i, total);
-    }
-    total_combinations(total as f64) / combinations_total
-}
-
 pub fn snake_combinations(snake: i64, total: u64) -> f64 {
-    if snake < 10 {
-        return 1.0f64;
+    if snake < total as i64 {
+        16.0f64
+            * 15.0f64.powf((total as i64 - snake - 1) as f64)
+            * combinations((total - 1) as i64, snake)
+    } else {
+        0.0f64
     }
-    let mut combinations_total = 0.0f64;
-    for i in ((snake as u64)..=total).rev() {
-        let curr_comb =
-            16.0 * combinations(total as i64, i as i64) * 15.0f64.powf(total as f64 - i as f64);
-        combinations_total += curr_comb;
-        /*println!(
-            "combinations_total: {} {} {} {}",
-            i,
-            curr_comb,
-            combinations_total,
-            total_combinations(total as f64) / combinations_total
-        );*/
-    }
+}
 
+pub fn snake_difficulty(snake: i64, total: u64) -> f64 {
+    if snake < 0 {
+        return 0.0f64;
+    }
+    let snake = snake as u64;
+    let mut combinations_total = 0.0f64;
+    for i in snake..=total {
+        combinations_total += snake_combinations(i as i64, total);
+    }
     total_combinations(total as f64) / combinations_total
 }
 
@@ -220,7 +192,23 @@ async fn tx_test() {
     assert_eq!(one_number_combinations, 8.911663025895824e32);
 
     assert_eq!((6.0f64 / 16.0).powf(40.0), 9.14641092243755e-18);
+
     //39 letters probability
+    println!(
+        "exactly_letters_combinations_difficulty: {}",
+        exactly_letters_combinations_difficulty(39, 40)
+    );
+    //40 letters probability
+    println!(
+        "exactly_letters_combinations_difficulty: {}",
+        exactly_letters_combinations_difficulty(40, 40)
+    );
+    //40 letters probability
+    println!(
+        "exactly_letters_combinations_difficulty: {}",
+        exactly_letters_combinations_difficulty(40, 40)
+            / exactly_letters_combinations_difficulty(39, 40)
+    );
 }
 
 #[allow(clippy::vec_init_then_push)]
@@ -270,21 +258,6 @@ pub fn score_fancy(address: Address) -> FancyScore {
         }
     }
 
-    let mut allowed_cipher = 'a';
-    let mut letters_only = 0;
-    for c in address_str.chars() {
-        if c.is_alphabetic() {
-            letters_only += 1;
-        } else if allowed_cipher == 'a' {
-            allowed_cipher = c;
-        } else {
-            //cipher have to be the same
-            if c != allowed_cipher {
-                letters_only = 0;
-                break;
-            }
-        }
-    }
     let mut letters_heavy = 0;
     for c in address_str.chars() {
         if c.is_alphabetic() {
@@ -394,15 +367,9 @@ pub fn score_fancy(address: Address) -> FancyScore {
     });
 
     score_entries.push(FancyScoreEntry {
-        category: FancyScoreCategory::LettersCount,
-        score: letters_only as f64,
-        difficulty: exactly_letters_combinations_difficulty(letters_only, 40),
-    });
-
-    score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::LettersHeavy,
         score: letters_heavy as f64,
-        difficulty: exactly_letters_combinations_multiple_ciphers_difficulty(letters_heavy, 40),
+        difficulty: exactly_letters_combinations_difficulty(letters_heavy, 40),
     });
 
     if numbers_only == 40 {
@@ -473,7 +440,7 @@ pub fn score_fancy(address: Address) -> FancyScore {
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::SnakeScore,
         score: (snake_score - 1) as f64,
-        difficulty: snake_combinations(snake_score - 1, 39),
+        difficulty: snake_difficulty(snake_score - 1, 40),
     });
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::LeadingLetters,
@@ -520,5 +487,63 @@ mod tests {
         let address = Address::from_str("0x99927777d11dDdFfFfF79b93bB00BBbB5fff5553").unwrap();
         let score = score_fancy(address);
         println!("{:?}", score);
+    }
+
+    #[test]
+    fn test_brute_force_letters() {
+        for num_ciphers in 2..6 {
+            let mut total = 0;
+            let mut letters = Vec::new();
+            letters.resize(num_ciphers + 1, 0);
+
+            let number_max_str = "F".repeat(num_ciphers);
+            let number_max = u64::from_str_radix(&number_max_str, 16).unwrap();
+
+            let mut chars = Vec::new();
+            chars.resize(num_ciphers + 1, 0);
+
+            let mut snake_scores = Vec::new();
+            snake_scores.resize(num_ciphers + 1, 0);
+            for i in 0..number_max + 1 {
+                for j in 0..num_ciphers {
+                    chars[j] = (i >> (4 * j)) & 0xf;
+                }
+                let mut snake_score = 0;
+                let mut number_of_letters = 0;
+                for j in 0..num_ciphers {
+                    if chars[j] >= 10 {
+                        number_of_letters += 1;
+                    }
+                }
+                letters[number_of_letters] += 1;
+                total += 1;
+                for j in 0..num_ciphers {
+                    if j > 0 && chars[j as usize] == chars[j as usize - 1] {
+                        snake_score += 1;
+                    }
+                }
+                snake_scores[snake_score] += 1;
+            }
+            let mut total2 = 0;
+            for i in 0..num_ciphers + 1 {
+                total2 += letters[i];
+                let expected_combinations =
+                    exactly_letters_combinations(i as u64, num_ciphers as u64);
+                println!(
+                    "letters: {}/{} math: {} brute: {}",
+                    i, num_ciphers, expected_combinations, letters[i]
+                );
+
+                let expected_snake = snake_combinations(i as i64, num_ciphers as u64);
+                println!(
+                    "snakes: {}/{}: {} vs {}",
+                    i, num_ciphers, snake_scores[i], expected_snake
+                );
+                assert!((expected_snake - snake_scores[i] as f64).abs() < 0.0001);
+                assert!((expected_combinations - letters[i] as f64).abs() < 0.0001);
+                println!("total: {} letters{}: {}", total, i, letters[i]);
+            }
+            assert_eq!(total, total2);
+        }
     }
 }
