@@ -18,6 +18,7 @@ pub enum FancyScoreCategory {
     ShortLeadingAny,
     SnakeScoreNoCase,
     SnakeScoreNeedCase,
+    SnakeScoreNeedLetters,
     LeadingLetters,
     #[default]
     Random,
@@ -34,6 +35,7 @@ impl Display for FancyScoreCategory {
             FancyScoreCategory::ShortLeadingAny => write!(f, "short_leading_any"),
             FancyScoreCategory::SnakeScoreNoCase => write!(f, "snake_score_no_case"),
             FancyScoreCategory::SnakeScoreNeedCase => write!(f, "snake_score_need_case"),
+            FancyScoreCategory::SnakeScoreNeedLetters => write!(f, "snake_score_need_letters"),
             FancyScoreCategory::LeadingLetters => write!(f, "leading_letters"),
             FancyScoreCategory::Random => write!(f, "random"),
         }
@@ -53,6 +55,7 @@ impl FromStr for FancyScoreCategory {
             "short_leading_any" => Ok(FancyScoreCategory::ShortLeadingAny),
             "snake_score_no_case" => Ok(FancyScoreCategory::SnakeScoreNoCase),
             "snake_score_need_case" => Ok(FancyScoreCategory::SnakeScoreNeedCase),
+            "snake_score_need_letters" => Ok(FancyScoreCategory::SnakeScoreNeedLetters),
             "leading_letters" => Ok(FancyScoreCategory::LeadingLetters),
             "random" => Ok(FancyScoreCategory::Random),
             _ => Err(()),
@@ -119,6 +122,11 @@ pub fn list_score_categories() -> Vec<FancyCategoryInfo> {
                 name: "Snake Score with Case".to_string(),
                 description: "The number of repeating characters in the address. Case sensitive"
                     .to_string(),
+            }),
+            FancyScoreCategory::SnakeScoreNeedLetters => categories.push(FancyCategoryInfo {
+                key: category.to_string(),
+                name: "Snake Score with Letters".to_string(),
+                description: "The number of repeating letters in the address.".to_string(),
             }),
             FancyScoreCategory::LeadingLetters => categories.push(FancyCategoryInfo {
                 key: category.to_string(),
@@ -279,7 +287,6 @@ pub fn score_fancy(address: Address) -> FancyScore {
         }
     }
 
-    /*
     let mut snake_score_letters = 0;
     let first_char = mixed_address_str.chars().next().unwrap();
     let mut prev_char = first_char;
@@ -289,7 +296,7 @@ pub fn score_fancy(address: Address) -> FancyScore {
         } else {
             prev_char = c;
         }
-    }*/
+    }
 
     let mut letters_heavy = 0;
     for c in address_str.chars() {
@@ -481,6 +488,12 @@ pub fn score_fancy(address: Address) -> FancyScore {
         score: (snake_score_no_case - 1) as f64,
         difficulty: 5.0f64 * snake_difficulty(snake_score_mixed - 1, 40),
     });
+    score_entries.push(FancyScoreEntry {
+        category: FancyScoreCategory::SnakeScoreNeedLetters,
+        score: (snake_score_letters - 1) as f64,
+        difficulty: 1000.0f64 * snake_difficulty(snake_score_mixed - 1, 40),
+    });
+
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::LeadingLetters,
         score: leading_letters as f64,
