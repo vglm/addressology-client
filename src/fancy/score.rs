@@ -52,6 +52,7 @@ impl FromStr for FancyScoreCategory {
             "short_leading_zeroes" => Ok(FancyScoreCategory::ShortLeadingZeroes),
             "short_leading_any" => Ok(FancyScoreCategory::ShortLeadingAny),
             "snake_score_no_case" => Ok(FancyScoreCategory::SnakeScoreNoCase),
+            "snake_score_need_case" => Ok(FancyScoreCategory::SnakeScoreNeedCase),
             "leading_letters" => Ok(FancyScoreCategory::LeadingLetters),
             "random" => Ok(FancyScoreCategory::Random),
             _ => Err(()),
@@ -115,7 +116,7 @@ pub fn list_score_categories() -> Vec<FancyCategoryInfo> {
             }),
             FancyScoreCategory::SnakeScoreNeedCase => categories.push(FancyCategoryInfo {
                 key: category.to_string(),
-                name: "Snake Score".to_string(),
+                name: "Snake Score with Case".to_string(),
                 description: "The number of repeating characters in the address. Case sensitive"
                     .to_string(),
             }),
@@ -277,6 +278,18 @@ pub fn score_fancy(address: Address) -> FancyScore {
             prev_char = c;
         }
     }
+
+    /*
+    let mut snake_score_letters = 0;
+    let first_char = mixed_address_str.chars().next().unwrap();
+    let mut prev_char = first_char;
+    for c in mixed_address_str.chars() {
+        if c == prev_char && c.is_alphabetic() {
+            snake_score_letters += 1;
+        } else {
+            prev_char = c;
+        }
+    }*/
 
     let mut letters_heavy = 0;
     for c in address_str.chars() {
