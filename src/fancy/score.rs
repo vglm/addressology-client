@@ -488,10 +488,11 @@ pub fn score_fancy(address: Address) -> FancyScore {
         score: (snake_score_no_case - 1) as f64,
         difficulty: 5.0f64 * snake_difficulty(snake_score_mixed - 1, 40),
     });
+
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::SnakeScoreNeedLetters,
         score: (snake_score_letters - 1) as f64,
-        difficulty: 1000.0f64 * snake_difficulty(snake_score_mixed - 1, 40),
+        difficulty: 1000.0f64 * snake_difficulty(snake_score_letters - 1, 40),
     });
 
     score_entries.push(FancyScoreEntry {
