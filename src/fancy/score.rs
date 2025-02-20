@@ -16,7 +16,7 @@ pub enum FancyScoreCategory {
     NumbersOnly,
     ShortLeadingZeroes,
     ShortLeadingAny,
-    SnakeScore,
+    SnakeScoreNoCase,
     LeadingLetters,
     #[default]
     Random,
@@ -31,7 +31,7 @@ impl Display for FancyScoreCategory {
             FancyScoreCategory::NumbersOnly => write!(f, "numbers_only"),
             FancyScoreCategory::ShortLeadingZeroes => write!(f, "short_leading_zeroes"),
             FancyScoreCategory::ShortLeadingAny => write!(f, "short_leading_any"),
-            FancyScoreCategory::SnakeScore => write!(f, "snake_score"),
+            FancyScoreCategory::SnakeScoreNoCase => write!(f, "snake_score_no_case"),
             FancyScoreCategory::LeadingLetters => write!(f, "leading_letters"),
             FancyScoreCategory::Random => write!(f, "random"),
         }
@@ -49,7 +49,7 @@ impl FromStr for FancyScoreCategory {
             "numbers_only" => Ok(FancyScoreCategory::NumbersOnly),
             "short_leading_zeroes" => Ok(FancyScoreCategory::ShortLeadingZeroes),
             "short_leading_any" => Ok(FancyScoreCategory::ShortLeadingAny),
-            "snake_score" => Ok(FancyScoreCategory::SnakeScore),
+            "snake_score_no_case" => Ok(FancyScoreCategory::SnakeScoreNoCase),
             "leading_letters" => Ok(FancyScoreCategory::LeadingLetters),
             "random" => Ok(FancyScoreCategory::Random),
             _ => Err(()),
@@ -105,10 +105,10 @@ pub fn list_score_categories() -> Vec<FancyCategoryInfo> {
                 name: "Random".to_string(),
                 description: "Randomness of the address.".to_string(),
             }),
-            FancyScoreCategory::SnakeScore => categories.push(FancyCategoryInfo {
+            FancyScoreCategory::SnakeScoreNoCase => categories.push(FancyCategoryInfo {
                 key: category.to_string(),
                 name: "Snake Score".to_string(),
-                description: "The number of repeating characters in the address.".to_string(),
+                description: "The number of repeating characters in the address. Case insensitive".to_string(),
             }),
             FancyScoreCategory::LeadingLetters => categories.push(FancyCategoryInfo {
                 key: category.to_string(),
@@ -291,11 +291,11 @@ pub fn score_fancy(address: Address) -> FancyScore {
         }
     }
 
-    let mut snake_score: i64 = 0;
+    let mut snake_score_no_case: i64 = 0;
     let mut prev_char = address_str.chars().next().unwrap();
     for c in address_str.chars() {
         if c == prev_char {
-            snake_score += 1;
+            snake_score_no_case += 1;
         } else {
             prev_char = c;
         }
@@ -438,9 +438,9 @@ pub fn score_fancy(address: Address) -> FancyScore {
     });
 
     score_entries.push(FancyScoreEntry {
-        category: FancyScoreCategory::SnakeScore,
-        score: (snake_score - 1) as f64,
-        difficulty: snake_difficulty(snake_score - 1, 40),
+        category: FancyScoreCategory::SnakeScoreNoCase,
+        score: (snake_score_no_case - 1) as f64,
+        difficulty: snake_difficulty(snake_score_no_case - 1, 40),
     });
     score_entries.push(FancyScoreEntry {
         category: FancyScoreCategory::LeadingLetters,
@@ -502,13 +502,13 @@ mod tests {
             let mut chars = Vec::new();
             chars.resize(num_ciphers + 1, 0);
 
-            let mut snake_scores = Vec::new();
-            snake_scores.resize(num_ciphers + 1, 0);
+            let mut snake_score_no_cases = Vec::new();
+            snake_score_no_cases.resize(num_ciphers + 1, 0);
             for i in 0..number_max + 1 {
                 for j in 0..num_ciphers {
                     chars[j] = (i >> (4 * j)) & 0xf;
                 }
-                let mut snake_score = 0;
+                let mut snake_score_no_case = 0;
                 let mut number_of_letters = 0;
                 for j in 0..num_ciphers {
                     if chars[j] >= 10 {
@@ -519,10 +519,10 @@ mod tests {
                 total += 1;
                 for j in 0..num_ciphers {
                     if j > 0 && chars[j as usize] == chars[j as usize - 1] {
-                        snake_score += 1;
+                        snake_score_no_case += 1;
                     }
                 }
-                snake_scores[snake_score] += 1;
+                snake_score_no_cases[snake_score_no_case] += 1;
             }
             let mut total2 = 0;
             for i in 0..num_ciphers + 1 {
@@ -537,9 +537,9 @@ mod tests {
                 let expected_snake = snake_combinations(i as i64, num_ciphers as u64);
                 println!(
                     "snakes: {}/{}: {} vs {}",
-                    i, num_ciphers, snake_scores[i], expected_snake
+                    i, num_ciphers, snake_score_no_cases[i], expected_snake
                 );
-                assert!((expected_snake - snake_scores[i] as f64).abs() < 0.0001);
+                assert!((expected_snake - snake_score_no_cases[i] as f64).abs() < 0.0001);
                 assert!((expected_combinations - letters[i] as f64).abs() < 0.0001);
                 println!("total: {} letters{}: {}", total, i, letters[i]);
             }
