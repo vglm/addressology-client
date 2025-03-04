@@ -24,7 +24,7 @@ use crate::db::ops::{
 use crate::deploy::handle_fancy_deploy;
 use crate::fancy::parse_fancy;
 use crate::fancy::score_fancy;
-use crate::hash::compute_create3_command;
+use crate::hash::{compute_address_command, compute_create3_command};
 use crate::types::DbAddress;
 use actix_multipart::form::MultipartFormConfig;
 use actix_multipart::MultipartError;
@@ -229,6 +229,12 @@ enum Commands {
         #[arg(short, long)]
         salt: String,
     },
+    ComputeAddress {
+        #[arg(short = 'b', long)]
+        public_key_base: String,
+        #[arg(short = 'p', long)]
+        private_key_add: String,
+    },
     AddFancyAddress {
         #[arg(short, long)]
         factory: String,
@@ -395,6 +401,23 @@ async fn main() -> std::io::Result<()> {
                 Ok(hash) => {
                     log::info!("Computed create3 hash: {}", hash);
                     println!("{}", hash);
+                }
+                Err(e) => {
+                    log::error!("{}", e);
+                    std::process::exit(1);
+                }
+            }
+            Ok(())
+        }
+        Commands::ComputeAddress {
+            public_key_base,
+            private_key_add,
+        } => {
+            let result = compute_address_command(&public_key_base, &private_key_add);
+            match result {
+                Ok(addr) => {
+                    log::info!("Computed address: {}", addr);
+                    println!("{}", addr);
                 }
                 Err(e) => {
                     log::error!("{}", e);

@@ -1,7 +1,7 @@
 use crate::err_custom_create;
 use crate::error::AddressologyError;
-use tiny_keccak::Hasher;
-
+use secp256k1::{PublicKey, Secp256k1};
+use tiny_keccak::{Hasher, Keccak};
 pub fn salt_to_guarded_salt(salt: &[u8]) -> [u8; 32] {
     //take last 32 bytes
     let mut result = [0; 32];
@@ -105,9 +105,78 @@ pub fn compute_create3_command(factory: &str, salt: &str) -> Result<String, Addr
     Ok(format!("0x{}", hex::encode(&result.as_slice()[12..])))
 }
 
+pub fn compute_address_command(
+    public_key_base: &str,
+    private_key_add: &str,
+) -> Result<String, AddressologyError> {
+    let public_key_bytes =
+        match hex::decode("04".to_string() + public_key_base.trim_start_matches("0x")) {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                return Err(err_custom_create!("Failed to decode public key: {}", e));
+            }
+        };
+    let public_key_add = match PublicKey::from_slice(&public_key_bytes) {
+        Ok(public_key) => public_key,
+        Err(e) => {
+            return Err(err_custom_create!("Failed to decode public key: {}", e));
+        }
+    };
+
+    let secp = Secp256k1::new();
+    let private_key_bytes = match hex::decode(private_key_add.trim_start_matches("0x")) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            return Err(err_custom_create!("Failed to decode private key: {}", e));
+        }
+    };
+
+    let private_key = match secp256k1::SecretKey::from_slice(&private_key_bytes) {
+        Ok(private_key) => private_key,
+        Err(e) => {
+            return Err(err_custom_create!("Failed to decode private key: {}", e));
+        }
+    };
+    let public_key = PublicKey::from_secret_key(&secp, &private_key);
+
+    let public_key_sum_uncompressed = match public_key.combine(&public_key_add) {
+        Ok(public_key_sum) => public_key_sum,
+        Err(e) => {
+            return Err(err_custom_create!("Failed to combine public keys: {}", e));
+        }
+    }
+    .serialize_uncompressed();
+
+    // Remove the first byte (0x04) to get the raw public key (64 bytes)
+    let raw_public_key = &public_key_sum_uncompressed[1..];
+    let mut hasher = Keccak::v256();
+    hasher.update(raw_public_key);
+    let mut hash = [0u8; 32];
+    hasher.finalize(&mut hash);
+
+    Ok(format!("0x{}", hex::encode(&hash[12..])))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::env;
+
+    #[test]
+    fn test_compute_address_command() {
+        env::set_var("RUST_LOG", "debug");
+        env_logger::init();
+        let public_key_base = "0xa71f7ec030f9ad20f8cc67fd116eb75c2117e90e649cdf293d655dc34d4b15e9fe66dfd3b79a74bf2ee878148922a34a5db044dd091731aba2404a207e2b5a05".to_string();
+        let private_key_add =
+            "0x04b7ae1bbb6c98775b62d9fb8e68ff05630f3b6fd7068dccce504dac9cb64f47".to_string();
+
+        let result = compute_address_command(&public_key_base, &private_key_add);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            "0x7C92B1e0ea075Aa010A0b464764d25665221f666".to_lowercase()
+        );
+    }
 
     #[test]
     fn test_compute_create3_command() {

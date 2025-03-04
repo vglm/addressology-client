@@ -19,6 +19,7 @@ pub enum FancyScoreCategory {
     SnakeScoreNoCase,
     SnakeScoreNeedCase,
     SnakeScoreNeedLetters,
+
     LeadingLetters,
     #[default]
     Random,
