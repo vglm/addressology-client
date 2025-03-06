@@ -12,7 +12,7 @@ use crate::db::ops::{
     fancy_update_owner, get_contract_address_list, get_contract_by_id, get_user, insert_fancy_obj,
     update_contract_data, update_user_tokens, FancyOrderBy, ReservedStatus,
 };
-use crate::fancy::parse_fancy;
+use crate::fancy::{parse_fancy, parse_fancy_private};
 use crate::types::DbAddress;
 use crate::{get_logged_user_or_null, login_check_and_get, normalize_address, ServerData};
 use actix_session::Session;
@@ -43,6 +43,7 @@ pub async fn handle_random(
         category,
         FancyOrderBy::Score,
         ReservedStatus::NotReserved,
+        None,
         None,
         1000,
     )
@@ -102,6 +103,7 @@ pub async fn handle_my_list(
         FancyOrderBy::Score,
         ReservedStatus::User(user.uid.clone()),
         None,
+        None,
         100000000,
     )
     .await
@@ -160,6 +162,7 @@ pub async fn handle_list(
     let user = get_logged_user_or_null!(session);
     let conn = server_data.db_connection.lock().await;
     let limit = extract_url_int_param(&request, "limit")?;
+    let public_key_base = extract_url_param(&request, "public_key_base")?;
     let mut category = extract_url_param(&request, "category")?;
     if category == Some("all".to_string()) {
         category = None
@@ -199,6 +202,7 @@ pub async fn handle_list(
         order,
         reserved_status,
         since,
+        public_key_base,
         limit.unwrap_or(100),
     )
     .await
@@ -218,6 +222,7 @@ pub async fn handle_fancy_estimate_total_hash(
     request: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
     let since = extract_url_date_param(&request, "since")?;
+    let public_key_base = extract_url_param(&request, "public_key_base")?;
     let fancies = {
         let conn = server_data.db_connection.lock().await;
         match fancy_list(
@@ -226,6 +231,7 @@ pub async fn handle_fancy_estimate_total_hash(
             FancyOrderBy::Score,
             ReservedStatus::All,
             since,
+            public_key_base,
             100000000,
         )
         .await
@@ -619,18 +625,28 @@ async fn _handle_fancy_new(
     new_data: web::Json<AddNewData>,
     total_score: &mut f64,
 ) -> HttpResponse {
-    let factory = match web3::types::Address::from_str(&new_data.factory) {
-        Ok(factory) => factory,
-        Err(e) => {
-            log::error!("{}", e);
-            return HttpResponse::BadRequest().finish();
+    let result = if new_data.factory.len() == 42 || new_data.address.len() == 40 {
+        let factory = match web3::types::Address::from_str(&new_data.factory) {
+            Ok(factory) => factory,
+            Err(e) => {
+                log::error!("{}", e);
+                return HttpResponse::BadRequest().finish();
+            }
+        };
+        match parse_fancy(new_data.salt.clone(), factory) {
+            Ok(fancy) => fancy,
+            Err(e) => {
+                log::error!("{}", e);
+                return HttpResponse::InternalServerError().finish();
+            }
         }
-    };
-    let result = match parse_fancy(new_data.salt.clone(), factory) {
-        Ok(fancy) => fancy,
-        Err(e) => {
-            log::error!("{}", e);
-            return HttpResponse::InternalServerError().finish();
+    } else {
+        match parse_fancy_private(new_data.factory.clone(), new_data.salt.clone()) {
+            Ok(fancy) => fancy,
+            Err(e) => {
+                log::error!("{}", e);
+                return HttpResponse::InternalServerError().finish();
+            }
         }
     };
 

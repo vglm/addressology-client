@@ -234,6 +234,8 @@ enum Commands {
         public_key_base: String,
         #[arg(short = 'p', long)]
         private_key_add: String,
+        #[arg(short = 'e', long)]
+        expected_address: Option<String>,
     },
     AddFancyAddress {
         #[arg(short, long)]
@@ -412,10 +414,32 @@ async fn main() -> std::io::Result<()> {
         Commands::ComputeAddress {
             public_key_base,
             private_key_add,
+            expected_address,
         } => {
             let result = compute_address_command(&public_key_base, &private_key_add);
             match result {
                 Ok(addr) => {
+                    if let Some(expected) = expected_address {
+                        return if addr.replace("0x", "").to_lowercase()
+                            != expected.replace("0x", "").to_lowercase()
+                        {
+                            log::error!(
+                                "Computed address: {} does not match expected: {}",
+                                addr,
+                                expected
+                            );
+                            Err(std::io::Error::new(
+                                std::io::ErrorKind::Other,
+                                format!(
+                                    "Computed address: {} does not match expected: {}",
+                                    addr, expected
+                                ),
+                            ))
+                        } else {
+                            log::info!("Computed address: {} matches expected", addr);
+                            Ok(())
+                        };
+                    }
                     log::info!("Computed address: {}", addr);
                     println!("{}", addr);
                 }

@@ -12,8 +12,8 @@ where
 {
     let res = sqlx::query_as::<_, FancyDbObj>(
         r"INSERT INTO fancy
-(address, salt, factory, created, score, job, owner, price, category)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;
+(address, salt, factory, created, score, job, owner, price, category, public_key_base)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *;
 ",
     )
     .bind(fancy_data.address)
@@ -25,6 +25,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;
     .bind(&fancy_data.owner)
     .bind(fancy_data.price)
     .bind(&fancy_data.category)
+    .bind(&fancy_data.public_key_base)
     .fetch_one(conn)
     .await?;
     Ok(res)
@@ -56,6 +57,7 @@ pub async fn fancy_list<'c, E>(
     order_by: FancyOrderBy,
     reserved: ReservedStatus,
     since: Option<DateTime<Utc>>,
+    public_key_base: Option<String>,
     limit: i64,
 ) -> Result<Vec<FancyProviderDbObj>, sqlx::Error>
 where
@@ -73,12 +75,18 @@ where
         ReservedStatus::User(user) => format!("f.owner = '{}'", user).to_string(),
     };
 
+    let public_key_base_condition = match public_key_base {
+        Some(pk) => format!("AND f.public_key_base = '{}'", pk),
+        None => "AND f.public_key_base is NULL".to_string(),
+    };
+
     let res = sqlx::query_as::<_, FancyProviderDbObj>(
         format!(
             r"SELECT f.*, mi.prov_name, mi.prov_node_id, mi.prov_reward_addr
             FROM fancy as f LEFT JOIN job_info as ji ON f.job=ji.uid LEFT JOIN miner_info as mi ON mi.uid=ji.miner
             WHERE
                 {owner_condition}
+                {public_key_base_condition}
                 AND f.category LIKE $2
                 AND f.created > $3
             ORDER BY {order_by} DESC LIMIT $1;"

@@ -70,6 +70,7 @@ pub struct FancyDbObj {
     pub price: i64,
     pub category: String,
     pub job: Option<String>,
+    pub public_key_base: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
