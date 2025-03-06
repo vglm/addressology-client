@@ -21,6 +21,7 @@ pub enum FancyScoreCategory {
     SnakeScoreNeedLetters,
 
     LeadingLetters,
+    PatternScore,
     #[default]
     Random,
 }
@@ -38,6 +39,7 @@ impl Display for FancyScoreCategory {
             FancyScoreCategory::SnakeScoreNeedCase => write!(f, "snake_score_need_case"),
             FancyScoreCategory::SnakeScoreNeedLetters => write!(f, "snake_score_need_letters"),
             FancyScoreCategory::LeadingLetters => write!(f, "leading_letters"),
+            FancyScoreCategory::PatternScore => write!(f, "pattern_score"),
             FancyScoreCategory::Random => write!(f, "random"),
         }
     }
@@ -58,6 +60,7 @@ impl FromStr for FancyScoreCategory {
             "snake_score_need_case" => Ok(FancyScoreCategory::SnakeScoreNeedCase),
             "snake_score_need_letters" => Ok(FancyScoreCategory::SnakeScoreNeedLetters),
             "leading_letters" => Ok(FancyScoreCategory::LeadingLetters),
+            "pattern_score" => Ok(FancyScoreCategory::PatternScore),
             "random" => Ok(FancyScoreCategory::Random),
             _ => Err(()),
         }
@@ -134,6 +137,11 @@ pub fn list_score_categories() -> Vec<FancyCategoryInfo> {
                 name: "Leading Letters".to_string(),
                 description: "The number of leading letters case sensitive in the address."
                     .to_string(),
+            }),
+            FancyScoreCategory::PatternScore => categories.push(FancyCategoryInfo {
+                key: category.to_string(),
+                name: "Pattern Score".to_string(),
+                description: "Interesting patterns.".to_string(),
             }),
         }
     }
@@ -493,6 +501,19 @@ pub fn score_fancy(address: Address) -> FancyScore {
         category: FancyScoreCategory::LeadingLetters,
         score: leading_letters as f64,
         difficulty: 32.0f64.powf(leading_letters as f64 - (15. / 16.)),
+    });
+
+    let mut pattern_score = 0;
+    let mut pattern_score_difficulty = 1.0f64;
+    if address_str.matches("0bb50bb5").count() > 0 {
+        pattern_score += address_str.matches("0bb5").count();
+        pattern_score_difficulty = 1.0E12;
+    }
+
+    score_entries.push(FancyScoreEntry {
+        category: FancyScoreCategory::PatternScore,
+        score: pattern_score as f64,
+        difficulty: pattern_score_difficulty,
     });
 
     score.scores = score_entries

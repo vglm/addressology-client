@@ -625,7 +625,7 @@ async fn _handle_fancy_new(
     new_data: web::Json<AddNewData>,
     total_score: &mut f64,
 ) -> HttpResponse {
-    let result = if new_data.factory.len() == 42 || new_data.address.len() == 40 {
+    let result = if new_data.factory.len() == 42 || new_data.factory.len() == 40 {
         let factory = match web3::types::Address::from_str(&new_data.factory) {
             Ok(factory) => factory,
             Err(e) => {
