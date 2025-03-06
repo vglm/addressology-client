@@ -707,20 +707,31 @@ async fn _handle_fancy_new_with_trans<'c, E>(
 where
     E: Executor<'c, Database = Sqlite>,
 {
-    let factory = match web3::types::Address::from_str(&new_data.factory) {
-        Ok(factory) => factory,
-        Err(e) => {
-            log::error!("{}", e);
-            return HttpResponse::BadRequest().finish();
+    let mut result = if new_data.factory.len() == 42 || new_data.factory.len() == 40 {
+        let factory = match web3::types::Address::from_str(&new_data.factory) {
+            Ok(factory) => factory,
+            Err(e) => {
+                log::error!("{}", e);
+                return HttpResponse::BadRequest().finish();
+            }
+        };
+        match parse_fancy(new_data.salt.clone(), factory) {
+            Ok(fancy) => fancy,
+            Err(e) => {
+                log::error!("{}", e);
+                return HttpResponse::InternalServerError().finish();
+            }
+        }
+    } else {
+        match parse_fancy_private(new_data.factory.clone(), new_data.salt.clone()) {
+            Ok(fancy) => fancy,
+            Err(e) => {
+                log::error!("{}", e);
+                return HttpResponse::InternalServerError().finish();
+            }
         }
     };
-    let mut result = match parse_fancy(new_data.salt.clone(), factory) {
-        Ok(fancy) => fancy,
-        Err(e) => {
-            log::error!("{}", e);
-            return HttpResponse::InternalServerError().finish();
-        }
-    };
+
     result.job = new_data.job_id.clone();
 
     if result.score < 1E10 {

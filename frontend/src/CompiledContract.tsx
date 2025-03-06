@@ -171,7 +171,9 @@ const CompiledContract = () => {
                     }
                     return (
                         <div key={fancy.address}>
-                            <div>{fancy.address} {alreadyAssigned}</div>
+                            <div>
+                                {fancy.address} {alreadyAssigned}
+                            </div>
                             <button onClick={(_e) => assignAddress(fancy.address)}>Choose</button>
                         </div>
                     );
