@@ -3,7 +3,7 @@ import { backendFetch } from "./common/BackendCall";
 
 import "./BrowseAddresses.css";
 import { ethers } from "ethers";
-import { Fancy, FancyCategoryInfo } from "./model/Fancy";
+import { Fancy, FancyCategoryInfo, PublicKeyBase } from "./model/Fancy";
 import { Checkbox, FormControlLabel, MenuItem, Select } from "@mui/material";
 
 interface TotalHashInfo {
@@ -54,7 +54,8 @@ const BrowseAddresses = () => {
     const [totalHash, setTotalHash] = useState<TotalHashInfo | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string>("all");
     const [newest, setNewest] = useState<boolean>(false);
-
+    const [publicKeyBase, setPublicKeyBase] = useState<string>("none");
+    const [publicKeyBases, setPublicKeyBases] = useState<PublicKeyBase[]>([]);
     const [gpu, setGpu] = useState<string>("RTX 3060");
 
     const [showType, setShowType] = useState<string>("today");
@@ -74,12 +75,24 @@ const BrowseAddresses = () => {
         return "2021-01-01T00:00:00Z";
     };
 
+    const loadPublicKeyBases = async () => {
+        const response = await backendFetch("/api/public_key_base/list", {
+            method: "Get",
+        });
+        const publicKeyBases = await response.json();
+
+        setPublicKeyBases(publicKeyBases);
+    };
+
     const loadAddresses = async () => {
         const order = newest ? "created" : "score";
         const since = showTypeToSince(showType);
-        const publicKeyBase = "";
+        let publicKeyBaseFilter = "";
+        if (publicKeyBase) {
+            publicKeyBaseFilter = `&public_key_base=${publicKeyBase}`;
+        }
         const response = await backendFetch(
-            `/api/fancy/list?limit=1000&public_key_base=${publicKeyBase}&order=${order}&category=${selectedCategory}&since=${since}&free=${showFree}`,
+            `/api/fancy/list?limit=1000${publicKeyBaseFilter}&order=${order}&category=${selectedCategory}&since=${since}&free=${showFree}`,
             {
                 method: "Get",
             },
@@ -91,8 +104,11 @@ const BrowseAddresses = () => {
 
     const loadTotalHashes = async () => {
         const since = showTypeToSince(showType);
-
-        const response = await backendFetch(`/api/fancy/total_hash?since=${since}`, {
+        let publicKeyBaseFilter = "";
+        if (publicKeyBase) {
+            publicKeyBaseFilter = `&public_key_base=${publicKeyBase}`;
+        }
+        const response = await backendFetch(`/api/fancy/total_hash?since=${since}${publicKeyBaseFilter}`, {
             method: "Get",
         });
         const totalHash = await response.json();
@@ -156,12 +172,16 @@ const BrowseAddresses = () => {
     };
 
     useEffect(() => {
+        loadPublicKeyBases().then();
+    }, []);
+
+    useEffect(() => {
         loadTotalHashes().then();
-    }, [showType]);
+    }, [showType, publicKeyBase]);
 
     useEffect(() => {
         loadAddresses().then();
-    }, [selectedCategory, newest, showType]);
+    }, [selectedCategory, newest, showType, publicKeyBase]);
 
     if (!fancies) {
         return <div>Loading...</div>;
@@ -176,6 +196,7 @@ const BrowseAddresses = () => {
     return (
         <div>
             <h1>Browse Addresses</h1>
+
             <Select variant={"outlined"} defaultValue={showType} onChange={(e) => setShowType(e.target.value)}>
                 <MenuItem value={"today"}>Today</MenuItem>
                 <MenuItem value={"last hour"}>Last hour</MenuItem>
@@ -186,6 +207,20 @@ const BrowseAddresses = () => {
                 <MenuItem value={"reserved"}>Reserved</MenuItem>
                 <MenuItem value={"all"}>All</MenuItem>
                 <MenuItem value={"mine"}>Mine</MenuItem>
+            </Select>
+            <Select
+                variant={"outlined"}
+                defaultValue={publicKeyBase}
+                onChange={(e) => setPublicKeyBase(e.target.value)}
+            >
+                <MenuItem value={"none"}>None</MenuItem>
+                {publicKeyBases.map((publicKeyBase) => {
+                    return (
+                        <MenuItem key={publicKeyBase.id} value={publicKeyBase.hex}>
+                            {publicKeyBase.hex.slice(0, 10)}...
+                        </MenuItem>
+                    );
+                })}
             </Select>
             <FormControlLabel
                 label="Show newest"

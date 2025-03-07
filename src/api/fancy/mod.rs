@@ -9,8 +9,9 @@ use crate::db::model::{ContractAddressDbObj, DeployStatus, JobDbObj, MinerDbObj,
 use crate::db::ops::{
     fancy_finish_job, fancy_get_by_address, fancy_get_job_info, fancy_get_miner_info,
     fancy_insert_job_info, fancy_insert_miner_info, fancy_list, fancy_update_job,
-    fancy_update_owner, get_contract_address_list, get_contract_by_id, get_user, insert_fancy_obj,
-    update_contract_data, update_user_tokens, FancyOrderBy, ReservedStatus,
+    fancy_update_owner, get_contract_address_list, get_contract_by_id, get_public_key_list,
+    get_user, insert_fancy_obj, update_contract_data, update_user_tokens, FancyOrderBy,
+    ReservedStatus,
 };
 use crate::fancy::{parse_fancy, parse_fancy_private};
 use crate::types::DbAddress;
@@ -156,6 +157,24 @@ pub async fn handle_my_list(
     }
 
     Ok(HttpResponse::Ok().json(res))
+}
+
+pub async fn handle_public_key_list(
+    server_data: web::Data<Box<ServerData>>,
+    session: Session,
+) -> HttpResponse {
+    let user = login_check_and_get!(session);
+
+    let conn = server_data.db_connection.lock().await;
+
+    let res = match get_public_key_list(&*conn, Some(user.uid)).await {
+        Ok(res) => res,
+        Err(e) => {
+            log::error!("{}", e);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+    HttpResponse::Ok().json(res)
 }
 
 pub async fn handle_list(

@@ -1,4 +1,6 @@
-use crate::db::model::{FancyDbObj, FancyProviderDbObj, JobDbObj, MinerDbObj};
+use crate::db::model::{
+    FancyDbObj, FancyProviderDbObj, JobDbObj, MinerDbObj, PublicKeyBaseDbObject,
+};
 use crate::types::DbAddress;
 use chrono::{DateTime, Utc};
 use sqlx::{Executor, Sqlite, SqlitePool};
@@ -49,6 +51,58 @@ pub enum ReservedStatus {
     Reserved,
     NotReserved,
     User(String),
+}
+
+pub async fn get_public_key_list<'c, E>(
+    conn: E,
+    user_id: Option<String>,
+) -> Result<Vec<PublicKeyBaseDbObject>, sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
+    let where_clause = match user_id {
+        Some(uid) => format!("WHERE user_id = '{}' OR user_id is NULL", uid),
+        None => "".to_string(),
+    };
+
+    let res = sqlx::query_as::<_, PublicKeyBaseDbObject>(&format!(
+        r"SELECT * FROM public_key_base {where_clause};"
+    ))
+    .fetch_all(conn)
+    .await?;
+    Ok(res)
+}
+
+//@todo add public key base
+#[allow(dead_code)]
+pub async fn get_or_insert_public_key<'c, E>(
+    conn: E,
+    public_key_base: &str,
+) -> Result<PublicKeyBaseDbObject, sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite> + std::marker::Copy,
+{
+    //select first
+    let res = sqlx::query_as::<_, PublicKeyBaseDbObject>(
+        r"SELECT * FROM public_key_base WHERE hex = $1;",
+    )
+    .bind(public_key_base)
+    .fetch_optional(conn)
+    .await?;
+
+    if let Some(pk) = res {
+        Ok(pk)
+    } else {
+        let res = sqlx::query_as::<_, PublicKeyBaseDbObject>(
+            r"INSERT INTO public_key_base (id, hex, added) VALUES ($1, $2, $3) RETURNING *;",
+        )
+        .bind(uuid::Uuid::new_v4().to_string())
+        .bind(public_key_base)
+        .bind(Utc::now().naive_utc())
+        .fetch_one(conn)
+        .await?;
+        Ok(res)
+    }
 }
 
 pub async fn fancy_list<'c, E>(

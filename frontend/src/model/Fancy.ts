@@ -1,3 +1,10 @@
+export interface PublicKeyBase {
+    id: string;
+    hex: string;
+    added: string;
+    user_id: string | null;
+}
+
 export interface FancyScore {
     score: {
         addressLowerCase: string;
@@ -15,8 +22,16 @@ export interface FancyScore {
         category: string;
     };
     price: number;
-    miner: string | null;
+    minerInfo: {
+        provNodeId: string;
+        provRewardAddr: string;
+        provName: string;
+        provExtraInfo: string;
+    } | null;
     mined: string | null;
+    publicKeyBase: string | null;
+    factory: string | null;
+    salt: string | null;
 }
 
 export interface Fancy {

@@ -60,6 +60,24 @@ pub struct FancyScore {
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct PublicKeyBaseDbObject {
+    pub id: String,
+    pub hex: String,
+    pub added: NaiveDateTime,
+    pub user_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ContractFactoryDbObject {
+    pub id: String,
+    pub address: DbAddress,
+    pub added: NaiveDateTime,
+    pub user_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct FancyDbObj {
     pub address: DbAddress,
     pub salt: String,

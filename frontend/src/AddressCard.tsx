@@ -100,9 +100,15 @@ const AddressCard = (props: AddressCardProps) => {
             <div>Reservation price</div>
             <div className={"address-card-address-entry-box"}>{fancy.price}</div>
             <div>Mined by</div>
-            <div className={"address-card-address-entry-box"}>{fancy.miner}</div>
+            <div className={"address-card-address-entry-box"}>{fancy.minerInfo?.provName}</div>
             <div>Mined at</div>
             <div className={"address-card-address-entry-box"}>{fancy.mined}</div>
+            <div>Salt</div>
+            <div>{fancy.salt}</div>
+            <div>Factory</div>
+            <div>{fancy.factory}</div>
+            <div>Public key base</div>
+            <div>{fancy.publicKeyBase}</div>
 
             <SelectCategory selectedCategory={randomCategory} setSelectedCategory={setRandomCategory}></SelectCategory>
             <Button onClick={(_e) => getRandomAddress()}>Next random</Button>
