@@ -93,6 +93,9 @@ CREATE TABLE fancy (
 CREATE INDEX fancy_owner_idx ON fancy (owner);
 CREATE INDEX fancy_price_idx ON fancy (price);
 CREATE INDEX fancy_score_idx ON fancy (score);
+CREATE INDEX fancy_factory_idx ON fancy (factory);
+CREATE INDEX fancy_category_idx ON fancy (category);
+CREATE INDEX fancy_public_key_base_idx ON fancy (public_key_base);
 
 CREATE TABLE contract
 (
