@@ -77,8 +77,9 @@ const BrowseAddresses = () => {
     const loadAddresses = async () => {
         const order = newest ? "created" : "score";
         const since = showTypeToSince(showType);
+        const publicKeyBase = "";
         const response = await backendFetch(
-            `/api/fancy/list?limit=1000&order=${order}&category=${selectedCategory}&since=${since}&free=${showFree}`,
+            `/api/fancy/list?limit=1000&public_key_base=${publicKeyBase}&order=${order}&category=${selectedCategory}&since=${since}&free=${showFree}`,
             {
                 method: "Get",
             },
