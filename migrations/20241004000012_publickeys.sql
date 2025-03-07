@@ -1,4 +1,5 @@
 
+PRAGMA foreign_keys = 0;
 
 CREATE TABLE public_key_base (
     id TEXT NOT NULL,
@@ -44,3 +45,5 @@ DROP TABLE fancy_old;
 UPDATE fancy
 SET factory = NULL
 WHERE factory = '0x0000000000000000000000000000000000000000';
+
+PRAGMA foreign_keys = 1;
