@@ -509,15 +509,20 @@ pub fn score_fancy(address: Address) -> FancyScore {
     let count_0bb5 = mixed_address_str.matches("0BB5").count() - count_0bb50;
     let count_bb50 = mixed_address_str.matches("BB50").count() - count_0bb50;
     let mut pattern_score = count_0bb50 * 2 + count_0bb5 + count_bb50;
-    if mixed_address_str.starts_with("0BB50")
-    {
+    if mixed_address_str.starts_with("0BB50") {
         pattern_score += 3;
     }
     if mixed_address_str.starts_with("00BB500") {
-        pattern_score += 3;
+        pattern_score += 5;
     }
     if mixed_address_str.starts_with("000BB5000") {
         pattern_score += 100;
+    }
+    if mixed_address_str.contains("00BB500") {
+        pattern_score += 5;
+    }
+    if mixed_address_str.contains("000BB5000") {
+        pattern_score += 50;
     }
     if mixed_address_str.starts_with("0000BB50") {
         pattern_score += 100;
@@ -526,12 +531,13 @@ pub fn score_fancy(address: Address) -> FancyScore {
         pattern_score += 200;
     }
     if mixed_address_str.starts_with("0000BB50000") {
-        pattern_score += 1000;
+        pattern_score += 10000;
     }
-
-
+    if mixed_address_str.contains("0000BB50000") {
+        pattern_score += 5000;
+    }
     if mixed_address_str.ends_with("00BB500") {
-        pattern_score += 10;
+        pattern_score += 5;
     }
     if address_str.ends_with("0BB50") {
         pattern_score += 2;
@@ -539,7 +545,7 @@ pub fn score_fancy(address: Address) -> FancyScore {
     if mixed_address_str.ends_with("0BB50") {
         pattern_score += 2;
     }
-    if pattern_score >= 3 {
+    if pattern_score >= 6 {
         pattern_score_difficulty = pattern_score as f64 * 1.0E10;
     }
 
