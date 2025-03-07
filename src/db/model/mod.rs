@@ -63,14 +63,14 @@ pub struct FancyScore {
 pub struct FancyDbObj {
     pub address: DbAddress,
     pub salt: String,
-    pub factory: DbAddress,
+    pub factory: Option<DbAddress>,
+    pub public_key_base: Option<String>,
     pub created: NaiveDateTime,
     pub score: f64,
     pub owner: Option<String>,
     pub price: i64,
     pub category: String,
     pub job: Option<String>,
-    pub public_key_base: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
@@ -78,7 +78,8 @@ pub struct FancyDbObj {
 pub struct FancyProviderDbObj {
     pub address: DbAddress,
     pub salt: String,
-    pub factory: DbAddress,
+    pub factory: Option<DbAddress>,
+    pub public_key_base: Option<String>,
     pub created: NaiveDateTime,
     pub score: f64,
     pub owner: Option<String>,

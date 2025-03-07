@@ -33,7 +33,7 @@ pub fn parse_fancy_private(
     Ok(FancyDbObj {
         address,
         salt: private_key_add,
-        factory: DbAddress::wrap(Address::zero()),
+        factory: None,
         created: chrono::Utc::now().naive_utc(),
         score: score.total_score,
 
@@ -68,7 +68,7 @@ pub fn parse_fancy(salt: String, factory: Address) -> Result<FancyDbObj, Address
     Ok(FancyDbObj {
         address,
         salt,
-        factory: DbAddress::wrap(factory),
+        factory: Some(DbAddress::wrap(factory)),
         created: chrono::Utc::now().naive_utc(),
         score: score.total_score,
 

@@ -129,7 +129,11 @@ pub async fn handle_my_list(
         res.push(FancyProviderContractApi {
             address: fancy.address,
             salt: fancy.salt,
-            factory: fancy.factory,
+            factory: fancy.factory.ok_or_else(|| {
+                actix_web::error::ErrorInternalServerError(
+                    "DB should return only entries with factories that are not null",
+                )
+            })?,
             created: fancy.created,
             score: fancy.score,
             owner: fancy.owner,

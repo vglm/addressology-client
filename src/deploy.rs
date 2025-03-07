@@ -60,7 +60,18 @@ pub async fn handle_fancy_deploy(
 
     let env_vars = vec![
         ("ADDRESS", format!("{:#x}", fancy.address.addr())),
-        ("FACTORY", format!("{:#x}", fancy.factory.addr())),
+        (
+            "FACTORY",
+            format!(
+                "{:#x}",
+                fancy
+                    .factory
+                    .ok_or_else(|| err_custom_create!(
+                        "Factory not found on fancy address, it has to be there!"
+                    ))?
+                    .addr()
+            ),
+        ),
         ("SALT", fancy.salt.clone()),
         ("BYTECODE", total_bytes.clone()),
     ];
