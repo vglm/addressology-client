@@ -4,7 +4,7 @@ import { backendFetch } from "./common/BackendCall";
 import "./BrowseAddresses.css";
 import { ethers } from "ethers";
 import { Fancy, FancyCategoryInfo, PublicKeyBase } from "./model/Fancy";
-import { Checkbox, FormControlLabel, MenuItem, Select } from "@mui/material";
+import { Button, Checkbox, FormControlLabel, MenuItem, Select } from "@mui/material";
 
 interface TotalHashInfo {
     estimatedWorkTH: number;
@@ -52,13 +52,24 @@ export const SelectCategory = (props: SelectCategoryProps) => {
 const BrowseAddresses = () => {
     const [fancies, setFancies] = useState<Fancy[]>([]);
     const [totalHash, setTotalHash] = useState<TotalHashInfo | null>(null);
-    const [selectedCategory, setSelectedCategory] = useState<string>("all");
+    const [selectedCategory, setSelectedCategory] = useState<string>(localStorage.getItem("selectedCategory") || "all");
     const [newest, setNewest] = useState<boolean>(false);
-    const [publicKeyBase, setPublicKeyBase] = useState<string>("none");
-    const [publicKeyBases, setPublicKeyBases] = useState<PublicKeyBase[]>([]);
-    const [gpu, setGpu] = useState<string>("RTX 3060");
+    const [publicKeyBase, setPublicKeyBase] = useState<string>(() => {
+        return localStorage.getItem("publicKeyBase") || "none";
+    });
+    const [publicKeyBases, setPublicKeyBases] = useState<PublicKeyBase[]>(() => {
+        const saved = localStorage.getItem("publicKeyBases");
+        return saved ? JSON.parse(saved) : [];
+    });
+    const [gpu, setGpu] = useState<string>(() => {
+        const saved = localStorage.getItem("gpu");
+        return saved ? saved : "RTX 3060";
+    });
 
-    const [showType, setShowType] = useState<string>("today");
+    const [showType, setShowType] = useState<string>(() => {
+        const saved = localStorage.getItem("showType");
+        return saved ? saved : "today";
+    });
     const [showFree, setShowFree] = useState<string>("free");
 
     const showTypeToSince = (showType: string): string => {
@@ -88,7 +99,7 @@ const BrowseAddresses = () => {
         const order = newest ? "created" : "score";
         const since = showTypeToSince(showType);
         let publicKeyBaseFilter = "";
-        if (publicKeyBase) {
+        if (publicKeyBase != "none") {
             publicKeyBaseFilter = `&public_key_base=${publicKeyBase}`;
         }
         const response = await backendFetch(
@@ -100,6 +111,14 @@ const BrowseAddresses = () => {
         const addresses = await response.json();
 
         setFancies(addresses);
+    };
+
+    const resetFilters = () => {
+        setPublicKeyBase("none");
+        setNewest(false);
+        setSelectedCategory("all");
+        setShowType("today");
+        setGpu("RTX 3060");
     };
 
     const loadTotalHashes = async () => {
@@ -172,6 +191,22 @@ const BrowseAddresses = () => {
     };
 
     useEffect(() => {
+        localStorage.setItem("publicKeyBase", publicKeyBase);
+    }, [publicKeyBase]);
+    useEffect(() => {
+        localStorage.setItem("publicKeyBases", JSON.stringify(publicKeyBases));
+    }, [publicKeyBases]);
+    useEffect(() => {
+        localStorage.setItem("selectedCategory", selectedCategory);
+    }, [selectedCategory]);
+    useEffect(() => {
+        localStorage.setItem("showType", showType);
+    }, [showType]);
+    useEffect(() => {
+        localStorage.setItem("gpu", gpu);
+    }, [gpu]);
+
+    useEffect(() => {
         loadPublicKeyBases().then();
     }, []);
 
@@ -196,7 +231,7 @@ const BrowseAddresses = () => {
     return (
         <div>
             <h1>Browse Addresses</h1>
-
+            <Button onClick={() => resetFilters()}>Clear filters</Button>
             <Select variant={"outlined"} defaultValue={showType} onChange={(e) => setShowType(e.target.value)}>
                 <MenuItem value={"today"}>Today</MenuItem>
                 <MenuItem value={"last hour"}>Last hour</MenuItem>
@@ -208,11 +243,7 @@ const BrowseAddresses = () => {
                 <MenuItem value={"all"}>All</MenuItem>
                 <MenuItem value={"mine"}>Mine</MenuItem>
             </Select>
-            <Select
-                variant={"outlined"}
-                defaultValue={publicKeyBase}
-                onChange={(e) => setPublicKeyBase(e.target.value)}
-            >
+            <Select variant={"outlined"} value={publicKeyBase} onChange={(e) => setPublicKeyBase(e.target.value)}>
                 <MenuItem value={"none"}>None</MenuItem>
                 {publicKeyBases.map((publicKeyBase) => {
                     return (
