@@ -505,9 +505,13 @@ pub fn score_fancy(address: Address) -> FancyScore {
 
     let mut pattern_score = 0;
     let mut pattern_score_difficulty = 1.0f64;
-    if address_str.matches("0bb50bb5").count() > 0 {
-        pattern_score += address_str.matches("0bb5").count();
-        pattern_score_difficulty = 1.0E12;
+
+    let count_0bb50 = address_str.matches("0bb50").count();
+    let count_0bb5 = address_str.matches("0bb5").count() - count_0bb50;
+    let count_bb50 = address_str.matches("bb50").count() - count_0bb50;
+    if count_0bb5 + count_bb50 + count_0bb50 >= 2 {
+        pattern_score = count_0bb50 * 2 + count_0bb5 + count_bb50;
+        pattern_score_difficulty = pattern_score as f64 * 1.0E10;
     }
 
     score_entries.push(FancyScoreEntry {

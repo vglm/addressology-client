@@ -33,8 +33,16 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *;
     Ok(res)
 }
 
-pub async fn fancy_list_all(conn: &SqlitePool) -> Result<Vec<FancyDbObj>, sqlx::Error> {
-    let res = sqlx::query_as::<_, FancyDbObj>(r"SELECT * FROM fancy")
+pub async fn fancy_list_all(
+    conn: &SqlitePool,
+    since: Option<DateTime<Utc>>,
+) -> Result<Vec<FancyDbObj>, sqlx::Error> {
+    let res = sqlx::query_as::<_, FancyDbObj>(r"SELECT * FROM fancy WHERE created > $1;")
+        .bind(
+            since
+                .map(|s| s.format("%Y-%m-%d %H:%M:%S").to_string())
+                .unwrap_or("2000-01-01 00:00:00".to_string()),
+        )
         .fetch_all(conn)
         .await?;
     Ok(res)
@@ -51,6 +59,11 @@ pub enum ReservedStatus {
     Reserved,
     NotReserved,
     User(String),
+}
+pub enum PublicKeyFilter {
+    All,
+    Selected(String),
+    OnlyNull,
 }
 
 pub async fn get_public_key_list<'c, E>(
@@ -111,7 +124,7 @@ pub async fn fancy_list<'c, E>(
     order_by: FancyOrderBy,
     reserved: ReservedStatus,
     since: Option<DateTime<Utc>>,
-    public_key_base: Option<String>,
+    public_key_base: PublicKeyFilter,
     limit: i64,
 ) -> Result<Vec<FancyProviderDbObj>, sqlx::Error>
 where
@@ -130,8 +143,9 @@ where
     };
 
     let public_key_base_condition = match public_key_base {
-        Some(pk) => format!("AND f.public_key_base = '{}'", pk),
-        None => "AND f.public_key_base is NULL".to_string(),
+        PublicKeyFilter::All => "1=1".to_string(),
+        PublicKeyFilter::Selected(pk) => format!("AND f.public_key_base = '{}'", pk),
+        PublicKeyFilter::OnlyNull => "AND f.public_key_base is NULL".to_string(),
     };
 
     let res = sqlx::query_as::<_, FancyProviderDbObj>(

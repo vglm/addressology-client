@@ -40,6 +40,7 @@ use lazy_static::lazy_static;
 use serde::Deserialize;
 use sqlx::SqlitePool;
 use std::env;
+use std::ops::Sub;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -218,7 +219,10 @@ pub async fn dashboard_serve(
 #[derive(Subcommand)]
 enum Commands {
     Test {},
-    ScoreFancy {},
+    ScoreFancy {
+        #[arg(short, long)]
+        last_day: bool,
+    },
     ProcessDeploy {
         #[arg(short, long)]
         network: String,
@@ -325,20 +329,41 @@ async fn main() -> std::io::Result<()> {
             .run()
             .await
         }
-        Commands::ScoreFancy {} => {
+        Commands::ScoreFancy { last_day } => {
             let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
                 .await
                 .unwrap();
 
-            let fancies = fancy_list_all(&conn).await.unwrap();
+            let fancies = if last_day {
+                fancy_list_all(
+                    &conn,
+                    Some(chrono::Utc::now().sub(chrono::Duration::days(1))),
+                )
+                .await
+                .unwrap()
+            } else {
+                fancy_list_all(&conn, None).await.unwrap()
+            };
 
+            let no = fancies.len();
+            let mut curr = 0;
             for fancy in fancies {
+                curr += 1;
                 let score = score_fancy(fancy.address.addr());
-                log::info!(
-                    "Fancy: {:#x} Score: {}",
-                    fancy.address.addr(),
-                    score.total_score
-                );
+
+                if curr % 1000 == 0 {
+                    log::info!(
+                        "Fancy {curr}/{no}: {:#x} Score: {}",
+                        fancy.address.addr(),
+                        score.total_score
+                    );
+                } else {
+                    log::debug!(
+                        "Fancy {curr}/{no}: {:#x} Score: {}",
+                        fancy.address.addr(),
+                        score.total_score
+                    );
+                }
 
                 let new_price =
                     (score.price_multiplier * get_base_difficulty_price() as f64) as i64;

@@ -11,7 +11,7 @@ use crate::db::ops::{
     fancy_insert_job_info, fancy_insert_miner_info, fancy_list, fancy_update_job,
     fancy_update_owner, get_contract_address_list, get_contract_by_id, get_public_key_list,
     get_user, insert_fancy_obj, update_contract_data, update_user_tokens, FancyOrderBy,
-    ReservedStatus,
+    PublicKeyFilter, ReservedStatus,
 };
 use crate::fancy::{parse_fancy, parse_fancy_private};
 use crate::types::DbAddress;
@@ -45,7 +45,7 @@ pub async fn handle_random(
         FancyOrderBy::Score,
         ReservedStatus::NotReserved,
         None,
-        None,
+        PublicKeyFilter::OnlyNull,
         1000,
     )
     .await
@@ -104,7 +104,7 @@ pub async fn handle_my_list(
         FancyOrderBy::Score,
         ReservedStatus::User(user.uid.clone()),
         None,
-        None,
+        PublicKeyFilter::OnlyNull,
         100000000,
     )
     .await
@@ -219,6 +219,11 @@ pub async fn handle_list(
         since
     );
 
+    let public_key_base = match public_key_base {
+        Some(base) => PublicKeyFilter::Selected(base),
+        None => PublicKeyFilter::All,
+    };
+
     let list = match fancy_list(
         &*conn,
         category,
@@ -246,6 +251,10 @@ pub async fn handle_fancy_estimate_total_hash(
 ) -> Result<HttpResponse, actix_web::Error> {
     let since = extract_url_date_param(&request, "since")?;
     let public_key_base = extract_url_param(&request, "public_key_base")?;
+    let public_key_base_filter = match public_key_base {
+        Some(base) => PublicKeyFilter::Selected(base),
+        None => PublicKeyFilter::All,
+    };
     let fancies = {
         let conn = server_data.db_connection.lock().await;
         match fancy_list(
@@ -254,7 +263,7 @@ pub async fn handle_fancy_estimate_total_hash(
             FancyOrderBy::Score,
             ReservedStatus::All,
             since,
-            public_key_base,
+            public_key_base_filter,
             100000000,
         )
         .await
