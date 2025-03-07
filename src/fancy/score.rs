@@ -503,14 +503,43 @@ pub fn score_fancy(address: Address) -> FancyScore {
         difficulty: 32.0f64.powf(leading_letters as f64 - (15. / 16.)),
     });
 
-    let mut pattern_score = 0;
     let mut pattern_score_difficulty = 1.0f64;
 
-    let count_0bb50 = address_str.matches("0bb50").count();
-    let count_0bb5 = address_str.matches("0bb5").count() - count_0bb50;
-    let count_bb50 = address_str.matches("bb50").count() - count_0bb50;
-    if count_0bb5 + count_bb50 + count_0bb50 >= 2 {
-        pattern_score = count_0bb50 * 2 + count_0bb5 + count_bb50;
+    let count_0bb50 = mixed_address_str.matches("0BB50").count();
+    let count_0bb5 = mixed_address_str.matches("0BB5").count() - count_0bb50;
+    let count_bb50 = mixed_address_str.matches("BB50").count() - count_0bb50;
+    let mut pattern_score = count_0bb50 * 2 + count_0bb5 + count_bb50;
+    if mixed_address_str.starts_with("0BB50")
+    {
+        pattern_score += 3;
+    }
+    if mixed_address_str.starts_with("00BB500") {
+        pattern_score += 3;
+    }
+    if mixed_address_str.starts_with("000BB5000") {
+        pattern_score += 100;
+    }
+    if mixed_address_str.starts_with("0000BB50") {
+        pattern_score += 100;
+    }
+    if mixed_address_str.starts_with("0000BB500") {
+        pattern_score += 200;
+    }
+    if mixed_address_str.starts_with("0000BB50000") {
+        pattern_score += 1000;
+    }
+
+
+    if mixed_address_str.ends_with("00BB500") {
+        pattern_score += 10;
+    }
+    if address_str.ends_with("0BB50") {
+        pattern_score += 2;
+    }
+    if mixed_address_str.ends_with("0BB50") {
+        pattern_score += 2;
+    }
+    if pattern_score >= 3 {
         pattern_score_difficulty = pattern_score as f64 * 1.0E10;
     }
 
