@@ -403,8 +403,14 @@ pub async fn handle_fancy_new_many2(
         let resp =
             _handle_fancy_new_with_trans(web::Json(new_data), &mut total_score, &mut *db_trans)
                 .await;
-        if !resp.status().is_success() {
-            return resp;
+        match resp {
+            FancyNewResult::Ok(_ok) => {}
+            FancyNewResult::Error(err) => {
+                return err;
+            }
+            FancyNewResult::ScoreTooLow => {
+                log::debug!("Score too low - skipping");
+            }
         }
     }
 
@@ -731,11 +737,17 @@ async fn _handle_fancy_new(
     }
 }
 
+enum FancyNewResult {
+    Ok(HttpResponse),
+    Error(HttpResponse),
+    ScoreTooLow,
+}
+
 async fn _handle_fancy_new_with_trans<'c, E>(
     new_data: web::Json<AddNewData>,
     total_score: &mut f64,
     db_trans: E,
-) -> HttpResponse
+) -> FancyNewResult
 where
     E: Executor<'c, Database = Sqlite>,
 {
@@ -744,14 +756,14 @@ where
             Ok(factory) => factory,
             Err(e) => {
                 log::error!("{}", e);
-                return HttpResponse::BadRequest().finish();
+                return FancyNewResult::Error(HttpResponse::BadRequest().finish());
             }
         };
         match parse_fancy(new_data.salt.clone(), factory) {
             Ok(fancy) => fancy,
             Err(e) => {
                 log::error!("{}", e);
-                return HttpResponse::InternalServerError().finish();
+                return FancyNewResult::Error(HttpResponse::InternalServerError().finish());
             }
         }
     } else {
@@ -759,7 +771,7 @@ where
             Ok(fancy) => fancy,
             Err(e) => {
                 log::error!("{}", e);
-                return HttpResponse::InternalServerError().finish();
+                return FancyNewResult::Error(HttpResponse::InternalServerError().finish());
             }
         }
     };
@@ -768,7 +780,7 @@ where
 
     if result.score < 1E10 {
         log::error!("Score too low: {}", result.score);
-        return HttpResponse::Ok().body("Score too low");
+        return FancyNewResult::ScoreTooLow;
     }
 
     if format!("{:#x}", result.address.addr()) != new_data.address.to_lowercase() {
@@ -777,23 +789,23 @@ where
             format!("{:#x}", result.address.addr()),
             new_data.address.to_lowercase()
         );
-        return HttpResponse::BadRequest().body("Address mismatch");
+        return FancyNewResult::Error(HttpResponse::BadRequest().body("Address mismatch"));
     }
     let score = result.score;
 
     match insert_fancy_obj(db_trans, result).await {
         Ok(_) => {
             *total_score += score;
-            HttpResponse::Ok().json(json!({
+            FancyNewResult::Ok(HttpResponse::Ok().json(json!({
                 "totalSore": score
-            }))
+            })))
         }
         Err(e) => {
             if e.to_string().contains("UNIQUE constraint failed") {
-                HttpResponse::Ok().body("Already exists")
+                FancyNewResult::Ok(HttpResponse::Ok().body("Already exists"))
             } else {
                 log::error!("{}", e);
-                HttpResponse::InternalServerError().finish()
+                FancyNewResult::Error(HttpResponse::InternalServerError().finish())
             }
         }
     }
