@@ -230,6 +230,7 @@ pub async fn fancy_job_list<'c, E>(
     order_by: FancyJobOrderBy,
     since: Option<DateTime<Utc>>,
     status: FancyJobStatus,
+    requestor_id: Option<DbAddress>,
     limit: i64,
 ) -> Result<Vec<JobMinerDbReadObj>, sqlx::Error>
 where
@@ -237,6 +238,11 @@ where
 {
     let order_by = match order_by {
         FancyJobOrderBy::Date => "started_at",
+    };
+
+    let requestor_id_condition = match requestor_id {
+        Some(id) => format!("requestor_id = '{}'", id),
+        None => "".to_string(),
     };
 
     let created_condition = match since {
@@ -250,11 +256,16 @@ where
         FancyJobStatus::Finished => "finished_at is NOT NULL".to_string(),
     };
 
-    let where_clause = ["1=1".to_string(), created_condition, status_condition]
-        .into_iter()
-        .filter(|x| !x.is_empty())
-        .collect::<Vec<_>>()
-        .join(" AND ");
+    let where_clause = [
+        "1=1".to_string(),
+        requestor_id_condition,
+        created_condition,
+        status_condition,
+    ]
+    .into_iter()
+    .filter(|x| !x.is_empty())
+    .collect::<Vec<_>>()
+    .join(" AND ");
 
     let limit_clause = if limit > 0 {
         format!("LIMIT {}", limit)

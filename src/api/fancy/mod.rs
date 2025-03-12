@@ -251,6 +251,8 @@ pub async fn handle_job_list(
     let order = extract_url_param(&request, "order")?.unwrap_or("score".to_string());
     let status = extract_url_param(&request, "status")?;
     let since = extract_url_date_param(&request, "since")?;
+
+    let requestor_id = extract_url_param(&request, "requestor_id")?;
     let order = match order.as_str() {
         "created" => FancyJobOrderBy::Date,
         _ => return Ok(HttpResponse::BadRequest().finish()),
@@ -261,8 +263,23 @@ pub async fn handle_job_list(
         "active" => FancyJobStatus::Active,
         _ => return Ok(HttpResponse::BadRequest().finish()),
     };
+    let requestor_id = match requestor_id {
+        Some(id) => Some(DbAddress::from_str(&id).map_err(|_| {
+            actix_web::error::ErrorBadRequest("Invalid requestor id format. Has to be ETH address")
+        })?),
+        None => None,
+    };
 
-    let list = match fancy_job_list(&*conn, order, since, status, limit.unwrap_or(100)).await {
+    let list = match fancy_job_list(
+        &*conn,
+        order,
+        since,
+        status,
+        requestor_id,
+        limit.unwrap_or(100),
+    )
+    .await
+    {
         Ok(list) => list,
         Err(e) => {
             log::error!("{}", e);
