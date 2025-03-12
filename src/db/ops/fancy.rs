@@ -136,39 +136,57 @@ where
     };
 
     let owner_condition = match reserved {
-        ReservedStatus::All => "1=1".to_string(),
+        ReservedStatus::All => "".to_string(),
         ReservedStatus::Reserved => "f.owner is NOT NULL".to_string(),
         ReservedStatus::NotReserved => "f.owner is NULL".to_string(),
         ReservedStatus::User(user) => format!("f.owner = '{}'", user).to_string(),
     };
 
     let public_key_base_condition = match public_key_base {
-        PublicKeyFilter::All => "1=1".to_string(),
-        PublicKeyFilter::Selected(pk) => format!("AND f.public_key_base = '{}'", pk),
-        PublicKeyFilter::OnlyNull => "AND f.public_key_base is NULL".to_string(),
+        PublicKeyFilter::All => "".to_string(),
+        PublicKeyFilter::Selected(pk) => format!("f.public_key_base = '{}'", pk),
+        PublicKeyFilter::OnlyNull => "f.public_key_base is NULL".to_string(),
     };
+
+    let created_condition = match since {
+        Some(since) => format!("f.created > '{}'", since.format("%Y-%m-%d %H:%M:%S")),
+        None => "".to_string(),
+    };
+
+    let category_condition = match category {
+        Some(cat) => format!("f.category = '{}'", cat),
+        None => "".to_string(),
+    };
+
+    let where_clause = [
+        owner_condition,
+        public_key_base_condition,
+        category_condition,
+        created_condition,
+    ]
+    .into_iter()
+    .filter(|x| !x.is_empty())
+    .collect::<Vec<_>>()
+    .join(" AND ");
+
+    let limit_clause = if limit > 0 {
+        format!("LIMIT {}", limit)
+    } else {
+        "".to_string()
+    };
+
+    let order_by_clause = format!("{} DESC", order_by);
 
     let res = sqlx::query_as::<_, FancyProviderDbObj>(
         format!(
             r"SELECT f.*, mi.prov_name, mi.prov_node_id, mi.prov_reward_addr
             FROM fancy as f LEFT JOIN job_info as ji ON f.job=ji.uid LEFT JOIN miner_info as mi ON mi.uid=ji.miner
-            WHERE
-                {owner_condition}
-                {public_key_base_condition}
-                AND f.category LIKE $2
-                AND f.created > $3
-            ORDER BY {order_by} DESC LIMIT $1;"
+            WHERE {where_clause}
+            ORDER BY {order_by_clause}
+            {limit_clause}"
         )
         .as_str(),
     )
-    .bind(limit)
-    .bind(category.unwrap_or("%".to_string()))
-    .bind(
-        since
-            .map(|s| s.format("%Y-%m-%d %H:%M:%S").to_string())
-            .unwrap_or("2000-01-01 00:00:00".to_string()),
-    )
-    .bind(order_by)
     .fetch_all(conn)
     .await?;
     Ok(res)
