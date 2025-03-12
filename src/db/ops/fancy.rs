@@ -1,9 +1,10 @@
 use crate::db::model::{
-    FancyDbObj, FancyProviderDbObj, JobDbObj, MinerDbObj, PublicKeyBaseDbObject,
+    ContractFactoryDbObject, FancyDbObj, FancyProviderDbObj, JobDbObj, MinerDbObj,
+    PublicKeyBaseDbObject,
 };
 use crate::types::DbAddress;
 use chrono::{DateTime, Utc};
-use sqlx::{Executor, Sqlite, SqlitePool};
+use sqlx::{Executor, Sqlite, SqlitePool, Transaction};
 
 pub async fn insert_fancy_obj<'c, E>(
     conn: E,
@@ -86,21 +87,16 @@ where
     Ok(res)
 }
 
-//@todo add public key base
-#[allow(dead_code)]
-pub async fn get_or_insert_public_key<'c, E>(
-    conn: E,
+pub async fn get_or_insert_public_key(
+    conn: &mut Transaction<'_, Sqlite>,
     public_key_base: &str,
-) -> Result<PublicKeyBaseDbObject, sqlx::Error>
-where
-    E: Executor<'c, Database = Sqlite> + std::marker::Copy,
-{
+) -> Result<PublicKeyBaseDbObject, sqlx::Error> {
     //select first
     let res = sqlx::query_as::<_, PublicKeyBaseDbObject>(
         r"SELECT * FROM public_key_base WHERE hex = $1;",
     )
     .bind(public_key_base)
-    .fetch_optional(conn)
+    .fetch_optional(&mut **conn)
     .await?;
 
     if let Some(pk) = res {
@@ -112,7 +108,34 @@ where
         .bind(uuid::Uuid::new_v4().to_string())
         .bind(public_key_base)
         .bind(Utc::now().naive_utc())
-        .fetch_one(conn)
+        .fetch_one(&mut **conn)
+        .await?;
+        Ok(res)
+    }
+}
+
+pub async fn get_or_insert_factory(
+    conn: &mut Transaction<'_, Sqlite>,
+    factory_address: DbAddress,
+) -> Result<ContractFactoryDbObject, sqlx::Error> {
+    //select first
+    let res = sqlx::query_as::<_, ContractFactoryDbObject>(
+        r"SELECT * FROM contract_factory WHERE address = $1;",
+    )
+    .bind(factory_address)
+    .fetch_optional(&mut **conn)
+    .await?;
+
+    if let Some(pk) = res {
+        Ok(pk)
+    } else {
+        let res = sqlx::query_as::<_, ContractFactoryDbObject>(
+            r"INSERT INTO contract_factory (id, address, added) VALUES ($1, $2, $3) RETURNING *;",
+        )
+        .bind(uuid::Uuid::new_v4().to_string())
+        .bind(factory_address)
+        .bind(Utc::now().naive_utc())
+        .fetch_one(&mut **conn)
         .await?;
         Ok(res)
     }
