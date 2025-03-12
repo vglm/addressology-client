@@ -80,7 +80,7 @@ async fn _handle_fancy_new_with_trans(
     } else {
         //normalize public key
         let public_key_base = new_data.factory.clone();
-        let public_key_bytes = match hex::decode(public_key_base.clone()) {
+        let public_key_bytes = match hex::decode(public_key_base.replace("0x", "")) {
             Ok(bytes) => bytes,
             Err(e) => {
                 log::error!("{}", e);
