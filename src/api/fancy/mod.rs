@@ -858,7 +858,7 @@ async fn _handle_fancy_new_with_trans(
     result.job = new_data.job_id.clone();
 
     if result.score < 1E10 {
-        log::error!("Score too low: {}", result.score);
+        log::debug!("Score too low: {}", result.score);
         return FancyNewResult::ScoreTooLow;
     }
 

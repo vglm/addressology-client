@@ -10,7 +10,7 @@ pub fn salt_to_guarded_salt(salt: &[u8]) -> [u8; 32] {
 }
 
 pub fn compute_create3_command(factory: &str, salt: &str) -> Result<String, AddressologyError> {
-    log::info!("Computing create3 for factory: {}, salt: {}", factory, salt);
+    log::debug!("Computing create3 for factory: {}, salt: {}", factory, salt);
 
     /*if let Some(caller) = &caller {
         log::info!("Also checking for caller: {}", caller);
@@ -54,7 +54,7 @@ pub fn compute_create3_command(factory: &str, salt: &str) -> Result<String, Addr
     }
     let guarded_hash_bytes = salt_to_guarded_salt(&salt_bytes);
 
-    println!("Guarded hash: 0x{}", hex::encode(guarded_hash_bytes));
+    log::trace!("Guarded hash: 0x{}", hex::encode(guarded_hash_bytes));
 
     let mut mem = Vec::new();
 
@@ -86,13 +86,13 @@ pub fn compute_create3_command(factory: &str, salt: &str) -> Result<String, Addr
     let mut result = [0; 32];
     hasher.finalize(&mut result);
 
-    println!("0x{}", hex::encode(result));
+    log::trace!("0x{}", hex::encode(result));
     //result goes to 0x14 bytes
     //copy result into 0x14 mem location
 
     mem.as_mut_slice()[0x14..0x14 + 0x20].copy_from_slice(&result);
 
-    println!("0x{}", hex::encode(mem.as_slice()));
+    log::trace!("0x{}", hex::encode(mem.as_slice()));
 
     mem[0x1e] = 0xd6;
     mem[0x1f] = 0x94;
