@@ -79,11 +79,3 @@ pub struct ApiMinerInfo {
     pub prov_name: Option<String>,
     pub prov_extra_info: Option<String>,
 }
-
-#[derive(Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct AddNewJobData {
-    pub miner: ApiMinerInfo,
-    pub cruncher_ver: String,
-    pub requestor_id: String,
-}

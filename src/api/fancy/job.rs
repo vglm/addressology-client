@@ -1,4 +1,4 @@
-use crate::api::fancy::{AddNewJobData, ApiMinerInfo};
+use crate::api::fancy::ApiMinerInfo;
 use crate::api::utils::{extract_url_date_param, extract_url_int_param, extract_url_param};
 use crate::db::model::{JobDbObj, MinerDbObj, UserDbObj};
 use crate::db::ops::{
@@ -15,6 +15,14 @@ use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
 use web3::signing::keccak256;
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AddNewJobData {
+    pub miner: ApiMinerInfo,
+    pub cruncher_ver: String,
+    pub requestor_id: String,
+}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
