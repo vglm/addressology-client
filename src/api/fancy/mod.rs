@@ -8,10 +8,11 @@ use crate::api::utils::{
 use crate::db::model::{ContractAddressDbObj, DeployStatus, JobDbObj, MinerDbObj, UserDbObj};
 use crate::db::ops::{
     fancy_finish_job, fancy_get_by_address, fancy_get_job_info, fancy_get_miner_info,
-    fancy_insert_job_info, fancy_insert_miner_info, fancy_list, fancy_update_job,
+    fancy_insert_job_info, fancy_insert_miner_info, fancy_job_list, fancy_list, fancy_update_job,
     fancy_update_owner, get_contract_address_list, get_contract_by_id, get_or_insert_factory,
     get_or_insert_public_key, get_public_key_list, get_user, insert_fancy_obj,
-    update_contract_data, update_user_tokens, FancyOrderBy, PublicKeyFilter, ReservedStatus,
+    update_contract_data, update_user_tokens, FancyJobOrderBy, FancyJobStatus, FancyOrderBy,
+    PublicKeyFilter, ReservedStatus,
 };
 use crate::fancy::{parse_fancy, parse_fancy_private};
 use crate::types::DbAddress;
@@ -212,13 +213,6 @@ pub async fn handle_list(
         _ => return Ok(HttpResponse::BadRequest().finish()),
     };
 
-    log::info!(
-        "category: {:?}, order: {:?}, since: {:?}",
-        category,
-        order,
-        since
-    );
-
     let public_key_base = match public_key_base {
         Some(base) => PublicKeyFilter::Selected(base),
         None => PublicKeyFilter::All,
@@ -235,6 +229,40 @@ pub async fn handle_list(
     )
     .await
     {
+        Ok(list) => list,
+        Err(e) => {
+            log::error!("{}", e);
+            return Ok(HttpResponse::InternalServerError().finish());
+        }
+    };
+
+    Ok(HttpResponse::Ok().json(list))
+}
+
+pub async fn handle_job_list(
+    server_data: web::Data<Box<ServerData>>,
+    request: HttpRequest,
+    session: Session,
+) -> Result<HttpResponse, actix_web::Error> {
+    let _user = get_logged_user_or_null!(session);
+    let conn = server_data.db_connection.lock().await;
+    let limit = extract_url_int_param(&request, "limit")?;
+
+    let order = extract_url_param(&request, "order")?.unwrap_or("score".to_string());
+    let status = extract_url_param(&request, "status")?;
+    let since = extract_url_date_param(&request, "since")?;
+    let order = match order.as_str() {
+        "created" => FancyJobOrderBy::Date,
+        _ => return Ok(HttpResponse::BadRequest().finish()),
+    };
+    let status = match status.unwrap_or("all".to_string()).as_str() {
+        "all" => FancyJobStatus::All,
+        "finished" => FancyJobStatus::Finished,
+        "active" => FancyJobStatus::Active,
+        _ => return Ok(HttpResponse::BadRequest().finish()),
+    };
+
+    let list = match fancy_job_list(&*conn, order, since, status, limit.unwrap_or(100)).await {
         Ok(list) => list,
         Err(e) => {
             log::error!("{}", e);

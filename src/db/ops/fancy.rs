@@ -1,6 +1,6 @@
 use crate::db::model::{
-    ContractFactoryDbObject, FancyDbObj, FancyProviderDbObj, JobDbObj, MinerDbObj,
-    PublicKeyBaseDbObject,
+    ContractFactoryDbObject, FancyDbObj, FancyProviderDbObj, JobDbObj, JobMinerDbReadObj,
+    MinerDbObj, PublicKeyBaseDbObject,
 };
 use crate::types::DbAddress;
 use chrono::{DateTime, Utc};
@@ -204,6 +204,82 @@ where
         format!(
             r"SELECT f.*, mi.prov_name, mi.prov_node_id, mi.prov_reward_addr
             FROM fancy as f LEFT JOIN job_info as ji ON f.job=ji.uid LEFT JOIN miner_info as mi ON mi.uid=ji.miner
+            WHERE {where_clause}
+            ORDER BY {order_by_clause}
+            {limit_clause}"
+        )
+        .as_str(),
+    )
+    .fetch_all(conn)
+    .await?;
+    Ok(res)
+}
+
+pub enum FancyJobOrderBy {
+    Date,
+}
+
+pub enum FancyJobStatus {
+    All,
+    Active,
+    Finished,
+}
+
+pub async fn fancy_job_list<'c, E>(
+    conn: E,
+    order_by: FancyJobOrderBy,
+    since: Option<DateTime<Utc>>,
+    status: FancyJobStatus,
+    limit: i64,
+) -> Result<Vec<JobMinerDbReadObj>, sqlx::Error>
+where
+    E: Executor<'c, Database = Sqlite>,
+{
+    let order_by = match order_by {
+        FancyJobOrderBy::Date => "started_at",
+    };
+
+    let created_condition = match since {
+        Some(since) => format!("started_at > '{}'", since.format("%Y-%m-%d %H:%M:%S")),
+        None => "".to_string(),
+    };
+
+    let status_condition = match status {
+        FancyJobStatus::All => "".to_string(),
+        FancyJobStatus::Active => "finished_at is NULL".to_string(),
+        FancyJobStatus::Finished => "finished_at is NOT NULL".to_string(),
+    };
+
+    let where_clause = ["1=1".to_string(), created_condition, status_condition]
+        .into_iter()
+        .filter(|x| !x.is_empty())
+        .collect::<Vec<_>>()
+        .join(" AND ");
+
+    let limit_clause = if limit > 0 {
+        format!("LIMIT {}", limit)
+    } else {
+        "".to_string()
+    };
+
+    let order_by_clause = format!("{} DESC", order_by);
+
+    let res = sqlx::query_as::<_, JobMinerDbReadObj>(
+        format!(
+            r"SELECT
+                cruncher_ver,
+                started_at,
+                finished_at,
+                requestor_id,
+                hashes_accepted,
+                hashes_reported,
+                cost_reported,
+                job_extra_info,
+                prov_name,
+                prov_node_id,
+                prov_reward_addr,
+                prov_extra_info
+            FROM job_info as ji JOIN miner_info as mi on ji.miner=mi.uid
             WHERE {where_clause}
             ORDER BY {order_by_clause}
             {limit_clause}"

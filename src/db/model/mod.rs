@@ -141,3 +141,20 @@ pub struct JobDbObj {
     pub miner: String,
     pub job_extra_info: Option<String>,
 }
+
+#[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct JobMinerDbReadObj {
+    pub cruncher_ver: String,
+    pub started_at: NaiveDateTime,
+    pub finished_at: Option<NaiveDateTime>,
+    pub requestor_id: Option<DbAddress>,
+    pub hashes_reported: f64,
+    pub hashes_accepted: f64,
+    pub cost_reported: f64,
+    pub job_extra_info: Option<String>,
+    pub prov_node_id: Option<DbAddress>,
+    pub prov_reward_addr: Option<DbAddress>,
+    pub prov_name: Option<String>,
+    pub prov_extra_info: Option<String>,
+}
