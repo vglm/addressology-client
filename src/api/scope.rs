@@ -1,11 +1,12 @@
 use crate::api::contract::compile::handle_compile;
+use crate::api::fancy::buy::handle_fancy_buy_api;
+use crate::api::fancy::deploy::handle_fancy_deploy_start;
+use crate::api::fancy::job::{handle_finish_job, handle_job_list, handle_new_job};
 use crate::api::fancy::score::{handle_get_score_categories, handle_score_custom};
 use crate::api::fancy::tokens::handle_get_user_tokens;
 use crate::api::fancy::{
-    handle_fancy_buy_api, handle_fancy_deploy_start, handle_fancy_estimate_total_hash,
-    handle_fancy_new, handle_fancy_new_many, handle_fancy_new_many2, handle_finish_job,
-    handle_job_list, handle_list, handle_my_list, handle_new_job, handle_public_key_list,
-    handle_random,
+    handle_fancy_estimate_total_hash, handle_fancy_new, handle_fancy_new_many,
+    handle_fancy_new_many2, handle_list, handle_my_list, handle_public_key_list, handle_random,
 };
 use crate::api::oauth::google::{handle_google_callback, handle_login_via_google};
 use crate::api::user::handle_greet;
