@@ -42,7 +42,7 @@ pub async fn handle_list(
 
     let public_key_base = match public_key_base {
         Some(base) => PublicKeyFilter::Selected(base),
-        None => PublicKeyFilter::All,
+        None => PublicKeyFilter::OnlyNull,
     };
 
     let list = match fancy_list(
