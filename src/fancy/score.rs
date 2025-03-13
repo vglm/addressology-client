@@ -511,10 +511,13 @@ pub fn score_fancy(address: Address) -> FancyScore {
     let count_bb50 = mixed_address_str.matches("BB50").count() - count_0bb50;
     let mut pattern_score = count_0bb50 * 2 + count_0bb5 + count_bb50;
 
-    let pattern = r"^00000.{3}00000"; // `.{3}` matches exactly three characters
-    let re = Regex::new(pattern).unwrap();
-    if re.is_match(mixed_address_str) {
+    let pattern5zeroes_start = Regex::new(r"^00000.{3}00000").unwrap();
+    let pattern6zeroes_any = Regex::new(r"000000.{3}000000").unwrap();
+    if pattern5zeroes_start.is_match(mixed_address_str) {
         pattern_score += 1000;
+    }
+    if pattern6zeroes_any.is_match(mixed_address_str) {
+        pattern_score += 20000;
     }
     if mixed_address_str.contains("0000BB50000") {
         pattern_score += 500;
