@@ -41,16 +41,23 @@ CREATE TABLE job_info (
     uid TEXT NOT NULL,
     cruncher_ver TEXT NOT NULL,
     started_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
     finished_at TEXT NULL,
     requestor_id TEXT NULL,
     hashes_reported REAL NOT NULL,
     hashes_accepted REAL NOT NULL,
+    entries_accepted INTEGER NOT NULL,
+    entries_rejected INTEGER NOT NULL,
     cost_reported REAL NOT NULL,
     miner TEXT NULL,
     job_extra_info TEXT NULL,
     CONSTRAINT job_info_pk PRIMARY KEY (uid),
     FOREIGN KEY (miner) REFERENCES miner_info (uid)
 ) STRICT;
+
+CREATE INDEX job_info_started_at_idx ON job_info (started_at);
+CREATE INDEX job_info_updated_at_idx ON job_info (updated_at);
+CREATE INDEX job_info_finished_at_idx ON job_info (finished_at);
 
 CREATE TABLE contract_factory (
     id TEXT NOT NULL,

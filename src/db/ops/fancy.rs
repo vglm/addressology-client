@@ -237,7 +237,7 @@ where
     E: Executor<'c, Database = Sqlite>,
 {
     let order_by = match order_by {
-        FancyJobOrderBy::Date => "started_at",
+        FancyJobOrderBy::Date => "updated_at",
     };
 
     let requestor_id_condition = match requestor_id {
@@ -246,7 +246,7 @@ where
     };
 
     let created_condition = match since {
-        Some(since) => format!("started_at > '{}'", since.format("%Y-%m-%d %H:%M:%S")),
+        Some(since) => format!("updated_at > '{}'", since.format("%Y-%m-%d %H:%M:%S")),
         None => "".to_string(),
     };
 
@@ -280,6 +280,7 @@ where
             r"SELECT
                 cruncher_ver,
                 started_at,
+                updated_at,
                 finished_at,
                 requestor_id,
                 hashes_accepted,
@@ -407,12 +408,13 @@ where
     E: Executor<'c, Database = Sqlite>,
 {
     let res = sqlx::query_as::<_, JobDbObj>(
-        r"INSERT INTO job_info (uid, cruncher_ver, started_at, finished_at, requestor_id, hashes_accepted, hashes_reported, cost_reported, miner, job_extra_info)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *;",
+        r"INSERT INTO job_info (uid, cruncher_ver, started_at, updated_at, finished_at, requestor_id, hashes_accepted, hashes_reported, cost_reported, miner, job_extra_info)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *;",
     )
         .bind(&job_info.uid)
         .bind(&job_info.cruncher_ver)
         .bind(job_info.started_at)
+        .bind(job_info.updated_at)
         .bind(job_info.finished_at)
         .bind(job_info.requestor_id)
         .bind(job_info.hashes_accepted)
@@ -436,11 +438,12 @@ where
     E: Executor<'c, Database = Sqlite>,
 {
     let _res = sqlx::query(
-        r"UPDATE job_info SET hashes_accepted = $1, hashes_reported = $2, cost_reported = $3 WHERE uid = $4;",
+        r"UPDATE job_info SET hashes_accepted = $1, hashes_reported = $2, cost_reported = $3, updated_at = $4 WHERE uid = $4;",
     )
     .bind(hashes_accepted)
     .bind(hashes_reported)
     .bind(cost_reported)
+    .bind(Utc::now().naive_utc())
     .bind(job_uid)
     .execute(conn)
     .await?;

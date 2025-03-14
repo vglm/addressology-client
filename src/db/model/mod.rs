@@ -133,6 +133,7 @@ pub struct JobDbObj {
     pub uid: String,
     pub cruncher_ver: String,
     pub started_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
     pub finished_at: Option<NaiveDateTime>,
     pub requestor_id: Option<DbAddress>,
     pub hashes_reported: f64,
@@ -147,6 +148,7 @@ pub struct JobDbObj {
 pub struct JobMinerDbReadObj {
     pub cruncher_ver: String,
     pub started_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
     pub finished_at: Option<NaiveDateTime>,
     pub requestor_id: Option<DbAddress>,
     pub hashes_reported: f64,
