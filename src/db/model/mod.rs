@@ -138,6 +138,8 @@ pub struct JobDbObj {
     pub requestor_id: Option<DbAddress>,
     pub hashes_reported: f64,
     pub hashes_accepted: f64,
+    pub entries_accepted: i64,
+    pub entries_rejected: i64,
     pub cost_reported: f64,
     pub miner: String,
     pub job_extra_info: Option<String>,

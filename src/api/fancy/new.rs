@@ -173,6 +173,8 @@ pub async fn handle_fancy_new_many(
         }
     };
 
+    let mut entries_accepted = 0;
+    let mut entries_rejected = 0;
     for data in new_data.data.iter() {
         let new_data = AddNewData {
             salt: data.salt.clone(),
@@ -184,11 +186,14 @@ pub async fn handle_fancy_new_many(
             _handle_fancy_new_with_trans(web::Json(new_data), &mut total_score, &mut db_trans)
                 .await;
         match resp {
-            FancyNewResult::Ok(_ok) => {}
+            FancyNewResult::Ok(_ok) => {
+                entries_accepted += 1;
+            }
             FancyNewResult::Error(err) => {
                 return err;
             }
             FancyNewResult::ScoreTooLow => {
+                entries_rejected += 1;
                 log::debug!("Score too low - skipping");
             }
         }
@@ -199,6 +204,8 @@ pub async fn handle_fancy_new_many(
         &find_job.uid,
         find_job.hashes_accepted + total_score,
         new_data.extra.reported_hashes,
+        entries_accepted,
+        entries_rejected,
         new_data.extra.reported_cost,
     )
     .await

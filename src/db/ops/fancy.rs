@@ -408,8 +408,8 @@ where
     E: Executor<'c, Database = Sqlite>,
 {
     let res = sqlx::query_as::<_, JobDbObj>(
-        r"INSERT INTO job_info (uid, cruncher_ver, started_at, updated_at, finished_at, requestor_id, hashes_accepted, hashes_reported, cost_reported, miner, job_extra_info)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *;",
+        r"INSERT INTO job_info (uid, cruncher_ver, started_at, updated_at, finished_at, requestor_id, hashes_accepted, hashes_reported, entries_accepted, entries_rejected, cost_reported, miner, job_extra_info)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *;",
     )
         .bind(&job_info.uid)
         .bind(&job_info.cruncher_ver)
@@ -419,6 +419,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *;",
         .bind(job_info.requestor_id)
         .bind(job_info.hashes_accepted)
         .bind(job_info.hashes_reported)
+        .bind(job_info.entries_accepted)
+        .bind(job_info.entries_rejected)
         .bind(job_info.cost_reported)
         .bind(&job_info.miner)
         .bind(&job_info.job_extra_info)
@@ -432,16 +434,27 @@ pub async fn fancy_update_job<'c, E>(
     job_uid: &str,
     hashes_accepted: f64,
     hashes_reported: f64,
+    entries_accepted: i64,
+    entries_rejected: i64,
     cost_reported: f64,
 ) -> Result<(), sqlx::Error>
 where
     E: Executor<'c, Database = Sqlite>,
 {
     let _res = sqlx::query(
-        r"UPDATE job_info SET hashes_accepted = $1, hashes_reported = $2, cost_reported = $3, updated_at = $4 WHERE uid = $4;",
+        r"UPDATE job_info SET
+                  hashes_accepted = $1,
+                  hashes_reported = $2,
+                  entries_accepted = $3,
+                  entries_rejected = $4,
+                  cost_reported = $5,
+                  updated_at = $6
+              WHERE uid = $7;",
     )
     .bind(hashes_accepted)
     .bind(hashes_reported)
+    .bind(entries_accepted)
+    .bind(entries_rejected)
     .bind(cost_reported)
     .bind(Utc::now().naive_utc())
     .bind(job_uid)
