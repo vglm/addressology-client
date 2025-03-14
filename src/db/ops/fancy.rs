@@ -285,6 +285,8 @@ where
                 requestor_id,
                 hashes_accepted,
                 hashes_reported,
+                entries_accepted,
+                entries_rejected,
                 cost_reported,
                 job_extra_info,
                 prov_name,
