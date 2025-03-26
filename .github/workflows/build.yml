@@ -39,6 +39,6 @@ jobs:
       - name: Auto update dev
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          curl -i -H "Update-Secret:${{ secrets.UPDATE_SECRET }}" -X POST -F file=@target/release/addresser https://addressology.ovh/service/update
+          curl -i -H "Update-Secret:${{ secrets.UPDATE_SECRET }}" -X POST -F file=@target/release/addresser https://addressology.net/service/update
           
 
