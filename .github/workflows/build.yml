@@ -29,16 +29,4 @@ jobs:
         run: |
           cargo build --release --no-default-features --features=dashboard
 
-      - name: Run server for simple tests
-        run: |
-          mkdir testing
-          cp target/release/addresser testing/
-          cd testing
-          ./addresser server --addr localhost:57888&
-
-      - name: Auto update dev
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          curl -i -H "Update-Secret:${{ secrets.UPDATE_SECRET }}" -X POST -F file=@target/release/addresser https://addressology.net/service/update
-          
 
