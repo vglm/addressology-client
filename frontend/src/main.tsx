@@ -14,9 +14,7 @@ const root = ReactDOM.createRoot(rootEl);
 root.render(
     <React.StrictMode>
         <BrowserRouter basename={"dashboard"}>
-            <LoginProvider>
-                <Dashboard />
-            </LoginProvider>
+            <Dashboard />
         </BrowserRouter>
     </React.StrictMode>,
 );

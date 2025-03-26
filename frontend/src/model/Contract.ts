@@ -45,7 +45,17 @@ export interface CompileResponse {
     contracts?: { [key: string]: { [key: string]: ContractCompiledInt } };
     errors?: CompileErrors[];
 }
-
+export interface Runner {
+    started: boolean;
+    data: {
+        runnerNo: number;
+        totalComputed: number | null;
+        reportedSpeed: number | null;
+        foundAddressesCount: number;
+        lastUpdatedSpeed: string | null;
+        lastAddressFound: string | null;
+    };
+}
 export interface ContractSaved {
     contractId: string;
     created: string;
