@@ -10,8 +10,8 @@ use crate::{get_logged_user_or_null, ServerData};
 use actix_session::Session;
 use actix_web::{web, HttpRequest, HttpResponse};
 use chrono::NaiveDateTime;
-use pbkdf2::password_hash::rand_core::RngCore;
-use rand::thread_rng;
+
+use rand::{rng, RngCore};
 use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
 use web3::signing::keccak256;
@@ -254,7 +254,7 @@ pub async fn handle_new_job(
     };
 
     //generate random uuid
-    let new_uid = format!("jid{:0>20}", thread_rng().next_u64());
+    let new_uid = format!("jid{:0>20}", rng().next_u64());
 
     let requestor_id = match DbAddress::from_str(&new_data.requestor_id) {
         Ok(addr) => addr,
