@@ -1,5 +1,3 @@
-
-use actix_web::web::{get, post};
 use actix_web::Scope;
 
 #[rustfmt::skip]

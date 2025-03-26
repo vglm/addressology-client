@@ -351,6 +351,7 @@ dependencies = [
  "log",
  "mime_guess",
  "oauth2",
+ "parking_lot",
  "pbkdf2",
  "percent-encoding",
  "rand 0.9.0",

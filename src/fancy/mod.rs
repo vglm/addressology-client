@@ -5,9 +5,8 @@ use web3::types::H160;
 #[allow(clippy::module_inception)]
 mod fancy;
 mod score;
-pub use fancy::*;
-pub use score::*;
 use crate::types::DbAddress;
+pub use score::*;
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]

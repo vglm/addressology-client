@@ -1,5 +1,5 @@
-use std::collections::BTreeMap;
 use crate::config::get_base_difficulty;
+use std::collections::BTreeMap;
 
 use crate::fancy::address_to_mixed_case;
 use regex::Regex;
@@ -28,7 +28,6 @@ pub struct FancyScore {
     pub price_multiplier: f64,
     pub category: String,
 }
-
 
 #[derive(Serialize, Deserialize, EnumIter, PartialEq, Eq, Debug, Clone, Default)]
 pub enum FancyScoreCategory {

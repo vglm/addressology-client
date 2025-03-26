@@ -4,36 +4,23 @@ mod error;
 mod fancy;
 mod hash;
 
+pub mod runner;
 mod types;
 mod update;
 
 
-use crate::config::get_base_difficulty_price;
-
-use crate::fancy::parse_fancy;
-use crate::fancy::score_fancy;
+use crate::api::scope::server_api_scope;
 use crate::hash::{compute_address_command, compute_create3_command};
-use crate::types::DbAddress;
+use crate::runner::test_run;
 use actix_multipart::form::MultipartFormConfig;
 use actix_multipart::MultipartError;
-use actix_session::config::CookieContentSecurity;
-use actix_session::storage::CookieSessionStore;
-use actix_session::SessionMiddleware;
-use actix_web::cookie::SameSite;
 use actix_web::http::StatusCode;
 use actix_web::{web, App, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder};
 use awc::Client;
 use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
 use serde::Deserialize;
-use sqlx::SqlitePool;
 use std::env;
-use std::ops::Sub;
-use std::path::PathBuf;
-use std::str::FromStr;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use crate::api::scope::server_api_scope;
 
 fn get_allowed_emails() -> Vec<String> {
     let res = env::var("ALLOWED_EMAILS")
@@ -62,8 +49,7 @@ lazy_static! {
         .unwrap_or(false);
 }
 
-pub struct ServerData {
-}
+pub struct ServerData {}
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -260,15 +246,11 @@ async fn main() -> std::io::Result<()> {
 
     match args.cmd {
         Commands::Server { addr, threads } => {
-
             HttpServer::new(move || {
                 let cors = actix_cors::Cors::permissive();
 
-                let server_data = web::Data::new(Box::new(ServerData {
-
-                }));
+                let server_data = web::Data::new(Box::new(ServerData {}));
                 let client = web::Data::new(Client::new());
-
 
                 App::new()
                     .wrap(cors)
@@ -347,6 +329,7 @@ async fn main() -> std::io::Result<()> {
         }
 
         Commands::Test {} => {
+            test_run().await;
             //test_command(conn).await;
             /*match compile_solc(
                 "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.28;\n\n// Uncomment this line to use console.log\n// import \"hardhat/console.sol\";\n\ncontract Lock {\n    uint public unlockTime;\n    address payable public owner;\n\n    event Withdrawal(uint amount, uint when);\n\n    constructor(uint _unlockTime) payable {\n        require(\n            block.timestamp < _unlockTime,\n            \"Unlock time should be in the future\"\n        );\n\n        unlockTime = _unlockTime;\n        owner = payable(msg.sender);\n    }\n\n    function withdraw() public {\n        // Uncomment this line, and the import of \"hardhat/console.sol\", to print a log in your terminal\n        // console.log(\"Unlock time is %o and block timestamp is %o\", unlockTime, block.timestamp);\n\n        require(block.timestamp >= unlockTime, \"You can't withdraw yet\");\n        require(msg.sender == owner, \"You aren't the owner\");\n\n        emit Withdrawal(address(this).balance, block.timestamp);\n\n        owner.transfer(address(this).balance);\n    }\n}\n\n",
