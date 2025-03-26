@@ -1,14 +1,13 @@
 import React from "react";
-import "./MyContracts.css";
+import "./Workers.css";
 import { backendFetch } from "./common/BackendCall";
 import { useEffect, useState } from "react";
-import { ContractSaved, Runner } from "./model/Contract";
+import { Runner } from "./model/Contract";
 import { Button } from "@mui/material";
-import { useNavigate } from "react-router-dom";
 
 const MyWorkers = () => {
     const [runners, setRunners] = useState<Runner[]>([]);
-    const navigate = useNavigate();
+    //const navigate = useNavigate();
 
     const getRunners = async () => {
         const response = await backendFetch("/api/runners", {
@@ -51,10 +50,10 @@ const MyWorkers = () => {
                             <div>Found addresses:</div>
                             <div>{runner.data.foundAddressesCount}</div>
                         </div>
-                        <Button disabled={runner.started} onClick={(e) => startRunner(runner.data.runnerNo)}>
+                        <Button disabled={runner.started} onClick={(_) => startRunner(runner.data.runnerNo)}>
                             Start runner
                         </Button>
-                        <Button disabled={!runner.started} onClick={(e) => stopRunner(runner.data.runnerNo)}>
+                        <Button disabled={!runner.started} onClick={(_) => stopRunner(runner.data.runnerNo)}>
                             Stop runner
                         </Button>
                     </div>
