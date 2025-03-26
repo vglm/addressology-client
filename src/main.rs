@@ -7,11 +7,10 @@ mod hash;
 pub mod runner;
 mod types;
 mod update;
-
-
 use crate::api::scope::server_api_scope;
+
 use crate::hash::{compute_address_command, compute_create3_command};
-use crate::runner::test_run;
+use crate::runner::{test_run, CrunchRunner};
 use actix_multipart::form::MultipartFormConfig;
 use actix_multipart::MultipartError;
 use actix_web::http::StatusCode;
@@ -21,6 +20,7 @@ use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
 use serde::Deserialize;
 use std::env;
+use std::sync::Arc;
 
 fn get_allowed_emails() -> Vec<String> {
     let res = env::var("ALLOWED_EMAILS")
@@ -49,7 +49,9 @@ lazy_static! {
         .unwrap_or(false);
 }
 
-pub struct ServerData {}
+pub struct ServerData {
+    pub runners: Vec<Arc<tokio::sync::Mutex<CrunchRunner>>>,
+}
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -215,6 +217,9 @@ enum Commands {
 
         #[arg(long)]
         threads: Option<usize>,
+
+        #[arg(long)]
+        no_cuda_devices: Option<u64>,
     },
 }
 
@@ -245,12 +250,28 @@ async fn main() -> std::io::Result<()> {
     let args = Cli::parse();
 
     match args.cmd {
-        Commands::Server { addr, threads } => {
+        Commands::Server {
+            addr,
+            threads,
+            no_cuda_devices,
+        } => {
+            let mut cuda_workers = Vec::new();
+            if let Some(no_cuda_devices) = no_cuda_devices {
+                for i in 0..no_cuda_devices {
+                    cuda_workers.push(Arc::new(tokio::sync::Mutex::new(CrunchRunner::new(
+                        "profanity_cuda.exe".parse().unwrap(),
+                        i,
+                    ))));
+                }
+            }
+
             HttpServer::new(move || {
                 let cors = actix_cors::Cors::permissive();
 
-                let server_data = web::Data::new(Box::new(ServerData {}));
                 let client = web::Data::new(Client::new());
+                let server_data = web::Data::new(Box::new(ServerData {
+                    runners: cuda_workers.clone(),
+                }));
 
                 App::new()
                     .wrap(cors)

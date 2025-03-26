@@ -2,27 +2,43 @@ use crate::err_custom_create;
 use crate::error::AddressologyError;
 use crate::fancy::FancyDbObj;
 use crate::types::DbAddress;
+use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::sync::{Arc};
-use parking_lot::Mutex;
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 use tokio::time::sleep;
 
-#[derive(Debug, Clone, Default)]
-struct CrunchRunnerData {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CrunchRunnerData {
+    runner_no: u64,
     total_computed: Option<f64>,
     reported_speed: Option<f64>,
     found_addresses_count: u64,
-    addresses_deque: VecDeque<FancyDbObj>,
     last_updated_speed: Option<chrono::DateTime<chrono::Utc>>,
     last_address_found: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+impl CrunchRunnerData {
+    pub fn new(runner_no: u64) -> Self {
+        Self {
+            runner_no,
+            total_computed: None,
+            reported_speed: None,
+            found_addresses_count: 0,
+            last_updated_speed: None,
+            last_address_found: None,
+        }
+    }
+}
 
+#[derive(Debug)]
 pub struct CrunchRunner {
     exe_path: PathBuf,
     contract: Option<DbAddress>,
@@ -33,6 +49,7 @@ pub struct CrunchRunner {
     stderr_thread: Option<thread::JoinHandle<()>>,
 
     shared_data: Arc<Mutex<CrunchRunnerData>>,
+    addresses_deque: Arc<Mutex<VecDeque<FancyDbObj>>>,
 }
 
 impl Drop for CrunchRunner {
@@ -46,8 +63,13 @@ impl Drop for CrunchRunner {
     }
 }
 
-
-fn parse_line(str: String, context: Arc<Mutex<CrunchRunnerData>>) -> Result<(), AddressologyError> {
+fn parse_line(
+    str: String,
+    context: Arc<Mutex<CrunchRunnerData>>,
+    address_deque: Arc<Mutex<VecDeque<FancyDbObj>>>,
+) -> Result<(), AddressologyError> {
+    log::trace!("Output: {}", str);
+    //log::info!("Output: {}", str);
     if str.starts_with("0x") {
         let split = str
             .split(",")
@@ -82,18 +104,18 @@ fn parse_line(str: String, context: Arc<Mutex<CrunchRunnerData>>) -> Result<(), 
             job: None,
         };
 
+        address_deque.lock().push_back(fdb);
         let mut update_context = context.lock();
-        update_context.addresses_deque.push_back(fdb);
         update_context.found_addresses_count += 1;
+        log::info!("Address found: {}", update_context.found_addresses_count);
         update_context.last_address_found = Some(chrono::Utc::now());
     }
-
 
     Ok(())
 }
 
 impl CrunchRunner {
-    pub fn new(exe_path: PathBuf) -> Self {
+    pub fn new(exe_path: PathBuf, runner_no: u64) -> Self {
         Self {
             exe_path,
             contract: None,
@@ -101,8 +123,15 @@ impl CrunchRunner {
             child_process: Arc::new(Mutex::new(None)),
             stdout_thread: None,
             stderr_thread: None,
-            shared_data: Arc::new(Mutex::new(CrunchRunnerData::default())),
+            shared_data: Arc::new(Mutex::new(CrunchRunnerData::new(runner_no))),
+            addresses_deque: Arc::new(Default::default()),
         }
+    }
+    pub fn is_started(&self) -> bool {
+        self.child_process.lock().is_some()
+    }
+    pub fn shared_data(&self) -> CrunchRunnerData {
+        self.shared_data.lock().clone()
     }
     pub fn reported_speed(&self) -> Option<f64> {
         self.shared_data.lock().reported_speed
@@ -114,7 +143,7 @@ impl CrunchRunner {
         self.shared_data.lock().found_addresses_count
     }
     pub fn queue_len(&self) -> usize {
-        self.shared_data.lock().addresses_deque.len()
+        self.addresses_deque.lock().len()
     }
 
     pub fn set_contract(&mut self, contract: DbAddress) {
@@ -125,7 +154,7 @@ impl CrunchRunner {
         self.public_key_base = Some(public_key_base);
     }
 
-    pub async fn run(&mut self) -> Result<(), AddressologyError> {
+    pub async fn start(&mut self) -> Result<(), AddressologyError> {
         // Spawn a process (Example: `ping` command)
         let child = self.child_process.clone();
         if self.child_process.lock().is_some() {
@@ -191,12 +220,15 @@ impl CrunchRunner {
 
         // Spawn a thread to read stdout
         let stdout_shared_data = self.shared_data.clone();
+        let stdout_deque = self.addresses_deque.clone();
         let stdout_thread = thread::spawn(move || {
             let reader = BufReader::new(stdout);
             for line in reader.lines() {
                 match line {
                     Ok(line) => {
-                        if let Err(err) = parse_line(line, stdout_shared_data.clone()) {
+                        if let Err(err) =
+                            parse_line(line, stdout_shared_data.clone(), stdout_deque.clone())
+                        {
                             log::error!("Error parsing line: {err}");
                         }
                     }
@@ -209,12 +241,17 @@ impl CrunchRunner {
 
         // Spawn a thread to read stderr
         let stderr_shared_data = self.shared_data.clone();
+        let stderr_address_deque = self.addresses_deque.clone();
         let stderr_thread = thread::spawn(move || {
             let reader = BufReader::new(stderr);
             for line in reader.lines() {
                 match line {
                     Ok(line) => {
-                        if let Err(err) = parse_line(line, stderr_shared_data.clone()) {
+                        if let Err(err) = parse_line(
+                            line,
+                            stderr_shared_data.clone(),
+                            stderr_address_deque.clone(),
+                        ) {
                             log::error!("Error parsing line: {err}");
                         }
                     }
@@ -229,11 +266,28 @@ impl CrunchRunner {
         self.stderr_thread = Some(stderr_thread);
         Ok(())
     }
+
+    pub async fn stop(&mut self) -> Result<(), AddressologyError> {
+        //todo implement graceful shutdown
+        self.kill().await
+    }
+    pub async fn kill(&mut self) -> Result<(), AddressologyError> {
+        let mut child = self.child_process.lock();
+        if let Some(child) = child.as_mut() {
+            log::warn!("Process with pid {} still running - killing", child.id());
+            let _ = child.kill();
+            log::info!("Process with pid {} killed", child.id());
+        } else {
+            return Err(err_custom_create!("Process is not running"));
+        }
+        child.take();
+        Ok(())
+    }
 }
 
 pub async fn test_run() {
-    let mut crunch_runner = CrunchRunner::new(PathBuf::from("profanity_cuda.exe"));
-    crunch_runner.run().await.unwrap();
+    let mut crunch_runner = CrunchRunner::new(PathBuf::from("profanity_cuda.exe"), 0);
+    crunch_runner.start().await.unwrap();
 
     let curr_time = std::time::Instant::now();
     loop {
