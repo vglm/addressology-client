@@ -1,3 +1,5 @@
+use chrono::NaiveDateTime;
+use serde::{Deserialize, Serialize};
 use web3::signing::keccak256;
 use web3::types::H160;
 #[allow(clippy::module_inception)]
@@ -5,6 +7,22 @@ mod fancy;
 mod score;
 pub use fancy::*;
 pub use score::*;
+use crate::types::DbAddress;
+
+#[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FancyDbObj {
+    pub address: DbAddress,
+    pub salt: String,
+    pub factory: Option<DbAddress>,
+    pub public_key_base: Option<String>,
+    pub created: NaiveDateTime,
+    pub score: f64,
+    pub owner: Option<String>,
+    pub price: i64,
+    pub category: String,
+    pub job: Option<String>,
+}
 
 fn address_to_mixed_case(address: &H160) -> String {
     let address_str = format!("{:x}", address);

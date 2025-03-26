@@ -1,5 +1,6 @@
+use std::collections::BTreeMap;
 use crate::config::get_base_difficulty;
-use crate::db::model::{FancyScore, FancyScoreEntry};
+
 use crate::fancy::address_to_mixed_case;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -8,6 +9,26 @@ use std::str::FromStr;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use web3::types::{Address, U256};
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Default)]
+pub struct FancyScoreEntry {
+    pub category: FancyScoreCategory,
+    pub score: f64,
+    pub difficulty: f64,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct FancyScore {
+    pub address_mixed_case: String,
+    pub address_lower_case: String,
+    pub address_short_etherscan: String,
+    pub scores: BTreeMap<String, FancyScoreEntry>,
+    pub total_score: f64,
+    pub price_multiplier: f64,
+    pub category: String,
+}
+
 
 #[derive(Serialize, Deserialize, EnumIter, PartialEq, Eq, Debug, Clone, Default)]
 pub enum FancyScoreCategory {

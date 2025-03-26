@@ -1,27 +1,15 @@
 mod api;
 mod config;
-mod cookie;
-mod db;
-mod deploy;
-mod email;
 mod error;
 mod fancy;
 mod hash;
-mod oauth;
-mod solc;
+
 mod types;
 mod update;
 
-use crate::api::scope::server_api_scope;
+
 use crate::config::get_base_difficulty_price;
-use crate::cookie::load_key_or_create;
-use crate::db::connection::create_sqlite_connection;
-use crate::db::model::DeployStatus;
-use crate::db::ops::{
-    fancy_list_all, fancy_update_score, get_all_contracts_by_deploy_status_and_network,
-    insert_fancy_obj,
-};
-use crate::deploy::handle_fancy_deploy;
+
 use crate::fancy::parse_fancy;
 use crate::fancy::score_fancy;
 use crate::hash::{compute_address_command, compute_create3_command};
@@ -45,6 +33,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use crate::api::scope::server_api_scope;
 
 fn get_allowed_emails() -> Vec<String> {
     let res = env::var("ALLOWED_EMAILS")
@@ -74,7 +63,6 @@ lazy_static! {
 }
 
 pub struct ServerData {
-    pub db_connection: Arc<Mutex<SqlitePool>>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -219,14 +207,6 @@ pub async fn dashboard_serve(
 #[derive(Subcommand)]
 enum Commands {
     Test {},
-    ScoreFancy {
-        #[arg(short, long)]
-        last_day: bool,
-    },
-    ProcessDeploy {
-        #[arg(short, long)]
-        network: String,
-    },
     ComputeCreate3 {
         #[arg(short, long)]
         factory: String,
@@ -241,12 +221,7 @@ enum Commands {
         #[arg(short = 'e', long)]
         expected_address: Option<String>,
     },
-    AddFancyAddress {
-        #[arg(short, long)]
-        factory: String,
-        #[arg(short, long)]
-        salt: String,
-    },
+
     /// Start web server
     Server {
         #[arg(long, default_value = "localhost:80")]
@@ -283,32 +258,19 @@ async fn main() -> std::io::Result<()> {
 
     let args = Cli::parse();
 
-    let secret_key = load_key_or_create("web-portal-cookie.key");
-
     match args.cmd {
         Commands::Server { addr, threads } => {
-            let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
-                .await
-                .unwrap();
 
             HttpServer::new(move || {
                 let cors = actix_cors::Cors::permissive();
 
                 let server_data = web::Data::new(Box::new(ServerData {
-                    db_connection: Arc::new(Mutex::new(conn.clone())),
+
                 }));
                 let client = web::Data::new(Client::new());
-                let session_middleware =
-                    SessionMiddleware::builder(CookieSessionStore::default(), secret_key.clone())
-                        .cookie_secure(true)
-                        .cookie_content_security(CookieContentSecurity::Private)
-                        .cookie_same_site(SameSite::Strict)
-                        .cookie_domain(Some(WEB_PORTAL_DOMAIN.to_string()))
-                        .cookie_name("web-portal-session".to_string())
-                        .build();
+
 
                 App::new()
-                    .wrap(session_middleware)
                     .wrap(cors)
                     .app_data(server_data)
                     .app_data(client)
@@ -329,99 +291,7 @@ async fn main() -> std::io::Result<()> {
             .run()
             .await
         }
-        Commands::ScoreFancy { last_day } => {
-            let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
-                .await
-                .unwrap();
 
-            let fancies = if last_day {
-                fancy_list_all(
-                    &conn,
-                    Some(chrono::Utc::now().sub(chrono::Duration::days(1))),
-                )
-                .await
-                .unwrap()
-            } else {
-                fancy_list_all(&conn, None).await.unwrap()
-            };
-
-            let no = fancies.len();
-            let mut curr = 0;
-            for fancy in fancies {
-                curr += 1;
-                let score = score_fancy(fancy.address.addr());
-
-                if curr % 1000 == 0 {
-                    log::info!(
-                        "Fancy {curr}/{no}: {:#x} Score: {}",
-                        fancy.address.addr(),
-                        score.total_score
-                    );
-                } else {
-                    log::debug!(
-                        "Fancy {curr}/{no}: {:#x} Score: {}",
-                        fancy.address.addr(),
-                        score.total_score
-                    );
-                }
-
-                let new_price =
-                    (score.price_multiplier * get_base_difficulty_price() as f64) as i64;
-                if fancy.score != score.total_score
-                    || fancy.price != new_price
-                    || fancy.category != score.category
-                {
-                    log::info!("Updating score for: {:#x}", fancy.address.addr());
-                    match fancy_update_score(
-                        &conn,
-                        fancy.address,
-                        score.total_score,
-                        new_price,
-                        &score.category,
-                    )
-                    .await
-                    {
-                        Ok(_) => (),
-                        Err(e) => {
-                            log::error!("{}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                }
-            }
-            Ok(())
-        }
-        Commands::ProcessDeploy { network } => {
-            let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
-                .await
-                .unwrap();
-
-            let contracts = get_all_contracts_by_deploy_status_and_network(
-                &conn,
-                DeployStatus::Requested,
-                network,
-            )
-            .await
-            .unwrap();
-
-            if let Some(contract) = contracts.first() {
-                log::info!("Processing contract: {:#?}", contract);
-
-                match handle_fancy_deploy(&conn, contract.clone()).await {
-                    Ok(_) => {
-                        log::info!("Deployment successful");
-                        Ok(())
-                    }
-                    Err(e) => {
-                        log::error!("{}", e);
-                        std::process::exit(1)
-                    }
-                }
-            } else {
-                log::info!("No contracts to process");
-                Ok(())
-            }
-        }
         Commands::ComputeCreate3 { factory, salt } => {
             let result = compute_create3_command(&factory, &salt);
             match result {
@@ -475,45 +345,7 @@ async fn main() -> std::io::Result<()> {
             }
             Ok(())
         }
-        Commands::AddFancyAddress { factory, salt } => {
-            let conn = create_sqlite_connection(Some(&PathBuf::from(args.db)), None, false, true)
-                .await
-                .unwrap();
 
-            let factory = web3::types::Address::from_str(&factory).unwrap();
-            let result = match parse_fancy(salt, factory) {
-                Ok(fancy) => fancy,
-                Err(e) => {
-                    log::error!("{}", e);
-                    std::process::exit(1);
-                }
-            };
-            let mut db_trans = match conn.begin().await {
-                Ok(db) => db,
-                Err(e) => {
-                    log::error!("{}", e);
-                    std::process::exit(1);
-                }
-            };
-
-            match insert_fancy_obj(&mut *db_trans, result).await {
-                Ok(_) => (),
-                Err(e) => {
-                    log::error!("{}", e);
-                    std::process::exit(1);
-                }
-            }
-
-            match db_trans.commit().await {
-                Ok(_) => (),
-                Err(e) => {
-                    log::error!("{}", e);
-                    std::process::exit(1);
-                }
-            }
-
-            Ok(())
-        }
         Commands::Test {} => {
             //test_command(conn).await;
             /*match compile_solc(
