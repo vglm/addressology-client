@@ -1,13 +1,11 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import "./Workers.css";
 import { backendFetch } from "./common/BackendCall";
-import { useEffect, useState } from "react";
 import { Runner } from "./model/Contract";
 import { Button } from "@mui/material";
 
 const MyWorkers = () => {
     const [runners, setRunners] = useState<Runner[]>([]);
-    //const navigate = useNavigate();
 
     const getRunners = async () => {
         const response = await backendFetch("/api/runners", {
@@ -23,7 +21,7 @@ const MyWorkers = () => {
         });
         const data = await response.text();
         console.log("Start runner result: ", data);
-        getRunners().then();
+        getRunners();
     };
 
     const stopRunner = async (runnerNo: number) => {
@@ -32,33 +30,33 @@ const MyWorkers = () => {
         });
         const data = await response.text();
         console.log("Stop runner result: ", data);
-        getRunners().then();
+        getRunners();
     };
+
     useEffect(() => {
-        getRunners().then();
+        getRunners();
+        const interval = setInterval(getRunners, 5000); // Refresh every 5 seconds
+        return () => clearInterval(interval); // Cleanup on unmount
     }, []);
 
     return (
         <div>
-            <h1>My Runnerc</h1>
-
-            {runners.map((runner) => {
-                return (
-                    <div key={runner.data.runnerNo}>
-                        {runner.data.runnerNo}
-                        <div>
-                            <div>Found addresses:</div>
-                            <div>{runner.data.foundAddressesCount}</div>
-                        </div>
-                        <Button disabled={runner.started} onClick={(_) => startRunner(runner.data.runnerNo)}>
-                            Start runner
-                        </Button>
-                        <Button disabled={!runner.started} onClick={(_) => stopRunner(runner.data.runnerNo)}>
-                            Stop runner
-                        </Button>
+            <h1>My Runner</h1>
+            {runners.map((runner) => (
+                <div key={runner.data.runnerNo}>
+                    {runner.data.runnerNo}
+                    <div>
+                        <div>Found addresses:</div>
+                        <div>{runner.data.foundAddressesCount}</div>
                     </div>
-                );
-            })}
+                    <Button disabled={runner.started} onClick={() => startRunner(runner.data.runnerNo)}>
+                        Start runner
+                    </Button>
+                    <Button disabled={!runner.started} onClick={() => stopRunner(runner.data.runnerNo)}>
+                        Stop runner
+                    </Button>
+                </div>
+            ))}
         </div>
     );
 };

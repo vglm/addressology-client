@@ -10,6 +10,15 @@ pub use score::*;
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct FancyDbObjMin {
+    pub address: DbAddress,
+    pub salt: String,
+    pub factory: Option<DbAddress>,
+    pub public_key_base: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, sqlx::FromRow, PartialEq, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct FancyDbObj {
     pub address: DbAddress,
     pub salt: String,

@@ -52,6 +52,8 @@ pub struct CrunchRunner {
     contract: Option<DbAddress>,
     public_key_base: Option<String>,
 
+    is_enabled: bool,
+
     child_process: Arc<Mutex<Option<Child>>>,
     stdout_thread: Option<thread::JoinHandle<()>>,
     stderr_thread: Option<thread::JoinHandle<()>>,
@@ -138,8 +140,15 @@ impl CrunchRunner {
             addresses_deque: Arc::new(Default::default()),
             current_target: WorkTarget::Default,
             work_target: WorkTarget::Default,
+            is_enabled: true,
         }
     }
+    pub fn consume_results(&self, limit: usize) -> Vec<FancyDbObj> {
+        let mut deque = self.addresses_deque.lock();
+        let available = deque.len().min(limit); // Ensure we don't over-drain
+        deque.drain(..available).collect()
+    }
+
     pub fn is_started(&self) -> bool {
         self.child_process.lock().is_some()
     }
@@ -183,6 +192,16 @@ impl CrunchRunner {
         self.work_target.clone()
     }
 
+    pub async fn enable(&mut self) -> Result<(), AddressologyError> {
+        self.is_enabled = true;
+        Ok(())
+    }
+    pub async fn disable(&mut self) -> Result<(), AddressologyError> {
+        self.is_enabled = false;
+        Ok(())
+    }
+
+
     pub async fn start(&mut self) -> Result<(), AddressologyError> {
         // Spawn a process (Example: `ping` command)
         let child = self.child_process.clone();
@@ -190,6 +209,9 @@ impl CrunchRunner {
             return Err(err_custom_create!(
                 "Cannot spawn a new process while one is already running"
             ));
+        }
+        if !self.is_enabled {
+            return Err(err_custom_create!("Runner is disabled"));
         }
         self.current_target = self.work_target.clone();
         let exe_path = self.exe_path.clone();
@@ -210,7 +232,7 @@ impl CrunchRunner {
                 .replace(r"\\?\", ""),
         );
 
-        let args = {
+        let mut args = {
             let work_target = self.work_target.clone();
 
             match work_target {
@@ -235,6 +257,16 @@ impl CrunchRunner {
                 WorkTarget::Default => vec![],
             }
         };
+
+        let limit_time = 10;
+
+        if limit_time > 0 {
+            args.push("-b".to_string());
+            args.push(format!("{limit_time}"));
+        }
+
+
+
 
         log::info!(
             "Current working directory: {}",
@@ -278,6 +310,8 @@ impl CrunchRunner {
         // Spawn a thread to read stdout
         let stdout_shared_data = self.shared_data.clone();
         let stdout_deque = self.addresses_deque.clone();
+        let stdout_pid = child.id();
+        let child_pr = self.child_process.clone();
         let stdout_thread = thread::spawn(move || {
             let reader = BufReader::new(stdout);
             for line in reader.lines() {
@@ -294,11 +328,20 @@ impl CrunchRunner {
                     }
                 }
             }
+            {
+                let mut child = child_pr.lock();
+                if let Some(_) = child.as_mut() {
+                    log::info!("Child process {stdout_pid} finished, cleaning handle");
+                    let _ = child.take();
+                }
+            }
+            log::info!("Stdout thread finished for pid {stdout_pid}");
         });
 
         // Spawn a thread to read stderr
         let stderr_shared_data = self.shared_data.clone();
         let stderr_address_deque = self.addresses_deque.clone();
+        let stderr_pid = child.id();
         let stderr_thread = thread::spawn(move || {
             let reader = BufReader::new(stderr);
             for line in reader.lines() {
@@ -317,6 +360,7 @@ impl CrunchRunner {
                     }
                 }
             }
+            log::info!("Stderr thread finished for pid {stderr_pid}");
         });
 
         self.stdout_thread = Some(stdout_thread);
