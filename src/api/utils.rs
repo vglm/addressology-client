@@ -2,6 +2,7 @@ use actix_web::HttpRequest;
 use chrono::{DateTime, Utc};
 use percent_encoding::percent_decode_str;
 
+#[allow(unused)]
 pub fn extract_url_param(
     request: &HttpRequest,
     param: &str,
@@ -20,6 +21,7 @@ pub fn extract_url_param(
     Ok(None)
 }
 
+#[allow(unused)]
 //probably nice to make generic version of this, but for now i64 is enough
 pub fn extract_url_int_param(
     request: &HttpRequest,
@@ -38,6 +40,7 @@ pub fn extract_url_int_param(
     }
 }
 
+#[allow(unused)]
 //probably nice to make generic version of this, but for now i64 is enough
 pub fn extract_url_bool_param(
     request: &HttpRequest,
@@ -56,6 +59,7 @@ pub fn extract_url_bool_param(
     }
 }
 
+#[allow(unused)]
 pub fn extract_url_date_param(
     request: &HttpRequest,
     param: &str,

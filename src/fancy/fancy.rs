@@ -7,6 +7,7 @@ use crate::hash::{compute_address_command, compute_create3_command};
 use crate::types::DbAddress;
 use web3::types::Address;
 
+#[allow(unused)]
 pub fn parse_fancy_private(
     public_key_base: String,
     private_key_add: String,
@@ -45,6 +46,7 @@ pub fn parse_fancy_private(
     })
 }
 
+#[allow(unused)]
 pub fn parse_fancy(salt: String, factory: Address) -> Result<FancyDbObj, AddressologyError> {
     /*let censor = censor::Standard + censor::Zealous + censor::Sex;
 

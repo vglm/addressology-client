@@ -95,6 +95,7 @@ pub struct FancyCategoryInfo {
     pub description: String,
 }
 
+#[allow(unused)]
 pub fn list_score_categories() -> Vec<FancyCategoryInfo> {
     let mut categories = Vec::new();
 
@@ -259,6 +260,7 @@ async fn tx_test() {
     );
 }
 
+#[allow(unused)]
 #[allow(clippy::vec_init_then_push)]
 pub fn score_fancy(address: Address) -> FancyScore {
     let mut score = FancyScore::default();

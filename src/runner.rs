@@ -4,7 +4,6 @@ use crate::fancy::FancyDbObj;
 use crate::types::DbAddress;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
@@ -38,6 +37,15 @@ impl CrunchRunnerData {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum WorkTarget {
+    Factory(DbAddress),
+    PublicKeyBase(String),
+    Default,
+}
+
+
 #[derive(Debug)]
 pub struct CrunchRunner {
     exe_path: PathBuf,
@@ -50,6 +58,9 @@ pub struct CrunchRunner {
 
     shared_data: Arc<Mutex<CrunchRunnerData>>,
     addresses_deque: Arc<Mutex<VecDeque<FancyDbObj>>>,
+
+    current_target: WorkTarget,
+    work_target: WorkTarget,
 }
 
 impl Drop for CrunchRunner {
@@ -125,6 +136,8 @@ impl CrunchRunner {
             stderr_thread: None,
             shared_data: Arc::new(Mutex::new(CrunchRunnerData::new(runner_no))),
             addresses_deque: Arc::new(Default::default()),
+            current_target: WorkTarget::Default,
+            work_target: WorkTarget::Default,
         }
     }
     pub fn is_started(&self) -> bool {
@@ -154,6 +167,22 @@ impl CrunchRunner {
         self.public_key_base = Some(public_key_base);
     }
 
+    pub fn set_target(&mut self, target: WorkTarget) {
+        self.work_target = target;
+    }
+
+    pub async fn restart(&mut self) -> Result<(), AddressologyError> {
+        self.stop().await?;
+        self.start().await
+    }
+
+    pub fn current_target(&self) -> WorkTarget {
+        self.current_target.clone()
+    }
+    pub fn work_target(&self) -> WorkTarget {
+        self.work_target.clone()
+    }
+
     pub async fn start(&mut self) -> Result<(), AddressologyError> {
         // Spawn a process (Example: `ping` command)
         let child = self.child_process.clone();
@@ -162,6 +191,7 @@ impl CrunchRunner {
                 "Cannot spawn a new process while one is already running"
             ));
         }
+        self.current_target = self.work_target.clone();
         let exe_path = self.exe_path.clone();
 
         //check if file exist
@@ -180,6 +210,32 @@ impl CrunchRunner {
                 .replace(r"\\?\", ""),
         );
 
+        let args = {
+            let work_target = self.work_target.clone();
+
+            match work_target {
+                WorkTarget::Factory(factory) => {
+                    let rounds = 1000;
+                    vec![
+                        "-f".to_string(),
+                        factory.to_string(),
+                        "-r".to_string(),
+                        rounds.to_string(),
+                    ]
+                }
+                WorkTarget::PublicKeyBase(public_key_base) => {
+                    let rounds = 100;
+                    vec![
+                        "-z".to_string(),
+                        public_key_base,
+                        "-r".to_string(),
+                        rounds.to_string(),
+                    ]
+                }
+                WorkTarget::Default => vec![],
+            }
+        };
+
         log::info!(
             "Current working directory: {}",
             std::env::current_dir().unwrap().display().to_string()
@@ -189,6 +245,7 @@ impl CrunchRunner {
         thread::spawn(move || {
             let new_child = Some(
                 Command::new(&exe_path_)
+                    .args(args)
                     .stdout(Stdio::piped()) // Capture stdout
                     .stderr(Stdio::piped()) // Capture stderr
                     .spawn()
@@ -267,21 +324,25 @@ impl CrunchRunner {
         Ok(())
     }
 
-    pub async fn stop(&mut self) -> Result<(), AddressologyError> {
+    pub async fn stop(&mut self) -> Result<bool, AddressologyError> {
         //todo implement graceful shutdown
-        self.kill().await
+        let res = self.kill().await?;
+        self.current_target = self.work_target.clone();
+        Ok(res)
     }
-    pub async fn kill(&mut self) -> Result<(), AddressologyError> {
+
+    pub async fn kill(&mut self) -> Result<bool, AddressologyError> {
         let mut child = self.child_process.lock();
         if let Some(child) = child.as_mut() {
             log::warn!("Process with pid {} still running - killing", child.id());
             let _ = child.kill();
             log::info!("Process with pid {} killed", child.id());
         } else {
-            return Err(err_custom_create!("Process is not running"));
+            return Ok(false);
         }
         child.take();
-        Ok(())
+        self.current_target = self.work_target.clone();
+        Ok(true)
     }
 }
 
