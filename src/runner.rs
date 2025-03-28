@@ -17,6 +17,7 @@ use tokio::time::sleep;
 #[serde(rename_all = "camelCase")]
 pub struct CrunchRunnerData {
     runner_no: u64,
+    device_name: Option<String>,
     total_computed: Option<f64>,
     reported_speed: Option<f64>,
     found_addresses_count: u64,
@@ -28,6 +29,7 @@ impl CrunchRunnerData {
     pub fn new(runner_no: u64) -> Self {
         Self {
             runner_no,
+            device_name: None,
             total_computed: None,
             reported_speed: None,
             found_addresses_count: 0,
@@ -82,6 +84,7 @@ fn parse_line(
     address_deque: Arc<Mutex<VecDeque<FancyDbObj>>>,
 ) -> Result<(), AddressologyError> {
     log::trace!("Output: {}", str);
+    let device_no = context.lock().runner_no;
     //log::info!("Output: {}", str);
     if str.starts_with("0x") {
         let split = str
@@ -120,11 +123,41 @@ fn parse_line(
         address_deque.lock().push_back(fdb);
         let mut update_context = context.lock();
         update_context.found_addresses_count += 1;
-        log::info!("Address found: {}", update_context.found_addresses_count);
+        //log::info!("Address found: {}", update_context.found_addresses_count);
         update_context.last_address_found = Some(chrono::Utc::now());
-    }
+        Ok(())
+    } else {
+        // Extract the relevant part after "Total compute"
+        if let Some(data) = str.split("Total compute ").nth(1) {
+            let parts: Vec<&str> = data.split(" - ").collect();
 
-    Ok(())
+            if parts.len() == 2 {
+                let total_compute: f64 = parts[0].trim_end_matches(" GH").parse().unwrap_or(0.0);
+                let rate: f64 = parts[1].trim_end_matches(" MH/s").parse().unwrap_or(0.0);
+
+                //log::info!("Total Compute: {} GH", total_compute);
+                //log::info!("Rate: {} MH/s", rate);
+
+
+                let mut c = context.lock();
+                c.reported_speed = Some(rate);
+                c.total_computed = Some(total_compute);
+                c.last_updated_speed = Some(chrono::Utc::now());
+                Ok(())
+            } else {
+                log::warn!("Failed to parse line: {}", str);
+                Err(err_custom_create!("Failed to parse line"))
+            }
+        } else if let Some(data) = str.split(&format!("Device {device_no}")).nth(1) {
+
+        //let mut c = context.lock();
+            //c.device_name = Some(data.to_string());
+            Ok(())
+        } else {
+           // log::warn!("Unknown line {}", str);
+            Ok(())
+        }
+    }
 }
 
 impl CrunchRunner {
@@ -148,7 +181,9 @@ impl CrunchRunner {
         let available = deque.len().min(limit); // Ensure we don't over-drain
         deque.drain(..available).collect()
     }
-
+    pub fn is_enabled(&self) -> bool {
+        self.is_enabled
+    }
     pub fn is_started(&self) -> bool {
         self.child_process.lock().is_some()
     }
@@ -182,7 +217,7 @@ impl CrunchRunner {
 
     pub async fn restart(&mut self) -> Result<(), AddressologyError> {
         self.stop().await?;
-        self.start().await
+        self.start(None).await
     }
 
     pub fn current_target(&self) -> WorkTarget {
@@ -202,16 +237,13 @@ impl CrunchRunner {
     }
 
 
-    pub async fn start(&mut self) -> Result<(), AddressologyError> {
+    pub async fn start(&mut self, benchmark_time: Option<f64>) -> Result<(), AddressologyError> {
         // Spawn a process (Example: `ping` command)
         let child = self.child_process.clone();
         if self.child_process.lock().is_some() {
             return Err(err_custom_create!(
                 "Cannot spawn a new process while one is already running"
             ));
-        }
-        if !self.is_enabled {
-            return Err(err_custom_create!("Runner is disabled"));
         }
         self.current_target = self.work_target.clone();
         let exe_path = self.exe_path.clone();
@@ -258,21 +290,16 @@ impl CrunchRunner {
             }
         };
 
-        let limit_time = 10;
-
-        if limit_time > 0 {
+        if let Some(benchmark_time) = benchmark_time {
             args.push("-b".to_string());
-            args.push(format!("{limit_time}"));
+            args.push(format!("{benchmark_time}"));
         }
-
-
-
 
         log::info!(
             "Current working directory: {}",
             std::env::current_dir().unwrap().display().to_string()
         );
-        log::info!("Starting process {}", exe_path.display().to_string());
+        log::info!("Starting process {} {}", exe_path.display().to_string(), args.join(" "));
         let exe_path_ = exe_path.clone();
         thread::spawn(move || {
             let new_child = Some(
@@ -392,7 +419,7 @@ impl CrunchRunner {
 
 pub async fn test_run() {
     let mut crunch_runner = CrunchRunner::new(PathBuf::from("profanity_cuda.exe"), 0);
-    crunch_runner.start().await.unwrap();
+    crunch_runner.start(Some(30.4)).await.unwrap();
 
     let curr_time = std::time::Instant::now();
     loop {
