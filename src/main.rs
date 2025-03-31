@@ -24,7 +24,7 @@ use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
 use crate::service::provider::{test_run_provider, ProviderCommand, ProviderRunner, ProviderRunnerData, ProviderSettings};
-use crate::service::yagna::{test_run_yagna, YagnaCommand, YagnaNetType, YagnaRunner, YagnaRunnerData, YagnaSettings};
+use crate::service::yagna::{YagnaCommand, YagnaNetType, YagnaRunner, YagnaRunnerData, YagnaSettings};
 
 fn get_allowed_emails() -> Vec<String> {
     let res = env::var("ALLOWED_EMAILS")
@@ -293,7 +293,9 @@ async fn main() -> std::io::Result<()> {
                 settings: yagna_settings.clone()
             } )));
 
-            let provider_runner = Arc::new(tokio::sync::Mutex::new(ProviderRunner::new(provider_executable_location,
+            let provider_runner =
+
+                Arc::new(tokio::sync::Mutex::new(ProviderRunner::new(provider_executable_location,
                                                                                        ProviderRunnerData {
                                                                                            command:ProviderCommand::Run,
                                                                                            settings:provider_settings.clone()

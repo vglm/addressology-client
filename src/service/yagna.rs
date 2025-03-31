@@ -143,7 +143,9 @@ impl YagnaRunner {
         self.start().await
     }
 
-
+    pub fn is_started(&self) -> bool {
+        self.child_process.lock().is_some()
+    }
 
     pub async fn start(&mut self) -> Result<(), AddressologyError> {
         // Spawn a process (Example: `ping` command)

@@ -140,7 +140,9 @@ impl ProviderRunner {
         self.start().await
     }
 
-
+    pub fn is_started(&self) -> bool {
+        self.child_process.lock().is_some()
+    }
 
     pub async fn start(&mut self) -> Result<(), AddressologyError> {
         // Spawn a process (Example: `ping` command)
@@ -316,6 +318,53 @@ impl ProviderRunner {
         child.take();
         Ok(true)
     }
+
+    pub async fn configure(
+        &mut self,
+    ) -> Result<(), AddressologyError> {
+        if self.is_started() {
+            return Err(err_custom_create!(
+                "Cannot configure a running process"
+            ));
+        }
+        match configure_provider(self.shared_data.lock().settings.clone()).await {
+            Ok(_) => {
+                Ok(())
+            }
+            Err(err) => {
+                log::error!("Error configuring provider: {}", err);
+                Err(err)
+            }
+        }
+    }
+}
+
+async fn configure_provider(provider_settings: ProviderSettings) -> Result<(), AddressologyError> {
+    {
+        let mut provider_runner = ProviderRunner::new(PathBuf::from("ya-provider.exe"), ProviderRunnerData {
+            command: ProviderCommand::CreatePreset,
+            settings: provider_settings.clone(),
+        });
+        provider_runner.start().await?;
+        provider_runner.join().await?;
+    }
+    {
+        let mut provider_runner = ProviderRunner::new(PathBuf::from("ya-provider.exe"), ProviderRunnerData {
+            command: ProviderCommand::ActivatePreset,
+            settings: provider_settings.clone(),
+        });
+        provider_runner.start().await?;
+        provider_runner.join().await?;
+    }
+    {
+        let mut provider_runner = ProviderRunner::new(PathBuf::from("ya-provider.exe"), ProviderRunnerData {
+            command: ProviderCommand::RemoveDefault,
+            settings: provider_settings.clone(),
+        });
+        provider_runner.start().await?;
+        provider_runner.join().await?;
+    }
+    Ok(())
 }
 
 pub async fn test_run_provider() {
