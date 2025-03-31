@@ -13,101 +13,81 @@ use std::thread;
 use std::time::Duration;
 use tokio::time::sleep;
 use crate::runner::WorkTarget;
+use crate::service::yagna::{YagnaCommand, YagnaNetType, YagnaRunner, YagnaRunnerData, YagnaSettings};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum YagnaCommand {
-    Server,
-    PaymentStatus
+pub enum ProviderCommand {
+    Run,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum YagnaNetType {
-    Central(String),
-    Hybrid(String),
+pub struct ProviderSettings {
+    data_dir: String,
+    payment_network: String,
+    exe_unit_path: String,
+    node_name: String,
+    yagna_settings: YagnaSettings
 }
+/*
+          DATA_DIR: provider-dir
+      YAGNA_API_URL: http://127.0.0.1:19936
+      GSB_URL: tcp://127.0.0.1:19935
+      YA_PAYMENT_NETWORK: holesky
+      EXE_UNIT_PATH: conf/ya-*.json
+      YAGNA_APPKEY: p4e4rov2id2er123
+      NODE_NAME: DummyNode
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct YagnaSettings {
-    pub data_dir: String,
-    pub api_url: String,
-    pub gsb_url: String,
-    pub app_key: String,
-    pub net_connection: Option<YagnaNetType>,
-}
-
-impl YagnaSettings {
-    pub fn new(data_dir: &str, api_port: u16, gsb_port: u16, app_key: &str, net_connection: Option<YagnaNetType>) -> Self {
+ */
+impl ProviderSettings {
+    pub fn new(data_dir: &str, yagna_settings: YagnaSettings) -> Self {
+        let node_name = "CrunchNode".to_string();
+        let payment_network = "holesky".to_string();
+        let exe_unit_path = "conf/ya-*.json".to_string();
         Self {
             data_dir: data_dir.to_string(),
-            api_url: format!("http://127.0.0.1:{}", api_port),
-            gsb_url: format!("tcp://127.0.0.1:{}", gsb_port),
-            app_key: app_key.to_string(),
-            net_connection: net_connection.clone()
+            payment_network,
+            exe_unit_path,
+            node_name,
+            yagna_settings,
         }
     }
     pub fn to_env(&self) -> Vec<(String, String)> {
         let mut envs = vec![
-            ("YAGNA_DATADIR".to_string(), self.data_dir.clone()),
-            ("YAGNA_API_URL".to_string(), self.api_url.clone()),
-            ("GSB_URL".to_string(), self.gsb_url.clone()),
-            ("YAGNA_AUTOCONF_APPKEY".to_string(), self.app_key.clone()),
-            ("YAGNA_APPKEY".to_string(), self.app_key.clone()), //technically not needed here, but useful in provider
-            ("YA_CONSENT_STATS".to_string(), "allow".to_string())
+            ("DATADIR".to_string(), self.data_dir.clone()),
+            ("YA_PAYMENT_NETWORK".to_string(), self.payment_network.clone()),
+            ("EXE_UNIT_PATH".to_string(), self.exe_unit_path.clone()),
+            ("NODE_NAME".to_string(), self.node_name.clone()),
         ];
-        if let Some(net_connection) = &self.net_connection {
-            match net_connection {
-                YagnaNetType::Central(url) => {
-                    envs.push(("YA_NET_TYPE".to_string(), "central".to_string()));
-                    envs.push(("CENTRAL_NET_HOST".to_string(), format!("{}", url)));
-                }
-                YagnaNetType::Hybrid(url) => {
-                    envs.push(("YA_NET_TYPE".to_string(), "hybrid".to_string()));
-                    envs.push(("YA_NET_RELAY_HOST".to_string(), format!("{}", url)));
-                }
-            }
-        }
+        let mut yagna_envs = self.yagna_settings.to_env();
+        envs.append(&mut yagna_envs);
         envs
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct YagnaRunnerData {
-    command: YagnaCommand,
-    settings: YagnaSettings,
+pub struct ProviderRunnerData {
+    command: ProviderCommand,
+    settings: ProviderSettings,
 }
 
-impl YagnaRunnerData {
-    pub fn server(settings: YagnaSettings) -> Self {
-        Self {
-            command: YagnaCommand::Server,
-            settings,
-        }
-    }
-    pub fn payment_status(settings: YagnaSettings) -> Self {
-        Self {
-            command: YagnaCommand::PaymentStatus,
-            settings,
-        }
-    }
-}
+
 
 
 
 #[derive(Debug)]
-pub struct YagnaRunner {
+pub struct ProviderRunner {
     exe_path: PathBuf,
     child_process: Arc<Mutex<Option<Child>>>,
     stdout_thread: Option<thread::JoinHandle<()>>,
     stderr_thread: Option<thread::JoinHandle<()>>,
 
-    shared_data: Arc<Mutex<YagnaRunnerData>>,
+    shared_data: Arc<Mutex<ProviderRunnerData>>,
 }
 
-impl Drop for YagnaRunner {
+impl Drop for ProviderRunner {
     fn drop(&mut self) {
         let mut child = self.child_process.lock();
         if let Some(child) = child.as_mut() {
@@ -120,14 +100,14 @@ impl Drop for YagnaRunner {
 
 fn parse_line(
     str: String,
-    context: Arc<Mutex<YagnaRunnerData>>,
+    context: Arc<Mutex<ProviderRunnerData>>,
 ) -> Result<(), AddressologyError> {
     log::info!("Output: {}", str);
     Ok(())
 }
 
-impl YagnaRunner {
-    pub fn new(exe_path: PathBuf, data: YagnaRunnerData) -> Self {
+impl ProviderRunner {
+    pub fn new(exe_path: PathBuf, data: ProviderRunnerData) -> Self {
         Self {
             exe_path,
             child_process: Arc::new(Mutex::new(None)),
@@ -173,11 +153,8 @@ impl YagnaRunner {
         let mut args = {
             let lock = self.shared_data.lock();
             match lock.command {
-                YagnaCommand::Server => {
-                    ["service", "run"].to_vec()
-                }
-                YagnaCommand::PaymentStatus => {
-                    ["payment", "status", "--network", "holesky", "--json"].to_vec()
+                ProviderCommand::Run => {
+                    ["run"].to_vec()
                 }
             }
         };
@@ -302,7 +279,17 @@ impl YagnaRunner {
     }
 }
 
-pub async fn test_run_yagna() {
+pub async fn test_run_provider() {
+    /*
+              DATA_DIR: provider-dir
+          YAGNA_API_URL: http://127.0.0.1:19936
+          GSB_URL: tcp://127.0.0.1:19935
+          YA_PAYMENT_NETWORK: holesky
+          EXE_UNIT_PATH: conf/ya-*.json
+          YAGNA_APPKEY: p4e4rov2id2er123
+          NODE_NAME: DummyNode
+
+     */
     let mut yagna_settings = YagnaSettings::new(
         "yagna-runner-test",
         24665,
@@ -313,20 +300,27 @@ pub async fn test_run_yagna() {
         )),
     );
 
-    let mut yagna_runner = YagnaRunner::new(PathBuf::from("yagna.exe"), YagnaRunnerData{
-        command: YagnaCommand::Server,
-        settings: yagna_settings.clone(),
-    });
+    let mut yagna_runner = YagnaRunner::new(PathBuf::from("yagna.exe"), YagnaRunnerData::server(yagna_settings.clone()));
     yagna_runner.start().await.unwrap();
+
+    sleep(Duration::from_secs(5)).await;
+    let mut provider_runner = ProviderRunner::new(PathBuf::from("ya-provider.exe"), ProviderRunnerData {
+        command: ProviderCommand::Run,
+        settings: ProviderSettings {
+            data_dir: "provider-dir".to_string(),
+            payment_network: "holesky".to_string(),
+            exe_unit_path: "conf/ya-*.json".to_string(),
+            node_name: "DummyNode".to_string(),
+            yagna_settings: yagna_settings.clone(),
+        },
+    });
+    provider_runner.start().await.unwrap();
 
     let curr_time = std::time::Instant::now();
     loop {
-        sleep(Duration::from_secs(1)).await;
+        sleep(Duration::from_secs(5)).await;
 
-        let mut payment_check = YagnaRunner::new(PathBuf::from("yagna.exe"), YagnaRunnerData{
-            command: YagnaCommand::PaymentStatus,
-            settings: yagna_settings.clone(),
-        });
+        let mut payment_check = YagnaRunner::new(PathBuf::from("yagna.exe"), YagnaRunnerData::payment_status( yagna_settings.clone()));
         payment_check.start().await.unwrap();
 
         /*log::info!(

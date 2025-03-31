@@ -1,0 +1,33 @@
+[
+    {
+        "name": "dummy",
+        "version": "0.1.0",
+        "supervisor-path": "%%SUPERVISOR_PATH%%",
+        "runtime-path": "dummy",
+        "extra-args": [
+            "--runtime",
+            "dummy"
+        ],
+        "description": "Dummy ai runtime for testing purposes",
+        "properties": {},
+        "config": {
+            "counters": {
+                "golem.usage.gpu-sec": {
+                    "name": "gpu-sec",
+                    "description": "GpuPerHour",
+                    "price": true
+                },
+                "ai-runtime.requests": {
+                    "name": "num-requests",
+                    "description": "NumRequests",
+                    "price": true
+                },
+                "golem.usage.duration_sec": {
+                    "name": "duration",
+                    "description": "EnvPerHour",
+                    "price": true
+                }
+            }
+        }
+    }
+]

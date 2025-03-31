@@ -5,3 +5,4 @@ trimmed
 /data
 addressology.*
 solc*
+/conf/ya-dummy-cruncher.json

@@ -22,6 +22,8 @@ use lazy_static::lazy_static;
 use serde::Deserialize;
 use std::env;
 use std::sync::Arc;
+use crate::service::provider::test_run_provider;
+use crate::service::yagna::test_run_yagna;
 
 fn get_allowed_emails() -> Vec<String> {
     let res = env::var("ALLOWED_EMAILS")
@@ -351,7 +353,7 @@ async fn main() -> std::io::Result<()> {
         }
 
         Commands::Test {} => {
-            test_run().await;
+            test_run_provider().await;
             //test_command(conn).await;
             /*match compile_solc(
                 "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.28;\n\n// Uncomment this line to use console.log\n// import \"hardhat/console.sol\";\n\ncontract Lock {\n    uint public unlockTime;\n    address payable public owner;\n\n    event Withdrawal(uint amount, uint when);\n\n    constructor(uint _unlockTime) payable {\n        require(\n            block.timestamp < _unlockTime,\n            \"Unlock time should be in the future\"\n        );\n\n        unlockTime = _unlockTime;\n        owner = payable(msg.sender);\n    }\n\n    function withdraw() public {\n        // Uncomment this line, and the import of \"hardhat/console.sol\", to print a log in your terminal\n        // console.log(\"Unlock time is %o and block timestamp is %o\", unlockTime, block.timestamp);\n\n        require(block.timestamp >= unlockTime, \"You can't withdraw yet\");\n        require(msg.sender == owner, \"You aren't the owner\");\n\n        emit Withdrawal(address(this).balance, block.timestamp);\n\n        owner.transfer(address(this).balance);\n    }\n}\n\n",
