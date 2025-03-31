@@ -7,7 +7,7 @@ const AnimatedGPUIconTester = () => {
     const [targetSpeed, setTargetSpeed] = useState(0);
     return (
         <div style={{margin: "auto", width: 200, height: 200, padding: 30}}>
-            <AnimatedGPUIcon targetSpeed={targetSpeed} />
+            <AnimatedGPUIcon targetSpeed={targetSpeed} enabled={true} />
 
             <Button onClick={() => setTargetSpeed(100)}>
                 Start Gpu

@@ -2,6 +2,7 @@ import React, {useEffect, useRef, useState} from "react";
 
 interface GpuIconProps {
     targetSpeed: number;
+    enabled: boolean;
 }
 const AnimatedGPUIcon = (gpuProps: GpuIconProps) => {
     const speedRef = useRef(0);
@@ -56,6 +57,9 @@ const AnimatedGPUIcon = (gpuProps: GpuIconProps) => {
                 const saturation = 50 + 0.5 * temperatureRef.current;
                 const saturationStr = `${saturation}%`;
                 colorRef.current = `hsl(${Math.floor(1.2 * (100.0 - temperatureRef.current))}, ${saturationStr}, 60%)`;
+                if (!gpuProps.enabled && temperatureRef.current < 0.1) {
+                    colorRef.current = `#AdAdAd`;
+                }
             }
             setRerenderNo((prev) => prev + 1);
             animationRef.current = requestAnimationFrame(animate);
@@ -67,7 +71,7 @@ const AnimatedGPUIcon = (gpuProps: GpuIconProps) => {
                 cancelAnimationFrame(animationRef.current);
             }
         };
-    }, [gpuProps.targetSpeed]);
+    }, [gpuProps.targetSpeed, gpuProps.enabled]);
 
     return (
         <div style={{ display: "flex", justifyContent: "center" }}>

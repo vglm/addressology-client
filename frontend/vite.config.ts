@@ -6,7 +6,7 @@ import { compression } from "vite-plugin-compression2";
 
 export default defineConfig({
     plugins: [react(), compression()],
-    base: "/",
+    base: "/dashboard",
     build: {
         chunkSizeWarningLimit: 1500,
         rollupOptions: {

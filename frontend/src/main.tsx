@@ -13,6 +13,8 @@ const root = ReactDOM.createRoot(rootEl);
 
 root.render(
     <React.StrictMode>
-            <AnimatedGPUIconTester/>
+        <BrowserRouter basename={"dashboard"}>
+            <Dashboard />
+        </BrowserRouter>
     </React.StrictMode>,
 );

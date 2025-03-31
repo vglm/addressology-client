@@ -149,9 +149,8 @@ fn parse_line(
                 Err(err_custom_create!("Failed to parse line"))
             }
         } else if let Some(data) = str.split(&format!("Device {device_no}")).nth(1) {
-
-        //let mut c = context.lock();
-            //c.device_name = Some(data.to_string());
+            let mut c = context.lock();
+            c.device_name = Some(data.to_string());
             Ok(())
         } else {
            // log::warn!("Unknown line {}", str);

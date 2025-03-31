@@ -28,65 +28,70 @@ const MyWorker = (props: MyWorkerProps) => {
         <div key={props.runner.data.runnerNo}>
             {props.runner.data.runnerNo}
 
-            <div>
-                <AnimatedGPUIcon targetSpeed={props.runner.started ? 100 : 0} />
-            </div>
-
-            <div className={"worker-card-box-holder"}>
-                <div className={"worker-card-box"}>
-                    <div className={"worker-card-box-header"}>Found Addresses</div>
-                    <div className={"worker-card-box-value"}>
-                        <CountUp
-                            preserveValue={true}
-                            useGrouping={false}
-                            start={foundAddressesCount.current}
-                            end={props.runner.data.foundAddressesCount || 0}
-                            duration={countUpDuration}
-                        />
+            <div className={"worker-card-main"}>
+                <div className={"worker-card-top"}>
+                    <AnimatedGPUIcon targetSpeed={props.runner.started ? 100 : 0} enabled={props.runner.enabled} />
+                    <div>
+                        <div className={"worker-card-gpu-name"}>GPU/CUDA worker no {props.runner.data.runnerNo}</div>
+                        <div className={"worker-card-gpu-model"}>Model detected: {props.runner.data.deviceName}</div>
                     </div>
                 </div>
-                <div className={"worker-card-box"}>
-                    <div className={"worker-card-box-header"}>Current speed</div>
-                    <div className={"worker-card-box-value"}>
-                        <div>
+                <div className={"worker-card-box-holder"}>
+                    <div className={"worker-card-box"}>
+                        <div className={"worker-card-box-header"}>Found Addresses</div>
+                        <div className={"worker-card-box-value"}>
                             <CountUp
                                 preserveValue={true}
                                 useGrouping={false}
-                                start={reportedSpeed.current}
-                                end={props.runner.data.reportedSpeed || 0}
-                                duration={countUpDuration}
-                            />
-                            MH/s
-                        </div>
-                    </div>
-                </div>
-                <div className={"worker-card-box"}>
-                    <div className={"worker-card-box-header"}>Queue len</div>
-                    <div className={"worker-card-box-value"}>
-                        <div>
-                            {" "}
-                            <CountUp
-                                preserveValue={true}
-                                useGrouping={false}
-                                start={queueLen.current}
-                                end={props.runner.queueLen || 0}
+                                start={foundAddressesCount.current}
+                                end={props.runner.data.foundAddressesCount || 0}
                                 duration={countUpDuration}
                             />
                         </div>
                     </div>
-                </div>
-                <div className={"worker-card-box"}>
-                    <div className={"worker-card-box-header"}>Computed GH</div>
-                    <div className={"worker-card-box-value"}>
-                        <div>
-                            <CountUp
-                                decimals={2}
-                                preserveValue={true}
-                                useGrouping={false}
-                                start={totalComputed.current}
-                                end={props.runner.data.totalComputed || 0}
-                                duration={countUpDuration}
-                            />
+                    <div className={"worker-card-box"}>
+                        <div className={"worker-card-box-header"}>Current speed</div>
+                        <div className={"worker-card-box-value"}>
+                            <div>
+                                <CountUp
+                                    preserveValue={true}
+                                    useGrouping={false}
+                                    start={reportedSpeed.current}
+                                    end={props.runner.data.reportedSpeed || 0}
+                                    duration={countUpDuration}
+                                />
+                                MH/s
+                            </div>
+                        </div>
+                    </div>
+                    <div className={"worker-card-box"}>
+                        <div className={"worker-card-box-header"}>Queue len</div>
+                        <div className={"worker-card-box-value"}>
+                            <div>
+                                {" "}
+                                <CountUp
+                                    preserveValue={true}
+                                    useGrouping={false}
+                                    start={queueLen.current}
+                                    end={props.runner.queueLen || 0}
+                                    duration={countUpDuration}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div className={"worker-card-box"}>
+                        <div className={"worker-card-box-header"}>Computed GH</div>
+                        <div className={"worker-card-box-value"}>
+                            <div>
+                                <CountUp
+                                    decimals={2}
+                                    preserveValue={true}
+                                    useGrouping={false}
+                                    start={totalComputed.current}
+                                    end={props.runner.data.totalComputed || 0}
+                                    duration={countUpDuration}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
