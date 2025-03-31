@@ -76,8 +76,8 @@ impl YagnaSettings {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct YagnaRunnerData {
-    command: YagnaCommand,
-    settings: YagnaSettings,
+    pub(crate) command: YagnaCommand,
+    pub(crate) settings: YagnaSettings,
 }
 
 impl YagnaRunnerData {

@@ -14,11 +14,31 @@ use std::time::Duration;
 use tokio::time::sleep;
 use crate::runner::WorkTarget;
 use crate::service::yagna::{YagnaCommand, YagnaNetType, YagnaRunner, YagnaRunnerData, YagnaSettings};
+use rand::{rng, Rng};
+use rand::distr::Alphanumeric;
+
+fn get_random_string(length: usize) -> String {
+    rng()
+        .sample_iter(&Alphanumeric)
+        .take(length)
+        .map(char::from)
+        .collect()
+}
+/*
+          ya-provider preset create --no-interactive \
+            --preset-name dummy --exe-unit dummy \
+            --pricing linear \
+            --price num-requests=0 --price duration=0 --price gpu-sec=0
+ */
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ProviderCommand {
     Run,
+    CreatePreset,
+    ActivatePreset,
+    RemoveDefault,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,7 +75,7 @@ impl ProviderSettings {
     }
     pub fn to_env(&self) -> Vec<(String, String)> {
         let mut envs = vec![
-            ("DATADIR".to_string(), self.data_dir.clone()),
+            ("DATA_DIR".to_string(), self.data_dir.clone()),
             ("YA_PAYMENT_NETWORK".to_string(), self.payment_network.clone()),
             ("EXE_UNIT_PATH".to_string(), self.exe_unit_path.clone()),
             ("NODE_NAME".to_string(), self.node_name.clone()),
@@ -69,12 +89,9 @@ impl ProviderSettings {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderRunnerData {
-    command: ProviderCommand,
-    settings: ProviderSettings,
+    pub command: ProviderCommand,
+    pub settings: ProviderSettings,
 }
-
-
-
 
 
 #[derive(Debug)]
@@ -155,6 +172,15 @@ impl ProviderRunner {
             match lock.command {
                 ProviderCommand::Run => {
                     ["run"].to_vec()
+                }
+                ProviderCommand::CreatePreset => {
+                    ["preset", "create", "--no-interactive", "--preset-name", "dummy", "--exe-unit", "dummy", "--pricing", "linear", "--price", "num-requests=0", "--price", "duration=0", "--price", "gpu-sec=0"].to_vec()
+                }
+                ProviderCommand::ActivatePreset => {
+                    ["preset", "activate", "dummy"].to_vec()
+                }
+                ProviderCommand::RemoveDefault => {
+                    ["preset", "remove", "default"].to_vec()
                 }
             }
         };
@@ -265,6 +291,19 @@ impl ProviderRunner {
         Ok(res)
     }
 
+    pub async fn join(&mut self) -> Result<bool, AddressologyError> {
+        let mut child = self.child_process.lock();
+        if let Some(child) = child.as_mut() {
+            log::info!("Waiting for process with pid {} to finish", child.id());
+            let _ = child.wait();
+            log::info!("Process with pid {} finished", child.id());
+        } else {
+            return Ok(false);
+        }
+        child.take();
+        Ok(true)
+    }
+
     pub async fn kill(&mut self) -> Result<bool, AddressologyError> {
         let mut child = self.child_process.lock();
         if let Some(child) = child.as_mut() {
@@ -304,15 +343,43 @@ pub async fn test_run_provider() {
     yagna_runner.start().await.unwrap();
 
     sleep(Duration::from_secs(5)).await;
+
+    let new_random_provider_dir = "provider-dir-".to_string() + &*get_random_string(10);
+    let provider_settings = ProviderSettings {
+        data_dir: new_random_provider_dir,
+        payment_network: "holesky".to_string(),
+        exe_unit_path: "conf/ya-*.json".to_string(),
+        node_name: "DummyNode".to_string(),
+        yagna_settings: yagna_settings.clone(),
+    };
+    {
+        let mut provider_runner = ProviderRunner::new(PathBuf::from("ya-provider.exe"), ProviderRunnerData {
+            command: ProviderCommand::CreatePreset,
+            settings: provider_settings.clone(),
+        });
+        provider_runner.start().await.unwrap();
+        provider_runner.join().await.unwrap();
+    }
+    {
+        let mut provider_runner = ProviderRunner::new(PathBuf::from("ya-provider.exe"), ProviderRunnerData {
+            command: ProviderCommand::ActivatePreset,
+            settings: provider_settings.clone(),
+        });
+        provider_runner.start().await.unwrap();
+        provider_runner.join().await.unwrap();
+    }
+    {
+        let mut provider_runner = ProviderRunner::new(PathBuf::from("ya-provider.exe"), ProviderRunnerData {
+            command: ProviderCommand::RemoveDefault,
+            settings: provider_settings.clone(),
+        });
+        provider_runner.start().await.unwrap();
+        provider_runner.join().await.unwrap();
+    }
+
     let mut provider_runner = ProviderRunner::new(PathBuf::from("ya-provider.exe"), ProviderRunnerData {
         command: ProviderCommand::Run,
-        settings: ProviderSettings {
-            data_dir: "provider-dir".to_string(),
-            payment_network: "holesky".to_string(),
-            exe_unit_path: "conf/ya-*.json".to_string(),
-            node_name: "DummyNode".to_string(),
-            yagna_settings: yagna_settings.clone(),
-        },
+        settings: provider_settings.clone(),
     });
     provider_runner.start().await.unwrap();
 

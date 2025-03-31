@@ -21,9 +21,10 @@ use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
 use serde::Deserialize;
 use std::env;
+use std::path::PathBuf;
 use std::sync::Arc;
-use crate::service::provider::test_run_provider;
-use crate::service::yagna::test_run_yagna;
+use crate::service::provider::{test_run_provider, ProviderCommand, ProviderRunner, ProviderRunnerData, ProviderSettings};
+use crate::service::yagna::{test_run_yagna, YagnaCommand, YagnaNetType, YagnaRunner, YagnaRunnerData, YagnaSettings};
 
 fn get_allowed_emails() -> Vec<String> {
     let res = env::var("ALLOWED_EMAILS")
@@ -54,6 +55,8 @@ lazy_static! {
 
 pub struct ServerData {
     pub runners: Vec<Arc<tokio::sync::Mutex<CrunchRunner>>>,
+    pub yagna_runner: Arc<tokio::sync::Mutex<YagnaRunner>>,
+    pub provider_runner: Arc<tokio::sync::Mutex<ProviderRunner>>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -252,6 +255,23 @@ async fn main() -> std::io::Result<()> {
 
     let args = Cli::parse();
 
+
+    let yagna_executable_location = PathBuf::from(env::var("YAGNA_EXECUTABLE_LOCATION")
+        .unwrap_or("yagna.exe".to_string()));
+    let provider_executable_location = PathBuf::from( env::var("PROVIDER_EXECUTABLE_LOCATION")
+        .unwrap_or("ya-provider.exe".to_string()));
+
+    let yagna_settings = YagnaSettings::new(
+        &"yagna-data-dir".to_string(),
+        31665,
+        31666,
+        &"yagna-app-key".to_string(),
+        Some(YagnaNetType::Central("polygongas.org:7999".to_string()))
+    );
+    let provider_settings = ProviderSettings::new(
+        &"provider-data-dir".to_string(),
+        yagna_settings.clone()
+    );
     match args.cmd {
         Commands::Server {
             addr,
@@ -268,12 +288,27 @@ async fn main() -> std::io::Result<()> {
                 }
             }
 
+            let yagna_runner = Arc::new(tokio::sync::Mutex::new(YagnaRunner::new(yagna_executable_location, YagnaRunnerData{
+                command: YagnaCommand::Server,
+                settings: yagna_settings.clone()
+            } )));
+
+            let provider_runner = Arc::new(tokio::sync::Mutex::new(ProviderRunner::new(provider_executable_location,
+                                                                                       ProviderRunnerData {
+                                                                                           command:ProviderCommand::Run,
+                                                                                           settings:provider_settings.clone()
+                                                                                       }
+
+            )));
+
             HttpServer::new(move || {
                 let cors = actix_cors::Cors::permissive();
 
                 let client = web::Data::new(Client::new());
                 let server_data = web::Data::new(Box::new(ServerData {
                     runners: cuda_workers.clone(),
+                    yagna_runner: yagna_runner.clone(),
+                    provider_runner: provider_runner.clone(),
                 }));
 
                 App::new()
