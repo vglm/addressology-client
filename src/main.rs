@@ -4,6 +4,7 @@ mod error;
 mod fancy;
 mod hash;
 
+pub mod service;
 pub mod runner;
 mod types;
 mod update;
