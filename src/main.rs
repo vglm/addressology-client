@@ -1,17 +1,28 @@
+#![allow(clippy::unwrap_or_default)]
+#![allow(clippy::redundant_pattern_matching)]
+#![allow(clippy::useless_format)]
+
 mod api;
 mod config;
 mod error;
 mod fancy;
 mod hash;
 
-pub mod service;
 pub mod runner;
+pub mod service;
 mod types;
 mod update;
 use crate::api::scope::server_api_scope;
 
+use crate::config::initialize_config;
 use crate::hash::{compute_address_command, compute_create3_command};
-use crate::runner::{test_run, CrunchRunner};
+use crate::runner::CrunchRunner;
+use crate::service::provider::{
+    test_run_provider, ProviderCommand, ProviderRunner, ProviderRunnerData, ProviderSettings,
+};
+use crate::service::yagna::{
+    YagnaCommand, YagnaNetType, YagnaRunner, YagnaRunnerData, YagnaSettings,
+};
 use actix_multipart::form::MultipartFormConfig;
 use actix_multipart::MultipartError;
 use actix_web::http::StatusCode;
@@ -23,8 +34,6 @@ use serde::Deserialize;
 use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
-use crate::service::provider::{test_run_provider, ProviderCommand, ProviderRunner, ProviderRunnerData, ProviderSettings};
-use crate::service::yagna::{YagnaCommand, YagnaNetType, YagnaRunner, YagnaRunnerData, YagnaSettings};
 
 fn get_allowed_emails() -> Vec<String> {
     let res = env::var("ALLOWED_EMAILS")
@@ -255,23 +264,30 @@ async fn main() -> std::io::Result<()> {
 
     let args = Cli::parse();
 
+    initialize_config();
 
-    let yagna_executable_location = PathBuf::from(env::var("YAGNA_EXECUTABLE_LOCATION")
-        .unwrap_or("yagna.exe".to_string()));
-    let provider_executable_location = PathBuf::from( env::var("PROVIDER_EXECUTABLE_LOCATION")
-        .unwrap_or("ya-provider.exe".to_string()));
+    let conf = config::get_config();
+
+    let yagna_path = PathBuf::from(&conf.yagna_path);
+    if !yagna_path.exists() {
+        panic!("Yagna path does not exist: {}", yagna_path.display());
+    }
+    let provider_executable_location = PathBuf::from(&conf.provider_dir);
+    if !provider_executable_location.exists() {
+        panic!(
+            "Provider path does not exist: {}",
+            provider_executable_location.display()
+        );
+    }
 
     let yagna_settings = YagnaSettings::new(
-        &"yagna-data-dir".to_string(),
-        31665,
-        31666,
-        &"yagna-app-key".to_string(),
-        Some(YagnaNetType::Central("polygongas.org:7999".to_string()))
+        &conf.yagna_dir,
+        conf.yagna_port_http,
+        conf.yagna_port_gsb,
+        &conf.app_key,
+        Some(YagnaNetType::Central("polygongas.org:7999".to_string())),
     );
-    let provider_settings = ProviderSettings::new(
-        &"provider-data-dir".to_string(),
-        yagna_settings.clone()
-    );
+    let provider_settings = ProviderSettings::new("provider-data-dir", yagna_settings.clone());
     match args.cmd {
         Commands::Server {
             addr,
@@ -288,19 +304,20 @@ async fn main() -> std::io::Result<()> {
                 }
             }
 
-            let yagna_runner = Arc::new(tokio::sync::Mutex::new(YagnaRunner::new(yagna_executable_location, YagnaRunnerData{
-                command: YagnaCommand::Server,
-                settings: yagna_settings.clone()
-            } )));
+            let yagna_runner = Arc::new(tokio::sync::Mutex::new(YagnaRunner::new(
+                yagna_path,
+                YagnaRunnerData {
+                    command: YagnaCommand::Server,
+                    settings: yagna_settings.clone(),
+                },
+            )));
 
-            let provider_runner =
-
-                Arc::new(tokio::sync::Mutex::new(ProviderRunner::new(provider_executable_location,
-                                                                                       ProviderRunnerData {
-                                                                                           command:ProviderCommand::Run,
-                                                                                           settings:provider_settings.clone()
-                                                                                       }
-
+            let provider_runner = Arc::new(tokio::sync::Mutex::new(ProviderRunner::new(
+                provider_executable_location,
+                ProviderRunnerData {
+                    command: ProviderCommand::Run,
+                    settings: provider_settings.clone(),
+                },
             )));
 
             HttpServer::new(move || {

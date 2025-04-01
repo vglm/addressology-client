@@ -1,10 +1,10 @@
 use crate::err_custom_create;
 use crate::error::AddressologyError;
-use crate::fancy::FancyDbObj;
-use crate::types::DbAddress;
+use crate::service::yagna::{YagnaNetType, YagnaRunner, YagnaRunnerData, YagnaSettings};
 use parking_lot::Mutex;
+use rand::distr::Alphanumeric;
+use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
-use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
@@ -12,10 +12,6 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 use tokio::time::sleep;
-use crate::runner::WorkTarget;
-use crate::service::yagna::{YagnaCommand, YagnaNetType, YagnaRunner, YagnaRunnerData, YagnaSettings};
-use rand::{rng, Rng};
-use rand::distr::Alphanumeric;
 
 fn get_random_string(length: usize) -> String {
     rng()
@@ -25,12 +21,11 @@ fn get_random_string(length: usize) -> String {
         .collect()
 }
 /*
-          ya-provider preset create --no-interactive \
-            --preset-name dummy --exe-unit dummy \
-            --pricing linear \
-            --price num-requests=0 --price duration=0 --price gpu-sec=0
- */
-
+         ya-provider preset create --no-interactive \
+           --preset-name dummy --exe-unit dummy \
+           --pricing linear \
+           --price num-requests=0 --price duration=0 --price gpu-sec=0
+*/
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -48,18 +43,18 @@ pub struct ProviderSettings {
     payment_network: String,
     exe_unit_path: String,
     node_name: String,
-    yagna_settings: YagnaSettings
+    yagna_settings: YagnaSettings,
 }
 /*
-          DATA_DIR: provider-dir
-      YAGNA_API_URL: http://127.0.0.1:19936
-      GSB_URL: tcp://127.0.0.1:19935
-      YA_PAYMENT_NETWORK: holesky
-      EXE_UNIT_PATH: conf/ya-*.json
-      YAGNA_APPKEY: p4e4rov2id2er123
-      NODE_NAME: DummyNode
+         DATA_DIR: provider-dir
+     YAGNA_API_URL: http://127.0.0.1:19936
+     GSB_URL: tcp://127.0.0.1:19935
+     YA_PAYMENT_NETWORK: holesky
+     EXE_UNIT_PATH: conf/ya-*.json
+     YAGNA_APPKEY: p4e4rov2id2er123
+     NODE_NAME: DummyNode
 
- */
+*/
 impl ProviderSettings {
     pub fn new(data_dir: &str, yagna_settings: YagnaSettings) -> Self {
         let node_name = "CrunchNode".to_string();
@@ -76,7 +71,10 @@ impl ProviderSettings {
     pub fn to_env(&self) -> Vec<(String, String)> {
         let mut envs = vec![
             ("DATA_DIR".to_string(), self.data_dir.clone()),
-            ("YA_PAYMENT_NETWORK".to_string(), self.payment_network.clone()),
+            (
+                "YA_PAYMENT_NETWORK".to_string(),
+                self.payment_network.clone(),
+            ),
             ("EXE_UNIT_PATH".to_string(), self.exe_unit_path.clone()),
             ("NODE_NAME".to_string(), self.node_name.clone()),
         ];
@@ -92,7 +90,6 @@ pub struct ProviderRunnerData {
     pub command: ProviderCommand,
     pub settings: ProviderSettings,
 }
-
 
 #[derive(Debug)]
 pub struct ProviderRunner {
@@ -117,7 +114,7 @@ impl Drop for ProviderRunner {
 
 fn parse_line(
     str: String,
-    context: Arc<Mutex<ProviderRunnerData>>,
+    _context: Arc<Mutex<ProviderRunnerData>>,
 ) -> Result<(), AddressologyError> {
     log::info!("Output: {}", str);
     Ok(())
@@ -133,7 +130,6 @@ impl ProviderRunner {
             shared_data: Arc::new(Mutex::new(data)),
         }
     }
-
 
     pub async fn restart(&mut self) -> Result<(), AddressologyError> {
         self.stop().await?;
@@ -169,21 +165,30 @@ impl ProviderRunner {
                 .to_string()
                 .replace(r"\\?\", ""),
         );
-        let mut args = {
+        let args = {
             let lock = self.shared_data.lock();
             match lock.command {
-                ProviderCommand::Run => {
-                    ["run"].to_vec()
-                }
-                ProviderCommand::CreatePreset => {
-                    ["preset", "create", "--no-interactive", "--preset-name", "dummy", "--exe-unit", "dummy", "--pricing", "linear", "--price", "num-requests=0", "--price", "duration=0", "--price", "gpu-sec=0"].to_vec()
-                }
-                ProviderCommand::ActivatePreset => {
-                    ["preset", "activate", "dummy"].to_vec()
-                }
-                ProviderCommand::RemoveDefault => {
-                    ["preset", "remove", "default"].to_vec()
-                }
+                ProviderCommand::Run => ["run"].to_vec(),
+                ProviderCommand::CreatePreset => [
+                    "preset",
+                    "create",
+                    "--no-interactive",
+                    "--preset-name",
+                    "dummy",
+                    "--exe-unit",
+                    "dummy",
+                    "--pricing",
+                    "linear",
+                    "--price",
+                    "num-requests=0",
+                    "--price",
+                    "duration=0",
+                    "--price",
+                    "gpu-sec=0",
+                ]
+                .to_vec(),
+                ProviderCommand::ActivatePreset => ["preset", "activate", "dummy"].to_vec(),
+                ProviderCommand::RemoveDefault => ["preset", "remove", "default"].to_vec(),
             }
         };
 
@@ -191,7 +196,11 @@ impl ProviderRunner {
             "Current working directory: {}",
             std::env::current_dir().unwrap().display().to_string()
         );
-        log::info!("Starting process {} {}", exe_path.display().to_string(), args.join(" "));
+        log::info!(
+            "Starting process {} {}",
+            exe_path.display().to_string(),
+            args.join(" ")
+        );
         let extra_env = self.shared_data.lock().settings.to_env();
         log::info!("Extra env args {:?}", extra_env);
         let exe_path_ = exe_path.clone();
@@ -238,9 +247,7 @@ impl ProviderRunner {
             for line in reader.lines() {
                 match line {
                     Ok(line) => {
-                        if let Err(err) =
-                            parse_line(line, stdout_shared_data.clone())
-                        {
+                        if let Err(err) = parse_line(line, stdout_shared_data.clone()) {
                             log::error!("Error parsing line: {err}");
                         }
                     }
@@ -267,10 +274,7 @@ impl ProviderRunner {
             for line in reader.lines() {
                 match line {
                     Ok(line) => {
-                        if let Err(err) = parse_line(
-                            line,
-                            stderr_shared_data.clone(),
-                        ) {
+                        if let Err(err) = parse_line(line, stderr_shared_data.clone()) {
                             log::error!("Error parsing line: {err}");
                         }
                     }
@@ -319,18 +323,13 @@ impl ProviderRunner {
         Ok(true)
     }
 
-    pub async fn configure(
-        &mut self,
-    ) -> Result<(), AddressologyError> {
+    pub async fn configure(&mut self) -> Result<(), AddressologyError> {
         if self.is_started() {
-            return Err(err_custom_create!(
-                "Cannot configure a running process"
-            ));
+            return Err(err_custom_create!("Cannot configure a running process"));
         }
-        match configure_provider(self.shared_data.lock().settings.clone()).await {
-            Ok(_) => {
-                Ok(())
-            }
+        let settings_clone = self.shared_data.lock().settings.clone();
+        match configure_provider(settings_clone).await {
+            Ok(_) => Ok(()),
             Err(err) => {
                 log::error!("Error configuring provider: {}", err);
                 Err(err)
@@ -341,26 +340,35 @@ impl ProviderRunner {
 
 async fn configure_provider(provider_settings: ProviderSettings) -> Result<(), AddressologyError> {
     {
-        let mut provider_runner = ProviderRunner::new(PathBuf::from("ya-provider.exe"), ProviderRunnerData {
-            command: ProviderCommand::CreatePreset,
-            settings: provider_settings.clone(),
-        });
+        let mut provider_runner = ProviderRunner::new(
+            PathBuf::from("ya-provider.exe"),
+            ProviderRunnerData {
+                command: ProviderCommand::CreatePreset,
+                settings: provider_settings.clone(),
+            },
+        );
         provider_runner.start().await?;
         provider_runner.join().await?;
     }
     {
-        let mut provider_runner = ProviderRunner::new(PathBuf::from("ya-provider.exe"), ProviderRunnerData {
-            command: ProviderCommand::ActivatePreset,
-            settings: provider_settings.clone(),
-        });
+        let mut provider_runner = ProviderRunner::new(
+            PathBuf::from("ya-provider.exe"),
+            ProviderRunnerData {
+                command: ProviderCommand::ActivatePreset,
+                settings: provider_settings.clone(),
+            },
+        );
         provider_runner.start().await?;
         provider_runner.join().await?;
     }
     {
-        let mut provider_runner = ProviderRunner::new(PathBuf::from("ya-provider.exe"), ProviderRunnerData {
-            command: ProviderCommand::RemoveDefault,
-            settings: provider_settings.clone(),
-        });
+        let mut provider_runner = ProviderRunner::new(
+            PathBuf::from("ya-provider.exe"),
+            ProviderRunnerData {
+                command: ProviderCommand::RemoveDefault,
+                settings: provider_settings.clone(),
+            },
+        );
         provider_runner.start().await?;
         provider_runner.join().await?;
     }
@@ -369,26 +377,27 @@ async fn configure_provider(provider_settings: ProviderSettings) -> Result<(), A
 
 pub async fn test_run_provider() {
     /*
-              DATA_DIR: provider-dir
-          YAGNA_API_URL: http://127.0.0.1:19936
-          GSB_URL: tcp://127.0.0.1:19935
-          YA_PAYMENT_NETWORK: holesky
-          EXE_UNIT_PATH: conf/ya-*.json
-          YAGNA_APPKEY: p4e4rov2id2er123
-          NODE_NAME: DummyNode
+             DATA_DIR: provider-dir
+         YAGNA_API_URL: http://127.0.0.1:19936
+         GSB_URL: tcp://127.0.0.1:19935
+         YA_PAYMENT_NETWORK: holesky
+         EXE_UNIT_PATH: conf/ya-*.json
+         YAGNA_APPKEY: p4e4rov2id2er123
+         NODE_NAME: DummyNode
 
-     */
-    let mut yagna_settings = YagnaSettings::new(
+    */
+    let yagna_settings = YagnaSettings::new(
         "yagna-runner-test",
         24665,
         24666,
         "PPBf7M3zkrx2",
-        Some(YagnaNetType::Central(
-            "polygongas.org:7999".to_string()
-        )),
+        Some(YagnaNetType::Central("polygongas.org:7999".to_string())),
     );
 
-    let mut yagna_runner = YagnaRunner::new(PathBuf::from("yagna.exe"), YagnaRunnerData::server(yagna_settings.clone()));
+    let mut yagna_runner = YagnaRunner::new(
+        PathBuf::from("yagna.exe"),
+        YagnaRunnerData::server(yagna_settings.clone()),
+    );
     yagna_runner.start().await.unwrap();
 
     sleep(Duration::from_secs(5)).await;
@@ -402,41 +411,56 @@ pub async fn test_run_provider() {
         yagna_settings: yagna_settings.clone(),
     };
     {
-        let mut provider_runner = ProviderRunner::new(PathBuf::from("ya-provider.exe"), ProviderRunnerData {
-            command: ProviderCommand::CreatePreset,
-            settings: provider_settings.clone(),
-        });
+        let mut provider_runner = ProviderRunner::new(
+            PathBuf::from("ya-provider.exe"),
+            ProviderRunnerData {
+                command: ProviderCommand::CreatePreset,
+                settings: provider_settings.clone(),
+            },
+        );
         provider_runner.start().await.unwrap();
         provider_runner.join().await.unwrap();
     }
     {
-        let mut provider_runner = ProviderRunner::new(PathBuf::from("ya-provider.exe"), ProviderRunnerData {
-            command: ProviderCommand::ActivatePreset,
-            settings: provider_settings.clone(),
-        });
+        let mut provider_runner = ProviderRunner::new(
+            PathBuf::from("ya-provider.exe"),
+            ProviderRunnerData {
+                command: ProviderCommand::ActivatePreset,
+                settings: provider_settings.clone(),
+            },
+        );
         provider_runner.start().await.unwrap();
         provider_runner.join().await.unwrap();
     }
     {
-        let mut provider_runner = ProviderRunner::new(PathBuf::from("ya-provider.exe"), ProviderRunnerData {
-            command: ProviderCommand::RemoveDefault,
-            settings: provider_settings.clone(),
-        });
+        let mut provider_runner = ProviderRunner::new(
+            PathBuf::from("ya-provider.exe"),
+            ProviderRunnerData {
+                command: ProviderCommand::RemoveDefault,
+                settings: provider_settings.clone(),
+            },
+        );
         provider_runner.start().await.unwrap();
         provider_runner.join().await.unwrap();
     }
 
-    let mut provider_runner = ProviderRunner::new(PathBuf::from("ya-provider.exe"), ProviderRunnerData {
-        command: ProviderCommand::Run,
-        settings: provider_settings.clone(),
-    });
+    let mut provider_runner = ProviderRunner::new(
+        PathBuf::from("ya-provider.exe"),
+        ProviderRunnerData {
+            command: ProviderCommand::Run,
+            settings: provider_settings.clone(),
+        },
+    );
     provider_runner.start().await.unwrap();
 
     let curr_time = std::time::Instant::now();
     loop {
         sleep(Duration::from_secs(5)).await;
 
-        let mut payment_check = YagnaRunner::new(PathBuf::from("yagna.exe"), YagnaRunnerData::payment_status( yagna_settings.clone()));
+        let mut payment_check = YagnaRunner::new(
+            PathBuf::from("yagna.exe"),
+            YagnaRunnerData::payment_status(yagna_settings.clone()),
+        );
         payment_check.start().await.unwrap();
 
         /*log::info!(
@@ -447,7 +471,6 @@ pub async fn test_run_provider() {
                 .unwrap_or("N/A".to_string()),
             yagna_runner.found_addresses_count()
         );*/
-
 
         if curr_time.elapsed().as_secs() > 60 {
             break;

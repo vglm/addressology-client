@@ -47,7 +47,6 @@ pub enum WorkTarget {
     Default,
 }
 
-
 #[derive(Debug)]
 pub struct CrunchRunner {
     exe_path: PathBuf,
@@ -138,7 +137,6 @@ fn parse_line(
                 //log::info!("Total Compute: {} GH", total_compute);
                 //log::info!("Rate: {} MH/s", rate);
 
-
                 let mut c = context.lock();
                 c.reported_speed = Some(rate);
                 c.total_computed = Some(total_compute);
@@ -153,7 +151,7 @@ fn parse_line(
             c.device_name = Some(data.to_string());
             Ok(())
         } else {
-           // log::warn!("Unknown line {}", str);
+            // log::warn!("Unknown line {}", str);
             Ok(())
         }
     }
@@ -235,7 +233,6 @@ impl CrunchRunner {
         Ok(())
     }
 
-
     pub async fn start(&mut self, benchmark_time: Option<f64>) -> Result<(), AddressologyError> {
         // Spawn a process (Example: `ping` command)
         let child = self.child_process.clone();
@@ -298,7 +295,11 @@ impl CrunchRunner {
             "Current working directory: {}",
             std::env::current_dir().unwrap().display().to_string()
         );
-        log::info!("Starting process {} {}", exe_path.display().to_string(), args.join(" "));
+        log::info!(
+            "Starting process {} {}",
+            exe_path.display().to_string(),
+            args.join(" ")
+        );
         let exe_path_ = exe_path.clone();
         thread::spawn(move || {
             let new_child = Some(

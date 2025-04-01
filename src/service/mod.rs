@@ -1,2 +1,2 @@
-pub mod yagna;
 pub mod provider;
+pub mod yagna;

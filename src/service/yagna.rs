@@ -1,10 +1,7 @@
 use crate::err_custom_create;
 use crate::error::AddressologyError;
-use crate::fancy::FancyDbObj;
-use crate::types::DbAddress;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
@@ -12,13 +9,12 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 use tokio::time::sleep;
-use crate::runner::WorkTarget;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum YagnaCommand {
     Server,
-    PaymentStatus
+    PaymentStatus,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,13 +35,19 @@ pub struct YagnaSettings {
 }
 
 impl YagnaSettings {
-    pub fn new(data_dir: &str, api_port: u16, gsb_port: u16, app_key: &str, net_connection: Option<YagnaNetType>) -> Self {
+    pub fn new(
+        data_dir: &str,
+        api_port: u16,
+        gsb_port: u16,
+        app_key: &str,
+        net_connection: Option<YagnaNetType>,
+    ) -> Self {
         Self {
             data_dir: data_dir.to_string(),
             api_url: format!("http://127.0.0.1:{}", api_port),
             gsb_url: format!("tcp://127.0.0.1:{}", gsb_port),
             app_key: app_key.to_string(),
-            net_connection: net_connection.clone()
+            net_connection: net_connection.clone(),
         }
     }
     pub fn to_env(&self) -> Vec<(String, String)> {
@@ -55,7 +57,7 @@ impl YagnaSettings {
             ("GSB_URL".to_string(), self.gsb_url.clone()),
             ("YAGNA_AUTOCONF_APPKEY".to_string(), self.app_key.clone()),
             ("YAGNA_APPKEY".to_string(), self.app_key.clone()), //technically not needed here, but useful in provider
-            ("YA_CONSENT_STATS".to_string(), "allow".to_string())
+            ("YA_CONSENT_STATS".to_string(), "allow".to_string()),
         ];
         if let Some(net_connection) = &self.net_connection {
             match net_connection {
@@ -95,8 +97,6 @@ impl YagnaRunnerData {
     }
 }
 
-
-
 #[derive(Debug)]
 pub struct YagnaRunner {
     exe_path: PathBuf,
@@ -118,10 +118,7 @@ impl Drop for YagnaRunner {
     }
 }
 
-fn parse_line(
-    str: String,
-    context: Arc<Mutex<YagnaRunnerData>>,
-) -> Result<(), AddressologyError> {
+fn parse_line(str: String, _context: Arc<Mutex<YagnaRunnerData>>) -> Result<(), AddressologyError> {
     log::info!("Output: {}", str);
     Ok(())
 }
@@ -137,7 +134,6 @@ impl YagnaRunner {
         }
     }
 
-
     pub async fn restart(&mut self) -> Result<(), AddressologyError> {
         self.stop().await?;
         self.start().await
@@ -145,6 +141,29 @@ impl YagnaRunner {
 
     pub fn is_started(&self) -> bool {
         self.child_process.lock().is_some()
+    }
+
+    pub async fn clean_data(&self) -> Result<(), AddressologyError> {
+        if self.is_started() {
+            return Err(err_custom_create!(
+                "Cannot clean data while the process is running"
+            ));
+        }
+        let data = self.shared_data.lock();
+        let data_dir = data.settings.data_dir.clone();
+        for file in std::fs::read_dir(data_dir.clone())
+            .map_err(|e| err_custom_create!("Failed to read data directory {data_dir} {e}"))?
+        {
+            let file = file.map_err(|e| {
+                err_custom_create!("Failed to read entry in data directory {data_dir} {e}")
+            })?;
+            let path = file.path();
+            if path.is_file() && !path.starts_with("yagna.db") {
+                std::fs::remove_file(&path)
+                    .map_err(|e| err_custom_create!("Failed to remove file {path:?} {e}"))?;
+            }
+        }
+        Ok(())
     }
 
     pub async fn start(&mut self) -> Result<(), AddressologyError> {
@@ -172,12 +191,10 @@ impl YagnaRunner {
                 .to_string()
                 .replace(r"\\?\", ""),
         );
-        let mut args = {
+        let args = {
             let lock = self.shared_data.lock();
             match lock.command {
-                YagnaCommand::Server => {
-                    ["service", "run"].to_vec()
-                }
+                YagnaCommand::Server => ["service", "run"].to_vec(),
                 YagnaCommand::PaymentStatus => {
                     ["payment", "status", "--network", "holesky", "--json"].to_vec()
                 }
@@ -188,7 +205,11 @@ impl YagnaRunner {
             "Current working directory: {}",
             std::env::current_dir().unwrap().display().to_string()
         );
-        log::info!("Starting process {} {}", exe_path.display().to_string(), args.join(" "));
+        log::info!(
+            "Starting process {} {}",
+            exe_path.display().to_string(),
+            args.join(" ")
+        );
         let extra_env = self.shared_data.lock().settings.to_env();
         log::info!("Extra env args {:?}", extra_env);
         let exe_path_ = exe_path.clone();
@@ -235,9 +256,7 @@ impl YagnaRunner {
             for line in reader.lines() {
                 match line {
                     Ok(line) => {
-                        if let Err(err) =
-                            parse_line(line, stdout_shared_data.clone())
-                        {
+                        if let Err(err) = parse_line(line, stdout_shared_data.clone()) {
                             log::error!("Error parsing line: {err}");
                         }
                     }
@@ -248,7 +267,7 @@ impl YagnaRunner {
             }
             {
                 let mut child = child_pr.lock();
-                if let Some(_) = child.as_mut() {
+                if child.as_mut().is_some() {
                     log::info!("Child process {stdout_pid} finished, cleaning handle");
                     let _ = child.take();
                 }
@@ -264,10 +283,7 @@ impl YagnaRunner {
             for line in reader.lines() {
                 match line {
                     Ok(line) => {
-                        if let Err(err) = parse_line(
-                            line,
-                            stderr_shared_data.clone(),
-                        ) {
+                        if let Err(err) = parse_line(line, stderr_shared_data.clone()) {
                             log::error!("Error parsing line: {err}");
                         }
                     }
@@ -305,30 +321,34 @@ impl YagnaRunner {
 }
 
 pub async fn test_run_yagna() {
-    let mut yagna_settings = YagnaSettings::new(
+    let yagna_settings = YagnaSettings::new(
         "yagna-runner-test",
         24665,
         24666,
         "PPBf7M3zkrx2",
-        Some(YagnaNetType::Central(
-            "polygongas.org:7999".to_string()
-        )),
+        Some(YagnaNetType::Central("polygongas.org:7999".to_string())),
     );
 
-    let mut yagna_runner = YagnaRunner::new(PathBuf::from("yagna.exe"), YagnaRunnerData{
-        command: YagnaCommand::Server,
-        settings: yagna_settings.clone(),
-    });
+    let mut yagna_runner = YagnaRunner::new(
+        PathBuf::from("yagna.exe"),
+        YagnaRunnerData {
+            command: YagnaCommand::Server,
+            settings: yagna_settings.clone(),
+        },
+    );
     yagna_runner.start().await.unwrap();
 
     let curr_time = std::time::Instant::now();
     loop {
         sleep(Duration::from_secs(1)).await;
 
-        let mut payment_check = YagnaRunner::new(PathBuf::from("yagna.exe"), YagnaRunnerData{
-            command: YagnaCommand::PaymentStatus,
-            settings: yagna_settings.clone(),
-        });
+        let mut payment_check = YagnaRunner::new(
+            PathBuf::from("yagna.exe"),
+            YagnaRunnerData {
+                command: YagnaCommand::PaymentStatus,
+                settings: yagna_settings.clone(),
+            },
+        );
         payment_check.start().await.unwrap();
 
         /*log::info!(
@@ -339,7 +359,6 @@ pub async fn test_run_yagna() {
                 .unwrap_or("N/A".to_string()),
             yagna_runner.found_addresses_count()
         );*/
-
 
         if curr_time.elapsed().as_secs() > 60 {
             break;

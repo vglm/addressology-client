@@ -1,12 +1,12 @@
-use crate::runner::{WorkTarget};
+use crate::api::utils::extract_url_int_param;
+use crate::fancy::FancyDbObjMin;
+use crate::runner::WorkTarget;
 use crate::ServerData;
 use actix_web::web::Data;
 use actix_web::{web, HttpRequest, HttpResponse};
 use serde_json::{json, Value};
 use std::time::Duration;
 use tokio::time::timeout;
-use crate::api::utils::extract_url_int_param;
-use crate::fancy::{FancyDbObj, FancyDbObjMin};
 
 pub async fn list_runners(data: Data<Box<ServerData>>) -> HttpResponse {
     let mut runners: Vec<Value> = Vec::with_capacity(data.runners.len());
@@ -211,14 +211,15 @@ pub async fn consume_results(
     let mut limit = extract_url_int_param(&request, "limit")?.unwrap_or(1000);
     let mut results: Vec<FancyDbObjMin> = Vec::new();
     for runner in data.runners.iter() {
-        let mut runner = match timeout(Duration::from_secs(5), runner.lock()).await {
+        let runner = match timeout(Duration::from_secs(5), runner.lock()).await {
             Ok(guard) => guard,
             Err(_) => {
-                return Ok(HttpResponse::RequestTimeout()
-                    .body("Timed out while waiting for runner lock"));
+                return Ok(
+                    HttpResponse::RequestTimeout().body("Timed out while waiting for runner lock")
+                );
             }
         };
-        let mut runner_results = runner.consume_results(limit as usize);
+        let runner_results = runner.consume_results(limit as usize);
         limit -= runner_results.len() as i64;
         for res in runner_results.into_iter() {
             results.push(FancyDbObjMin {

@@ -1,6 +1,12 @@
-use crate::api::runners::{consume_results, disable, enable, kill, list_runners, set_runners_target, start, start_benchmark, stop};
+use crate::api::golem::{
+    clean_yagna, configure_provider, provider_info, start_provider, start_yagna, stop_provider,
+    stop_yagna, yagna_info,
+};
+use crate::api::runners::{
+    consume_results, disable, enable, kill, list_runners, set_runners_target, start,
+    start_benchmark, stop,
+};
 use actix_web::{web, Scope};
-use crate::api::golem::{configure_provider, provider_info, start_provider, start_yagna, stop_provider, stop_yagna, yagna_info};
 
 #[rustfmt::skip]
 pub fn server_api_scope() -> Scope {
@@ -21,4 +27,7 @@ pub fn server_api_scope() -> Scope {
         .route("/provider/configure", web::post().to(configure_provider))
         .route("/provider/info", web::get().to(provider_info))
         .route("/yagna/stop", web::post().to(stop_yagna))
+        .route("/yagna/clean", web::post().to(clean_yagna))
+       // .route("/provider/clean", web::post().to(clean_provider))
+
 }
