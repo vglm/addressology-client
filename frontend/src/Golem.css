@@ -1,0 +1,16 @@
+.golem-node-card-main {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid red;
+    padding: 1em;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+}
+.golem-node-card-logo {
+    background-color: #1434b4;
+}
+.golem-node-card-logo-text {
+    color: white;
+    font-size: 1.5em;
+    font-weight: bold;
+    padding: 0.5em;
+}

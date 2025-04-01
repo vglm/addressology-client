@@ -180,11 +180,9 @@ impl ProviderRunner {
                     "--pricing",
                     "linear",
                     "--price",
-                    "num-requests=0",
+                    "tera-hash=0.01",
                     "--price",
                     "duration=0",
-                    "--price",
-                    "gpu-sec=0",
                 ]
                 .to_vec(),
                 ProviderCommand::ActivatePreset => ["preset", "activate", "dummy"].to_vec(),

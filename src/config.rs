@@ -35,6 +35,7 @@ pub fn get_config() -> &'static ApplicationConfig {
 #[serde(rename_all = "kebab-case")]
 pub struct ApplicationConfig {
     pub yagna_path: String,
+    pub provider_path: String,
     pub yagna_dir: String,
     pub provider_dir: String,
     pub app_key: String,
@@ -51,6 +52,7 @@ impl Default for ApplicationConfig {
     fn default() -> Self {
         ApplicationConfig {
             yagna_path: "yagna.exe".to_string(),
+            provider_path: "provider.exe".to_string(),
             yagna_dir: "yagna-dir".to_string(),
             provider_dir: "provider-dir".to_string(),
             app_key: get_random_string(20),

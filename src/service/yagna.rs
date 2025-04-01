@@ -143,6 +143,10 @@ impl YagnaRunner {
         self.child_process.lock().is_some()
     }
 
+    pub fn settings(&self) -> YagnaSettings {
+        self.shared_data.lock().settings.clone()
+    }
+
     pub async fn clean_data(&self) -> Result<(), AddressologyError> {
         if self.is_started() {
             return Err(err_custom_create!(
@@ -158,7 +162,10 @@ impl YagnaRunner {
                 err_custom_create!("Failed to read entry in data directory {data_dir} {e}")
             })?;
             let path = file.path();
-            if path.is_file() && !path.starts_with("yagna.db") {
+            let is_yagna_db_file = path.file_name().ok_or_else(||
+                err_custom_create!("Cannot get filename of {}", path.display()))?
+                .to_string_lossy().starts_with("yagna.db");
+            if path.is_file() && !is_yagna_db_file {
                 std::fs::remove_file(&path)
                     .map_err(|e| err_custom_create!("Failed to remove file {path:?} {e}"))?;
             }
@@ -318,7 +325,9 @@ impl YagnaRunner {
         child.take();
         Ok(true)
     }
+
 }
+
 
 pub async fn test_run_yagna() {
     let yagna_settings = YagnaSettings::new(

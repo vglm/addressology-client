@@ -2,6 +2,7 @@ import React from "react";
 
 import { Routes, Route } from "react-router-dom";
 import MyWorkers from "./Workers";
+import Golem from "./Golem";
 
 const Dashboard = () => {
     return (
@@ -14,6 +15,7 @@ const Dashboard = () => {
                         element={
                             <div>
                                 <MyWorkers />
+                                <Golem  />
                             </div>
                         }
                     />

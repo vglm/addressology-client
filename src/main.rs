@@ -261,6 +261,10 @@ async fn main() -> std::io::Result<()> {
         std::env::var("RUST_LOG").unwrap_or("info".to_string()),
     );
     env_logger::init();
+    ctrlc::set_handler(move || {
+        println!("Received signal, but ignoring it.");
+    })
+        .expect("Error setting Ctrl-C handler");
 
     let args = Cli::parse();
 
@@ -272,7 +276,7 @@ async fn main() -> std::io::Result<()> {
     if !yagna_path.exists() {
         panic!("Yagna path does not exist: {}", yagna_path.display());
     }
-    let provider_executable_location = PathBuf::from(&conf.provider_dir);
+    let provider_executable_location = PathBuf::from(&conf.provider_path);
     if !provider_executable_location.exists() {
         panic!(
             "Provider path does not exist: {}",
