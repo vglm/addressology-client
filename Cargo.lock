@@ -374,6 +374,7 @@ dependencies = [
  "url",
  "uuid",
  "web3",
+ "windows-sys 0.59.0",
  "zstd",
 ]
 

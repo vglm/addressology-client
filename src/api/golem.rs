@@ -40,6 +40,23 @@ pub async fn yagna_info(
     Ok(res)
 }
 
+pub async fn get_last_exe_unit_log(
+    data: Data<Box<ServerData>>,
+    _req: HttpRequest,
+) -> Result<HttpResponse, error::Error> {
+    let runner = lock_with_timeout!(data.provider_runner)?;
+
+    match runner.get_last_exe_unit_log().await {
+        Ok(log) => Ok(HttpResponse::Ok().json(log)),
+        Err(err) => {
+            log::error!("Failed to get last exeunit log: {err}");
+            Err(error::ErrorInternalServerError(format!(
+                "Failed to get last exe-unit log: {err}"
+            )))
+        }
+    }
+}
+
 pub async fn provider_info(
     data: Data<Box<ServerData>>,
     _req: HttpRequest,

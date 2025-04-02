@@ -218,7 +218,7 @@ impl YagnaRunner {
             args.join(" ")
         );
         let extra_env = self.shared_data.lock().settings.to_env();
-        log::info!("Extra env args {:?}", extra_env);
+        log::info!("Extra env args: \n {}", extra_env.iter().map(|el|format!("{} {}", el.0, el.1)).collect::<Vec<String>>().join("\n"));
         let exe_path_ = exe_path.clone();
         thread::spawn(move || {
             let new_child = Some(

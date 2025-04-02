@@ -7,6 +7,7 @@ import AnimatedGPUIcon from "./AnimatedGpuIcon";
 import "./Golem.css"
 import JsonView from 'react18-json-view'
 import 'react18-json-view/src/style.css'
+import { LogViewer } from "@patternfly/react-log-viewer";
 
 interface YagnaInfo {
     status: string;
@@ -15,11 +16,18 @@ interface ProviderInfo {
     status: string;
 }
 
+interface ActivityDetails {
+    activityId: string;
+    agreementJson: any;
+    log: string;
+}
+
 const Golems = () => {
     const [yagnaInfo, setYagnaInfo] = useState<YagnaInfo | null>(null);
     const [providerInfo, setProviderInfo] = useState<ProviderInfo | null>(null);
     const [updateNo, setUpdateNo] = useState(0);
     const [offers, setOffers] = useState<string>();
+    const [activityDetails, setActivityDetails] = useState<ActivityDetails | null>();
 
     const getYagnaInfo = async () => {
         const response = await backendFetch("/api/yagna/info", {
@@ -100,6 +108,14 @@ const Golems = () => {
         console.log("Offers: ", offers);
     }
 
+    const getActivityDetails = async () => {
+        const response = await backendFetch("/api/provider/activity/details", {
+            method: "Get",
+        });
+        const activityDetails = await response.json();
+        setActivityDetails(activityDetails);
+    }
+
     useEffect(() => {
         getYagnaInfo().then();
         getProviderInfo().then();
@@ -150,12 +166,13 @@ const Golems = () => {
                             Clean
                         </Button>
                     </div>
-
-                    <JsonView src={offers}>
-
-                    </JsonView>
+                    {offers && <JsonView src={offers}/>}
+                    <Button onClick={() => getActivityDetails()}>
+                        Get activity details
+                    </Button>
+                    {activityDetails?.log && <textarea value={activityDetails?.log}></textarea>}
+                    {activityDetails?.agreementJson && <JsonView src={activityDetails.agreementJson}/>}
                 </div>
-
             </div>
 
         </div>

@@ -6,12 +6,14 @@ use rand::distr::Alphanumeric;
 use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
+use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
+use std::{fs, thread};
+use std::time::{Duration, SystemTime};
 use tokio::time::sleep;
+use windows_sys::Win32::System::Threading::CREATE_NEW_PROCESS_GROUP;
 
 fn get_random_string(length: usize) -> String {
     rng()
@@ -101,6 +103,14 @@ pub struct ProviderRunner {
     shared_data: Arc<Mutex<ProviderRunnerData>>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExeUnitInfo {
+    pub activity_id: String,
+    pub agreement_json: serde_json::Value,
+    pub log: Option<String>
+}
+
 impl Drop for ProviderRunner {
     fn drop(&mut self) {
         let mut child = self.child_process.lock();
@@ -138,6 +148,97 @@ impl ProviderRunner {
 
     pub fn is_started(&self) -> bool {
         self.child_process.lock().is_some()
+    }
+
+
+    pub async fn get_last_exe_unit_log(
+        &self,
+    ) -> Result<Option<ExeUnitInfo>, AddressologyError> {
+        //get provider dir
+        let provider_dir = self.shared_data.lock().settings.data_dir.clone();
+        let provider_dir = PathBuf::from(provider_dir);
+
+        let exe_unit_dir = provider_dir.join("exe-unit").join("work");
+
+        let mut entries: Vec<(PathBuf, SystemTime)> = fs::read_dir(&exe_unit_dir).map_err(
+            |e| err_custom_create!("Failed to read directory: {}", e))?
+            .filter_map(|entry| {
+                entry.ok().and_then(|e| {
+                    let path = e.path();
+                    if path.is_dir() {
+                        e.metadata().ok().and_then(|meta| meta.modified().ok().map(|time| (path, time)))
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect();
+
+        // Sort by modification date (newest first)
+        entries.sort_by_key(|&(_, time)| std::cmp::Reverse(time));
+
+        // Get the newest directory, if any
+        let agreement_dir = if let Some((agreement_dir, _)) = entries.first() {
+            agreement_dir
+        } else {
+            return Ok(None);
+        };
+
+        // Get the activity ID from the directory name
+        //load contents of agreement_json
+        let agreement_json_path = agreement_dir.join("agreement.json");
+        let agreement_json = fs::read_to_string(agreement_json_path).map_err(
+            |e| err_custom_create!("Failed to read file: {}", e))?;
+        let agreement_json = serde_json::from_str(&agreement_json).map_err(
+            |e| err_custom_create!("Failed to parse JSON: {}", e))?;
+
+
+        // list folders in agreement_dir
+
+        let directories = fs::read_dir(&agreement_dir).map_err(
+            |e| err_custom_create!("Failed to read directory: {}", e))?;
+
+        let mut activity_dir = None;
+
+        for entry in directories {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if path.is_dir() {
+                    activity_dir = Some(path);
+                }
+            }
+        }
+        let log_path  = if let Some(activity_dir) = activity_dir {
+            let log_path = activity_dir.join("logs");
+            if log_path.exists() {
+                Some(log_path)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let mut log_content = None;
+        if let Some(log_path) = log_path {
+            for entry in fs::read_dir(&log_path).map_err(
+                |e| err_custom_create!("Failed to read directory: {}", e))? {
+                if let Ok(entry) = entry {
+                    let path = entry.path();
+                    if path.is_file() && path.extension().map_or(false, |ext| ext == "log") {
+                        let log_c = fs::read_to_string(path).map_err(
+                            |e| err_custom_create!("Failed to read file: {}", e))?;
+                        log_content = Some(log_c);
+                    }
+                }
+            }
+        }
+
+
+        Ok(Some(ExeUnitInfo {
+            activity_id: "".to_string(),
+            agreement_json,
+            log: log_content,
+        }))
     }
 
     pub async fn start(&mut self) -> Result<(), AddressologyError> {

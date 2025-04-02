@@ -54,6 +54,7 @@ web3 = { git = "https://github.com/scx1332/rust-web3", branch = "master" }
 zstd = "0.13"
 regex = "1.11"
 toml = "0.8.20"
+windows-sys = "0.59.0"
 
 [features]
 default = ["proxy"]

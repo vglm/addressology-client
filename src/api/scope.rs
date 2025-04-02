@@ -1,4 +1,4 @@
-use crate::api::golem::{clean_yagna, configure_provider, provider_info, proxy_get_offers, start_provider, start_yagna, stop_provider, stop_yagna, yagna_info};
+use crate::api::golem::{clean_yagna, configure_provider, get_last_exe_unit_log, provider_info, proxy_get_offers, start_provider, start_yagna, stop_provider, stop_yagna, yagna_info};
 use crate::api::runners::{
     consume_results, disable, enable, kill, list_runners, set_runners_target, start,
     start_benchmark, stop,
@@ -23,6 +23,7 @@ pub fn server_api_scope() -> Scope {
         .route("/provider/stop", web::post().to(stop_provider))
         .route("/provider/configure", web::post().to(configure_provider))
         .route("/provider/info", web::get().to(provider_info))
+        .route("/provider/activity/details", web::get().to(get_last_exe_unit_log))
         .route("/yagna/stop", web::post().to(stop_yagna))
         .route("/yagna/clean", web::post().to(clean_yagna))
         .route("/yagna/market/offers", web::get().to(proxy_get_offers))

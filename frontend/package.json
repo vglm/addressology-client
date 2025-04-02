@@ -40,6 +40,7 @@
         "eslint-plugin-import": "^2.26",
         "eslint-plugin-jsx-a11y": "^6.6",
         "eslint-plugin-react": "^7.31",
+
         "prettier": "^2.8",
         "react-countup": "^6.5.3",
         "serve": "^14.2",
