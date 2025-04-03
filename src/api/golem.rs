@@ -162,10 +162,7 @@ pub async fn configure_provider(
     }
 }
 
-
-pub async fn proxy_get_offers(
-    data: Data<Box<ServerData>>,
-) -> Result<HttpResponse, error::Error> {
+pub async fn proxy_get_offers(data: Data<Box<ServerData>>) -> Result<HttpResponse, error::Error> {
     let settings = {
         //no need to block whole function
         lock_with_timeout!(data.yagna_runner)?.settings()
@@ -184,25 +181,21 @@ pub async fn proxy_get_offers(
             error::ErrorInternalServerError("Failed to send request")
         })?;
     if response.status().is_success() {
-        let body = response
-            .bytes()
-            .await
-            .map_err(|e| {
-                log::error!("Failed to read response body: {}", e);
-                error::ErrorInternalServerError("Failed to read response body")
-            })?;
-        let offers = serde_json::from_slice::<serde_json::Value>(&body)
-            .map_err(|e| {
-                log::error!("Failed to parse response body: {}", e);
-                error::ErrorInternalServerError("Failed to parse response body")
-            })?;
+        let body = response.bytes().await.map_err(|e| {
+            log::error!("Failed to read response body: {}", e);
+            error::ErrorInternalServerError("Failed to read response body")
+        })?;
+        let offers = serde_json::from_slice::<serde_json::Value>(&body).map_err(|e| {
+            log::error!("Failed to parse response body: {}", e);
+            error::ErrorInternalServerError("Failed to parse response body")
+        })?;
         Ok(HttpResponse::Ok().json(offers))
     } else {
         let status = response.status();
-        let body_text = response
-            .text()
-            .await.unwrap_or_default();
-        Err(error::ErrorInternalServerError(format!("Yagna request failed. status code: {} body: {}", status, body_text)))
+        let body_text = response.text().await.unwrap_or_default();
+        Err(error::ErrorInternalServerError(format!(
+            "Yagna request failed. status code: {} body: {}",
+            status, body_text
+        )))
     }
-
 }

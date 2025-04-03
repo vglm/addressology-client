@@ -264,7 +264,7 @@ async fn main() -> std::io::Result<()> {
     ctrlc::set_handler(move || {
         println!("Received signal, but ignoring it.");
     })
-        .expect("Error setting Ctrl-C handler");
+    .expect("Error setting Ctrl-C handler");
 
     let args = Cli::parse();
 

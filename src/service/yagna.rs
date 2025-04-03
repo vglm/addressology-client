@@ -1,13 +1,20 @@
 use crate::err_custom_create;
 use crate::error::AddressologyError;
+use actix_web::HttpMessage;
+use bytes::Bytes;
+use chrono::{DateTime, Utc};
+use futures_util::{Stream, StreamExt};
 use parking_lot::Mutex;
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
+use tokio::time;
 use tokio::time::sleep;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -97,6 +104,8 @@ impl YagnaRunnerData {
     }
 }
 
+pub struct YagnaActivityTracker {}
+
 #[derive(Debug)]
 pub struct YagnaRunner {
     exe_path: PathBuf,
@@ -105,6 +114,8 @@ pub struct YagnaRunner {
     stderr_thread: Option<thread::JoinHandle<()>>,
 
     shared_data: Arc<Mutex<YagnaRunnerData>>,
+    activity_tracker_handle: Option<tokio::task::JoinHandle<()>>,
+    activity_tracker_results: Arc<parking_lot::Mutex<TrackingResults>>,
 }
 
 impl Drop for YagnaRunner {
@@ -131,6 +142,10 @@ impl YagnaRunner {
             stdout_thread: None,
             stderr_thread: None,
             shared_data: Arc::new(Mutex::new(data)),
+            activity_tracker_handle: None,
+            activity_tracker_results: Arc::new(parking_lot::Mutex::new(TrackingResults {
+                actvities: BTreeMap::new(),
+            })),
         }
     }
 
@@ -162,9 +177,11 @@ impl YagnaRunner {
                 err_custom_create!("Failed to read entry in data directory {data_dir} {e}")
             })?;
             let path = file.path();
-            let is_yagna_db_file = path.file_name().ok_or_else(||
-                err_custom_create!("Cannot get filename of {}", path.display()))?
-                .to_string_lossy().starts_with("yagna.db");
+            let is_yagna_db_file = path
+                .file_name()
+                .ok_or_else(|| err_custom_create!("Cannot get filename of {}", path.display()))?
+                .to_string_lossy()
+                .starts_with("yagna.db");
             if path.is_file() && !is_yagna_db_file {
                 std::fs::remove_file(&path)
                     .map_err(|e| err_custom_create!("Failed to remove file {path:?} {e}"))?;
@@ -180,6 +197,9 @@ impl YagnaRunner {
             return Err(err_custom_create!(
                 "Cannot spawn a new process while one is already running"
             ));
+        }
+        if let Some(tracker) = self.activity_tracker_handle.take() {
+            tracker.abort();
         }
         let exe_path = self.exe_path.clone();
 
@@ -218,7 +238,14 @@ impl YagnaRunner {
             args.join(" ")
         );
         let extra_env = self.shared_data.lock().settings.to_env();
-        log::info!("Extra env args: \n {}", extra_env.iter().map(|el|format!("{} {}", el.0, el.1)).collect::<Vec<String>>().join("\n"));
+        log::info!(
+            "Extra env args: \n {}",
+            extra_env
+                .iter()
+                .map(|el| format!("{} {}", el.0, el.1))
+                .collect::<Vec<String>>()
+                .join("\n")
+        );
         let exe_path_ = exe_path.clone();
         thread::spawn(move || {
             let new_child = Some(
@@ -304,6 +331,8 @@ impl YagnaRunner {
 
         self.stdout_thread = Some(stdout_thread);
         self.stderr_thread = Some(stderr_thread);
+
+        drop(child_option);
         Ok(())
     }
 
@@ -326,8 +355,195 @@ impl YagnaRunner {
         Ok(true)
     }
 
+    fn track_activities(&mut self, th: usize) {
+        if self.activity_tracker_handle.is_none() {
+            let settings = self.shared_data.lock().settings.clone();
+            self.activity_tracker_handle = Some(tokio::spawn(tracker_loop(
+                settings.api_url,
+                settings.app_key,
+                self.activity_tracker_results.clone(),
+                th,
+            )));
+        } else {
+            log::error!("Tracker already running");
+        }
+    }
 }
 
+#[derive(
+    Clone, Default, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize,
+)]
+pub enum State {
+    #[default]
+    New,
+    Initialized,
+    Deployed,
+    Ready,
+    Terminated,
+    Unresponsive,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ActivityStateModel {
+    id: String,
+    state: State,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    usage: Option<BTreeMap<String, f64>>,
+    exe_unit: Option<String>,
+    agreement_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TrackingEvent {
+    ts: DateTime<Utc>,
+    activities: Vec<ActivityStateModel>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UsageHistory {
+    ts: DateTime<Utc>,
+    usage: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ActivityEntry {
+    last_update: DateTime<Utc>,
+    activity: ActivityStateModel,
+    usage_vector_history: Vec<UsageHistory>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TrackingResults {
+    pub actvities: BTreeMap<String, ActivityEntry>,
+}
+
+async fn tracker_loop(
+    base_url: String,
+    app_key: String,
+    tracking_results: Arc<parking_lot::Mutex<TrackingResults>>,
+    th: usize,
+) {
+    let url = base_url + "/activity-api/v1/_monitor";
+    log::info!("Activity tracker started for url: {}", url);
+
+    //give yagna some extra time to start
+    sleep(Duration::from_secs_f64(5.0)).await;
+
+    let client = Client::default();
+    let try_again_after_error_secs = 5.0;
+
+    loop {
+        let mut long_poll_req = loop {
+            time::sleep(Duration::from_secs_f64(try_again_after_error_secs)).await;
+            match client
+                .get(&url)
+                .header("Authorization", format!("Bearer {}", app_key))
+                .send()
+                .await
+            {
+                Ok(resp) => {
+                    log::info!(
+                        "Connection to activity tracker established url:{url}, status: {}",
+                        resp.status()
+                    );
+                    break resp.bytes_stream();
+                }
+                Err(e) => {
+                    log::error!("Long polling request failed on url {url}: {e}. Trying again in {try_again_after_error_secs}s");
+                }
+            };
+        };
+        while let Some(chunk) = long_poll_req.next().await {
+            match chunk {
+                Ok(bytes) => {
+                    if let Ok(text) = std::str::from_utf8(&bytes) {
+                        if text.contains("Missing application key") {
+                            log::error!("Missing application key in activity tracker response. Trying again after {try_again_after_error_secs}s");
+                            break;
+                        }
+                        //try to deserialize json
+                        let text = text.trim();
+                        if text.starts_with("{") && text.ends_with("}") {
+                            let event: TrackingEvent = match serde_json::from_str(text) {
+                                Ok(event) => event,
+                                Err(e) => {
+                                    log::warn!(
+                                        "Error while deserializing activity tracker response: {e}"
+                                    );
+                                    continue;
+                                }
+                            };
+                            if event.activities.is_empty() {
+                                log::warn!("Received empty activity tracker event");
+                                continue;
+                            }
+                            if event.activities.len() > 1 {
+                                log::warn!(
+                                    "Received multiple activity tracker events: {:?}",
+                                    event.activities
+                                );
+                                continue;
+                            }
+                            let activity = event.activities[0].clone();
+
+                            log::info!("Received activity tracker event: {:?}", activity);
+                            let mut tracking_results = tracking_results.lock();
+
+                            let usage_value = activity
+                                .usage.as_ref()
+                                .and_then(|g| g.get("golem.usage.tera-hash").copied());
+
+
+
+                            if let Some(entry) = tracking_results.actvities.get_mut(&activity.id) {
+                                entry.activity = activity.clone();
+                                entry.last_update = event.ts;
+
+
+                                if usage_value.is_none() {
+                                    log::warn!("No usage value for activity {}", activity.id);
+                                } else {
+                                    let usage_value = usage_value.unwrap();
+                                    if usage_value >= 0.0 {
+                                        entry.usage_vector_history.push(UsageHistory {
+                                            ts: event.ts,
+                                            usage: usage_value,
+                                        });
+                                    } else {
+                                        log::warn!("Received negative usage value for activity {}", activity.id);
+                                    }
+                                }
+                            } else {
+                                tracking_results.actvities.insert(
+                                    activity.id.clone(),
+                                    ActivityEntry {
+                                        last_update: event.ts,
+                                        activity: activity.clone(),
+                                        usage_vector_history: vec![{
+                                            UsageHistory {
+                                                ts: event.ts,
+                                                usage: usage_value.unwrap_or(-1.0),
+                                            }
+                                        }],
+                                    },
+                                );
+                            }
+                        } else {
+                            log::warn!(
+                                "Received non-json response from activity tracker: {}",
+                                text
+                            );
+                        }
+                    }
+                }
+                Err(e) => {
+                    log::error!("Error while reading stream: {}. Disconnecting and trying again after {try_again_after_error_secs}s", e);
+                    break;
+                }
+            }
+        }
+    }
+}
 
 pub async fn test_run_yagna() {
     let yagna_settings = YagnaSettings::new(

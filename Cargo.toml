@@ -15,7 +15,7 @@ actix-session = { version = "0.10", features = ["cookie-session"] }
 actix-web = "4.10"
 actix-web-httpauth = "0.8"
 awc = { version = "3", features = ["rustls"] }
-bollard = { version = "0.18.1" }
+bytes = "1.10.1"
 censor = "0.3.0"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["cargo", "derive"] }
@@ -35,7 +35,7 @@ parking_lot = "0.12"
 pbkdf2 = { version = "0.12", features = ["simple"] }
 percent-encoding = "2.3"
 rand = "0.9"
-reqwest = "0.12.8"
+reqwest = { version = "0.12.8", features = ["stream"] }
 rust-embed = "8"
 rust_decimal = "1.36"
 rustc-hex = "2"
@@ -51,10 +51,10 @@ tokio = "1"
 url = "2"
 uuid = { version = "1.10", features = ["v4"] }
 web3 = { git = "https://github.com/scx1332/rust-web3", branch = "master" }
-zstd = "0.13"
 regex = "1.11"
 toml = "0.8.20"
 windows-sys = "0.59.0"
+
 
 [features]
 default = ["proxy"]

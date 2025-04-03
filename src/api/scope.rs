@@ -1,4 +1,7 @@
-use crate::api::golem::{clean_yagna, configure_provider, get_last_exe_unit_log, provider_info, proxy_get_offers, start_provider, start_yagna, stop_provider, stop_yagna, yagna_info};
+use crate::api::golem::{
+    clean_yagna, configure_provider, get_last_exe_unit_log, provider_info, proxy_get_offers,
+    start_provider, start_yagna, stop_provider, stop_yagna, yagna_info,
+};
 use crate::api::runners::{
     consume_results, disable, enable, kill, list_runners, set_runners_target, start,
     start_benchmark, stop,
