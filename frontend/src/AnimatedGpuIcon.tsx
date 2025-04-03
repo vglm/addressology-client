@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface GpuIconProps {
     targetSpeed: number;
@@ -38,7 +38,7 @@ const AnimatedGPUIcon = (gpuProps: GpuIconProps) => {
             let targetSpeed = 0;
             const fanLowerTreshold = 40;
             if (temperatureRef.current > fanLowerTreshold) {
-                targetSpeed = (temperatureRef.current - fanLowerTreshold) * 100 / (100 - fanLowerTreshold);
+                targetSpeed = ((temperatureRef.current - fanLowerTreshold) * 100) / (100 - fanLowerTreshold);
             }
             {
                 const prev = speedRef.current;

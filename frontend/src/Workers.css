@@ -1,7 +1,6 @@
 .worker-card-main {
     display: flex;
     flex-direction: column;
-
 }
 .worker-card-top {
     display: flex;

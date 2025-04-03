@@ -6,7 +6,6 @@ import { Button } from "@mui/material";
 import CountUp from "react-countup";
 import AnimatedGPUIcon from "./AnimatedGpuIcon";
 
-
 interface MyWorkerProps {
     runner: Runner;
     startRunner: (runnerNo: number) => void;

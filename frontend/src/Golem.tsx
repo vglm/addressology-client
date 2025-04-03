@@ -1,13 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { backendFetch } from "./common/BackendCall";
-import { Runner } from "./model/Contract";
 import { Button } from "@mui/material";
-import CountUp from "react-countup";
-import AnimatedGPUIcon from "./AnimatedGpuIcon";
-import "./Golem.css"
-import JsonView from 'react18-json-view'
-import 'react18-json-view/src/style.css'
-import { LogViewer } from "@patternfly/react-log-viewer";
+import "./Golem.css";
+import JsonView from "react18-json-view";
+import "react18-json-view/src/style.css";
 
 interface YagnaInfo {
     status: string;
@@ -43,7 +39,6 @@ const Golems = () => {
         const providerInfo = await response.json();
         setProviderInfo(providerInfo);
     };
-
 
     const startYagna = async () => {
         const response = await backendFetch(`/api/yagna/start`, {
@@ -106,7 +101,7 @@ const Golems = () => {
         const offers = await response.json();
         setOffers(offers);
         console.log("Offers: ", offers);
-    }
+    };
 
     const getActivityDetails = async () => {
         const response = await backendFetch("/api/provider/activity/details", {
@@ -114,7 +109,7 @@ const Golems = () => {
         });
         const activityDetails = await response.json();
         setActivityDetails(activityDetails);
-    }
+    };
 
     useEffect(() => {
         getYagnaInfo().then();
@@ -130,14 +125,13 @@ const Golems = () => {
     return (
         <div>
             <div>
-
                 <div className={"golem-node-card-main"}>
                     <div>
                         <div className={"golem-node-card-logo"}>
                             <div className={"golem-node-card-logo-text"}>Connect to</div>
                             <img src={"golem.png"}></img>
                         </div>
-                            Yagna:
+                        Yagna:
                         <Button disabled={yagnaInfo?.status == "running"} onClick={() => startYagna()}>
                             Start
                         </Button>
@@ -166,15 +160,12 @@ const Golems = () => {
                             Clean
                         </Button>
                     </div>
-                    {offers && <JsonView src={offers}/>}
-                    <Button onClick={() => getActivityDetails()}>
-                        Get activity details
-                    </Button>
+                    {offers && <JsonView src={offers} />}
+                    <Button onClick={() => getActivityDetails()}>Get activity details</Button>
                     {activityDetails?.log && <textarea value={activityDetails?.log}></textarea>}
-                    {activityDetails?.agreementJson && <JsonView src={activityDetails.agreementJson}/>}
+                    {activityDetails?.agreementJson && <JsonView src={activityDetails.agreementJson} />}
                 </div>
             </div>
-
         </div>
     );
 };

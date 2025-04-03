@@ -15,7 +15,7 @@ const Dashboard = () => {
                         element={
                             <div>
                                 <MyWorkers />
-                                <Golem  />
+                                <Golem />
                             </div>
                         }
                     />
