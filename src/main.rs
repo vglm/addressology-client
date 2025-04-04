@@ -284,20 +284,25 @@ async fn main() -> std::io::Result<()> {
         );
     }
 
-    let yagna_settings = YagnaSettings::new(
-        &conf.yagna_dir,
-        conf.yagna_port_http,
-        conf.yagna_port_gsb,
-        &conf.app_key,
-        Some(YagnaNetType::Central("polygongas.org:7999".to_string())),
-    );
-    let provider_settings = ProviderSettings::new("provider-data-dir", yagna_settings.clone());
     match args.cmd {
         Commands::Server {
             addr,
             threads,
             no_cuda_devices,
         } => {
+            let yagna_settings = YagnaSettings::new(
+                &conf.yagna_dir,
+                conf.yagna_port_http,
+                conf.yagna_port_gsb,
+                &conf.app_key,
+                Some(YagnaNetType::Central("polygongas.org:7999".to_string())),
+            );
+            let provider_settings = ProviderSettings::new(
+                "provider-data-dir".to_string(),
+                addr.to_string(),
+                yagna_settings.to_owned(),
+            );
+
             let mut cuda_workers = Vec::new();
             if let Some(no_cuda_devices) = no_cuda_devices {
                 for i in 0..no_cuda_devices {

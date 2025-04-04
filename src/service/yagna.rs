@@ -1,13 +1,11 @@
 use crate::err_custom_create;
 use crate::error::AddressologyError;
-use actix_web::HttpMessage;
-use bytes::Bytes;
 use chrono::{DateTime, Utc};
-use futures_util::{Stream, StreamExt};
+use futures_util::StreamExt;
 use parking_lot::Mutex;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{BTreeMap, VecDeque};
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
@@ -130,6 +128,9 @@ impl Drop for YagnaRunner {
 }
 
 fn parse_line(str: String, _context: Arc<Mutex<YagnaRunnerData>>) -> Result<(), AddressologyError> {
+    if str.contains("actix_web::middleware::logger") {
+        return Ok(());
+    }
     log::info!("Output: {}", str);
     Ok(())
 }
@@ -333,6 +334,7 @@ impl YagnaRunner {
         self.stderr_thread = Some(stderr_thread);
 
         drop(child_option);
+        self.start_track_activities();
         Ok(())
     }
 
@@ -355,14 +357,13 @@ impl YagnaRunner {
         Ok(true)
     }
 
-    fn track_activities(&mut self, th: usize) {
+    fn start_track_activities(&mut self) {
         if self.activity_tracker_handle.is_none() {
             let settings = self.shared_data.lock().settings.clone();
             self.activity_tracker_handle = Some(tokio::spawn(tracker_loop(
                 settings.api_url,
                 settings.app_key,
                 self.activity_tracker_results.clone(),
-                th,
             )));
         } else {
             log::error!("Tracker already running");
@@ -405,11 +406,13 @@ pub struct UsageHistory {
     usage: f64,
 }
 
+const MAX_USAGE_HISTORY: usize = 10;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ActivityEntry {
     last_update: DateTime<Utc>,
     activity: ActivityStateModel,
-    usage_vector_history: Vec<UsageHistory>,
+    usage_vector_history: VecDeque<UsageHistory>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -420,8 +423,7 @@ pub struct TrackingResults {
 async fn tracker_loop(
     base_url: String,
     app_key: String,
-    tracking_results: Arc<parking_lot::Mutex<TrackingResults>>,
-    th: usize,
+    tracking_results: Arc<Mutex<TrackingResults>>,
 ) {
     let url = base_url + "/activity-api/v1/_monitor";
     log::info!("Activity tracker started for url: {}", url);
@@ -462,7 +464,7 @@ async fn tracker_loop(
                             break;
                         }
                         //try to deserialize json
-                        let text = text.trim();
+                        let text = text.strip_prefix("data: ").unwrap_or(text).trim();
                         if text.starts_with("{") && text.ends_with("}") {
                             let event: TrackingEvent = match serde_json::from_str(text) {
                                 Ok(event) => event,
@@ -490,27 +492,31 @@ async fn tracker_loop(
                             let mut tracking_results = tracking_results.lock();
 
                             let usage_value = activity
-                                .usage.as_ref()
+                                .usage
+                                .as_ref()
                                 .and_then(|g| g.get("golem.usage.tera-hash").copied());
-
-
 
                             if let Some(entry) = tracking_results.actvities.get_mut(&activity.id) {
                                 entry.activity = activity.clone();
                                 entry.last_update = event.ts;
-
 
                                 if usage_value.is_none() {
                                     log::warn!("No usage value for activity {}", activity.id);
                                 } else {
                                     let usage_value = usage_value.unwrap();
                                     if usage_value >= 0.0 {
-                                        entry.usage_vector_history.push(UsageHistory {
+                                        if entry.usage_vector_history.len() > MAX_USAGE_HISTORY {
+                                            entry.usage_vector_history.pop_back();
+                                        }
+                                        entry.usage_vector_history.push_front(UsageHistory {
                                             ts: event.ts,
                                             usage: usage_value,
                                         });
                                     } else {
-                                        log::warn!("Received negative usage value for activity {}", activity.id);
+                                        log::warn!(
+                                            "Received negative usage value for activity {}",
+                                            activity.id
+                                        );
                                     }
                                 }
                             } else {
@@ -519,12 +525,12 @@ async fn tracker_loop(
                                     ActivityEntry {
                                         last_update: event.ts,
                                         activity: activity.clone(),
-                                        usage_vector_history: vec![{
+                                        usage_vector_history: VecDeque::from(vec![
                                             UsageHistory {
                                                 ts: event.ts,
                                                 usage: usage_value.unwrap_or(-1.0),
                                             }
-                                        }],
+                                        ]),
                                     },
                                 );
                             }

@@ -6,14 +6,12 @@ use rand::distr::Alphanumeric;
 use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
-use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use std::{fs, thread};
 use tokio::time::sleep;
-use windows_sys::Win32::System::Threading::CREATE_NEW_PROCESS_GROUP;
 
 fn get_random_string(length: usize) -> String {
     rng()
@@ -46,6 +44,7 @@ pub struct ProviderSettings {
     exe_unit_path: String,
     node_name: String,
     yagna_settings: YagnaSettings,
+    client_api_url: String,
 }
 /*
          DATA_DIR: provider-dir
@@ -58,16 +57,17 @@ pub struct ProviderSettings {
 
 */
 impl ProviderSettings {
-    pub fn new(data_dir: &str, yagna_settings: YagnaSettings) -> Self {
+    pub fn new(data_dir: String, client_api_url: String, yagna_settings: YagnaSettings) -> Self {
         let node_name = "CrunchNode".to_string();
         let payment_network = "holesky".to_string();
         let exe_unit_path = "conf/ya-*.json".to_string();
         Self {
-            data_dir: data_dir.to_string(),
+            data_dir,
             payment_network,
             exe_unit_path,
             node_name,
             yagna_settings,
+            client_api_url,
         }
     }
     pub fn to_env(&self) -> Vec<(String, String)> {
@@ -79,6 +79,7 @@ impl ProviderSettings {
             ),
             ("EXE_UNIT_PATH".to_string(), self.exe_unit_path.clone()),
             ("NODE_NAME".to_string(), self.node_name.clone()),
+            ("CRUNCHER_CLIENT_API_URL".to_string(), self.client_api_url.to_string())
         ];
         let mut yagna_envs = self.yagna_settings.to_env();
         envs.append(&mut yagna_envs);
@@ -193,7 +194,7 @@ impl ProviderRunner {
 
         // list folders in agreement_dir
 
-        let directories = fs::read_dir(&agreement_dir)
+        let directories = fs::read_dir(agreement_dir)
             .map_err(|e| err_custom_create!("Failed to read directory: {}", e))?;
 
         let mut activity_dir = None;
@@ -204,6 +205,8 @@ impl ProviderRunner {
                 if path.is_dir() {
                     activity_dir = Some(path);
                 }
+            } else {
+                return Err(err_custom_create!("Failed to read entry"));
             }
         }
         let log_path = if let Some(activity_dir) = activity_dir {
@@ -223,11 +226,13 @@ impl ProviderRunner {
             {
                 if let Ok(entry) = entry {
                     let path = entry.path();
-                    if path.is_file() && path.extension().map_or(false, |ext| ext == "log") {
+                    if path.is_file() && path.extension().is_some_and(|ext| ext == "log") {
                         let log_c = fs::read_to_string(path)
                             .map_err(|e| err_custom_create!("Failed to read file: {}", e))?;
                         log_content = Some(log_c);
                     }
+                } else {
+                    return Err(err_custom_create!("Failed to read entry"));
                 }
             }
         }
@@ -506,6 +511,7 @@ pub async fn test_run_provider() {
         exe_unit_path: "conf/ya-*.json".to_string(),
         node_name: "DummyNode".to_string(),
         yagna_settings: yagna_settings.clone(),
+        client_api_url: "http://127.0.0.1:181".to_string(),
     };
     {
         let mut provider_runner = ProviderRunner::new(
