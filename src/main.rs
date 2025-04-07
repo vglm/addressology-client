@@ -12,7 +12,9 @@ pub mod runner;
 pub mod service;
 mod types;
 mod update;
+
 use crate::api::scope::server_api_scope;
+use std::collections::BTreeMap;
 
 use crate::config::initialize_config;
 use crate::hash::{compute_address_command, compute_create3_command};
@@ -21,7 +23,7 @@ use crate::service::provider::{
     test_run_provider, ProviderCommand, ProviderRunner, ProviderRunnerData, ProviderSettings,
 };
 use crate::service::yagna::{
-    YagnaCommand, YagnaNetType, YagnaRunner, YagnaRunnerData, YagnaSettings,
+    TrackingResults, YagnaCommand, YagnaNetType, YagnaRunner, YagnaRunnerData, YagnaSettings,
 };
 use actix_multipart::form::MultipartFormConfig;
 use actix_multipart::MultipartError;
@@ -66,6 +68,7 @@ pub struct ServerData {
     pub runners: Vec<Arc<tokio::sync::Mutex<CrunchRunner>>>,
     pub yagna_runner: Arc<tokio::sync::Mutex<YagnaRunner>>,
     pub provider_runner: Arc<tokio::sync::Mutex<ProviderRunner>>,
+    pub activity_tracking_results: Arc<parking_lot::Mutex<TrackingResults>>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -299,7 +302,7 @@ async fn main() -> std::io::Result<()> {
             );
             let provider_settings = ProviderSettings::new(
                 "provider-data-dir".to_string(),
-                addr.to_string(),
+                format!("http://{addr}"),
                 yagna_settings.to_owned(),
             );
 
@@ -313,12 +316,16 @@ async fn main() -> std::io::Result<()> {
                 }
             }
 
+            let activity_tracking_results = Arc::new(parking_lot::Mutex::new(TrackingResults {
+                actvities: BTreeMap::new(),
+            }));
             let yagna_runner = Arc::new(tokio::sync::Mutex::new(YagnaRunner::new(
                 yagna_path,
                 YagnaRunnerData {
                     command: YagnaCommand::Server,
                     settings: yagna_settings.clone(),
                 },
+                activity_tracking_results.clone(),
             )));
 
             let provider_runner = Arc::new(tokio::sync::Mutex::new(ProviderRunner::new(
@@ -337,6 +344,7 @@ async fn main() -> std::io::Result<()> {
                     runners: cuda_workers.clone(),
                     yagna_runner: yagna_runner.clone(),
                     provider_runner: provider_runner.clone(),
+                    activity_tracking_results: activity_tracking_results.clone(),
                 }));
 
                 App::new()

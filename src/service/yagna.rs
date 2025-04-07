@@ -136,7 +136,11 @@ fn parse_line(str: String, _context: Arc<Mutex<YagnaRunnerData>>) -> Result<(), 
 }
 
 impl YagnaRunner {
-    pub fn new(exe_path: PathBuf, data: YagnaRunnerData) -> Self {
+    pub fn new(
+        exe_path: PathBuf,
+        data: YagnaRunnerData,
+        activity_tracker_results: Arc<Mutex<TrackingResults>>,
+    ) -> Self {
         Self {
             exe_path,
             child_process: Arc::new(Mutex::new(None)),
@@ -144,9 +148,7 @@ impl YagnaRunner {
             stderr_thread: None,
             shared_data: Arc::new(Mutex::new(data)),
             activity_tracker_handle: None,
-            activity_tracker_results: Arc::new(parking_lot::Mutex::new(TrackingResults {
-                actvities: BTreeMap::new(),
-            })),
+            activity_tracker_results,
         }
     }
 
@@ -525,12 +527,10 @@ async fn tracker_loop(
                                     ActivityEntry {
                                         last_update: event.ts,
                                         activity: activity.clone(),
-                                        usage_vector_history: VecDeque::from(vec![
-                                            UsageHistory {
-                                                ts: event.ts,
-                                                usage: usage_value.unwrap_or(-1.0),
-                                            }
-                                        ]),
+                                        usage_vector_history: VecDeque::from(vec![UsageHistory {
+                                            ts: event.ts,
+                                            usage: usage_value.unwrap_or(-1.0),
+                                        }]),
                                     },
                                 );
                             }
@@ -566,6 +566,9 @@ pub async fn test_run_yagna() {
             command: YagnaCommand::Server,
             settings: yagna_settings.clone(),
         },
+        Arc::new(Mutex::new(TrackingResults {
+            actvities: BTreeMap::new(),
+        })),
     );
     yagna_runner.start().await.unwrap();
 
@@ -579,6 +582,9 @@ pub async fn test_run_yagna() {
                 command: YagnaCommand::PaymentStatus,
                 settings: yagna_settings.clone(),
             },
+            Arc::new(Mutex::new(TrackingResults {
+                actvities: BTreeMap::new(),
+            })),
         );
         payment_check.start().await.unwrap();
 

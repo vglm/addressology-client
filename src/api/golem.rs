@@ -40,6 +40,14 @@ pub async fn yagna_info(
     Ok(res)
 }
 
+pub async fn get_all_historical_activity_info(
+    data: Data<Box<ServerData>>,
+    _req: HttpRequest,
+) -> Result<HttpResponse, error::Error> {
+    let activity_tracking_details = data.activity_tracking_results.lock().clone();
+    Ok(HttpResponse::Ok().json(activity_tracking_details))
+}
+
 pub async fn get_last_exe_unit_log(
     data: Data<Box<ServerData>>,
     _req: HttpRequest,

@@ -24,6 +24,7 @@ const Golems = () => {
     const [updateNo, setUpdateNo] = useState(0);
     const [offers, setOffers] = useState<string>();
     const [activityDetails, setActivityDetails] = useState<ActivityDetails | null>();
+    const [activityTrackingHistory, setActivityTrackingHistory] = useState<any | null>();
 
     const getYagnaInfo = async () => {
         const response = await backendFetch("/api/yagna/info", {
@@ -103,6 +104,15 @@ const Golems = () => {
         console.log("Offers: ", offers);
     };
 
+    const getActivityTrackingHistory = async () => {
+        const response = await backendFetch("/api/provider/activity/all", {
+            method: "Get",
+        });
+        const activityTrackingHistory = await response.json();
+        console.log("Activity tracking history: ", activityTrackingHistory);
+        setActivityTrackingHistory(activityTrackingHistory);
+    }
+
     const getActivityDetails = async () => {
         const response = await backendFetch("/api/provider/activity/details", {
             method: "Get",
@@ -162,6 +172,8 @@ const Golems = () => {
                     </div>
                     {offers && <JsonView src={offers} />}
                     <Button onClick={() => getActivityDetails()}>Get activity details</Button>
+                    <Button onClick={() => getActivityTrackingHistory()}>Get activity tracking history</Button>
+                    {activityTrackingHistory && <JsonView src={activityTrackingHistory} />}
                     {activityDetails?.log && <textarea value={activityDetails?.log}></textarea>}
                     {activityDetails?.agreementJson && <JsonView src={activityDetails.agreementJson} />}
                 </div>

@@ -56,6 +56,61 @@ pub async fn start_benchmark(data: Data<Box<ServerData>>, req: HttpRequest) -> H
         HttpResponse::NotFound().body("Runner not found")
     }
 }
+pub async fn runners_start(data: Data<Box<ServerData>>) -> HttpResponse {
+    let mut no_runners_started = 0;
+    for runner in data.runners.clone() {
+        let mut runner = match timeout(Duration::from_secs(5), runner.lock()).await {
+            Ok(guard) => guard,
+            Err(_) => {
+                return HttpResponse::RequestTimeout()
+                    .body("Timed out while waiting for runner lock");
+            }
+        };
+        if !runner.is_enabled() {
+            continue;
+        }
+        match runner.start(None).await {
+            Ok(()) => no_runners_started += 1,
+            Err(err) => {
+                return HttpResponse::InternalServerError()
+                    .body(format!("Failed to start runner {err}"))
+            }
+        }
+    }
+    if no_runners_started > 0 {
+        HttpResponse::Ok().body(format!("Started {} runners", no_runners_started))
+    } else {
+        HttpResponse::InternalServerError().body("No runners started")
+    }
+}
+
+pub async fn runners_stop(data: Data<Box<ServerData>>) -> HttpResponse {
+    let mut no_runners_stopped = 0;
+    for runner in data.runners.clone() {
+        let mut runner = match timeout(Duration::from_secs(5), runner.lock()).await {
+            Ok(guard) => guard,
+            Err(_) => {
+                return HttpResponse::RequestTimeout()
+                    .body("Timed out while waiting for runner lock");
+            }
+        };
+        if !runner.is_enabled() {
+            continue;
+        }
+        match runner.stop().await {
+            Ok(_stopped) => no_runners_stopped += 1,
+            Err(err) => {
+                return HttpResponse::InternalServerError()
+                    .body(format!("Failed to start runner {err}"))
+            }
+        }
+    }
+    if no_runners_stopped > 0 {
+        HttpResponse::Ok().body(format!("stopped {} runners", no_runners_stopped))
+    } else {
+        HttpResponse::InternalServerError().body("No runners stopped")
+    }
+}
 
 pub async fn start(data: Data<Box<ServerData>>, req: HttpRequest) -> HttpResponse {
     let runner_no: usize = match req.match_info().query("runner_no").parse() {

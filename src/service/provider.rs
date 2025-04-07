@@ -1,10 +1,13 @@
 use crate::err_custom_create;
 use crate::error::AddressologyError;
-use crate::service::yagna::{YagnaNetType, YagnaRunner, YagnaRunnerData, YagnaSettings};
+use crate::service::yagna::{
+    TrackingResults, YagnaNetType, YagnaRunner, YagnaRunnerData, YagnaSettings,
+};
 use parking_lot::Mutex;
 use rand::distr::Alphanumeric;
 use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
@@ -79,7 +82,10 @@ impl ProviderSettings {
             ),
             ("EXE_UNIT_PATH".to_string(), self.exe_unit_path.clone()),
             ("NODE_NAME".to_string(), self.node_name.clone()),
-            ("CRUNCHER_CLIENT_API_URL".to_string(), self.client_api_url.to_string())
+            (
+                "CRUNCHER_CLIENT_API_URL".to_string(),
+                self.client_api_url.to_string(),
+            ),
         ];
         let mut yagna_envs = self.yagna_settings.to_env();
         envs.append(&mut yagna_envs);
@@ -499,6 +505,9 @@ pub async fn test_run_provider() {
     let mut yagna_runner = YagnaRunner::new(
         PathBuf::from("yagna.exe"),
         YagnaRunnerData::server(yagna_settings.clone()),
+        Arc::new(Mutex::new(TrackingResults {
+            actvities: BTreeMap::new(),
+        })),
     );
     yagna_runner.start().await.unwrap();
 
@@ -563,6 +572,9 @@ pub async fn test_run_provider() {
         let mut payment_check = YagnaRunner::new(
             PathBuf::from("yagna.exe"),
             YagnaRunnerData::payment_status(yagna_settings.clone()),
+            Arc::new(Mutex::new(TrackingResults {
+                actvities: BTreeMap::new(),
+            })),
         );
         payment_check.start().await.unwrap();
 
