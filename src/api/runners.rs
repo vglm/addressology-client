@@ -258,7 +258,39 @@ pub async fn set_runners_target(
     }
     HttpResponse::Ok().body("Target set to all runners")
 }
-
+pub async fn consume_results_raw(
+    data: Data<Box<ServerData>>,
+    request: HttpRequest,
+) -> Result<HttpResponse, actix_web::Error> {
+    let mut limit = extract_url_int_param(&request, "limit")?.unwrap_or(1000);
+    let mut results: Vec<FancyDbObjMin> = Vec::new();
+    for runner in data.runners.iter() {
+        let runner = match timeout(Duration::from_secs(5), runner.lock()).await {
+            Ok(guard) => guard,
+            Err(_) => {
+                return Ok(
+                    HttpResponse::RequestTimeout().body("Timed out while waiting for runner lock")
+                );
+            }
+        };
+        let runner_results = runner.consume_results(limit as usize);
+        limit -= runner_results.len() as i64;
+        for res in runner_results.into_iter() {
+            results.push(FancyDbObjMin {
+                address: res.address,
+                salt: res.salt,
+                factory: res.factory,
+                public_key_base: res.public_key_base,
+            });
+        }
+    }
+    let mut collect_bytes = Vec::new();
+    for res in results.iter() {
+        let res_bytes = hex::decode(res.salt.strip_prefix("0x").unwrap_or("")).unwrap_or(vec![]);
+        collect_bytes.extend_from_slice(&res_bytes);
+    }
+    Ok(HttpResponse::Ok().body(collect_bytes))
+}
 pub async fn consume_results(
     data: Data<Box<ServerData>>,
     request: HttpRequest,

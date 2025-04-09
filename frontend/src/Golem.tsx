@@ -111,7 +111,7 @@ const Golems = () => {
         const activityTrackingHistory = await response.json();
         console.log("Activity tracking history: ", activityTrackingHistory);
         setActivityTrackingHistory(activityTrackingHistory);
-    }
+    };
 
     const getActivityDetails = async () => {
         const response = await backendFetch("/api/provider/activity/details", {

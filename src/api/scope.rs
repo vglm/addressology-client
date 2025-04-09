@@ -4,8 +4,8 @@ use crate::api::golem::{
     yagna_info,
 };
 use crate::api::runners::{
-    consume_results, disable, enable, kill, list_runners, runners_start, runners_stop,
-    set_runners_target, start, start_benchmark, stop,
+    consume_results, consume_results_raw, disable, enable, kill, list_runners, runners_start,
+    runners_stop, set_runners_target, start, start_benchmark, stop,
 };
 use actix_web::{web, Scope};
 
@@ -21,6 +21,7 @@ pub fn server_api_scope() -> Scope {
         .route("/runner/{runner_no}/disable", web::post().to(disable))
         .route("/runners/target/set", web::post().to(set_runners_target))
         .route("/runners/results/consume", web::post().to(consume_results))
+        .route("/runners/results/consume/raw", web::post().to(consume_results_raw))
         .route("/runners/start", web::post().to(runners_start))
         .route("/runners/stop", web::post().to(runners_stop))
         .route("/yagna/start", web::post().to(start_yagna))

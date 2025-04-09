@@ -63,6 +63,8 @@ impl YagnaSettings {
             ("YAGNA_AUTOCONF_APPKEY".to_string(), self.app_key.clone()),
             ("YAGNA_APPKEY".to_string(), self.app_key.clone()), //technically not needed here, but useful in provider
             ("YA_CONSENT_STATS".to_string(), "allow".to_string()),
+            ("UNRESPONSIVE_LIMIT_SECONDS".to_string(), "50".to_string()),
+            ("INACTIVITY_LIMIT_SECONDS".to_string(), "40".to_string()),
         ];
         if let Some(net_connection) = &self.net_connection {
             match net_connection {

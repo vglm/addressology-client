@@ -48,6 +48,8 @@ pub struct ProviderSettings {
     node_name: String,
     yagna_settings: YagnaSettings,
     client_api_url: String,
+    unresponsive_limit_seconds: u64,
+    inactivity_limit_seconds: u64,
 }
 /*
          DATA_DIR: provider-dir
@@ -71,21 +73,20 @@ impl ProviderSettings {
             node_name,
             yagna_settings,
             client_api_url,
+            unresponsive_limit_seconds: 1,
+            inactivity_limit_seconds: 1,
         }
     }
     pub fn to_env(&self) -> Vec<(String, String)> {
+        #[rustfmt::skip]
         let mut envs = vec![
             ("DATA_DIR".to_string(), self.data_dir.clone()),
-            (
-                "YA_PAYMENT_NETWORK".to_string(),
-                self.payment_network.clone(),
-            ),
+            ("YA_PAYMENT_NETWORK".to_string(), self.payment_network.clone()),
             ("EXE_UNIT_PATH".to_string(), self.exe_unit_path.clone()),
             ("NODE_NAME".to_string(), self.node_name.clone()),
-            (
-                "CRUNCHER_CLIENT_API_URL".to_string(),
-                self.client_api_url.to_string(),
-            ),
+            ("CRUNCHER_CLIENT_API_URL".to_string(), self.client_api_url.to_string()),
+            ("UNRESPONSIVE_LIMIT_SECONDS".to_string(), self.unresponsive_limit_seconds.to_string()),
+            ("INACTIVITY_LIMIT_SECONDS".to_string(), self.inactivity_limit_seconds.to_string())
         ];
         let mut yagna_envs = self.yagna_settings.to_env();
         envs.append(&mut yagna_envs);
@@ -521,6 +522,8 @@ pub async fn test_run_provider() {
         node_name: "DummyNode".to_string(),
         yagna_settings: yagna_settings.clone(),
         client_api_url: "http://127.0.0.1:181".to_string(),
+        unresponsive_limit_seconds: 65,
+        inactivity_limit_seconds: 60,
     };
     {
         let mut provider_runner = ProviderRunner::new(
